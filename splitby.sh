@@ -147,7 +147,7 @@ perl -e '
         my @data_parts = split /(?:$regex)/, $input;
         @data_parts = grep { $_ ne "" } @data_parts;
         
-        print "$#data_parts\n";
+        print ($#data_parts + 1) . "\n";
         exit 0;
     }
 
