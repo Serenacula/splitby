@@ -8,7 +8,7 @@ run_test() {
     local command="$2"
     local expected="$3"
 
-    actual_output=$(eval "$command")
+    actual_output=$(eval "$command" 2>&1)
     if [[ "$actual_output" != "$expected" ]]; then
         # Print the failed test result and exit immediately
         echo "Test failed: $description"
