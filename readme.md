@@ -10,13 +10,15 @@ The delimiter is any regex string, e.g. `-d "\s+"`
 
 The range states which entries you want in the output. It accepts a specific index or a range. A range can be left open, e.g. `-3` will go from the start to the third item.
 
-Examples:
+### Examples
 
 `echo "boo hoo" | splitby -d " " 2` will output `hoo`
 
 `echo "boo hoo foo" | splitby -d " " 2-3` will output `hoo foo`
 
 `echo "this is a test" | splitby -d " " 2-` will output `is a test`
+
+### Count
 
 The count option allows you to get the number of results, useful for scripting:
 
