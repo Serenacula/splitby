@@ -44,11 +44,11 @@ These allow for fast and simple string processing, for example:
 
 ## Options
 
-```
--d, --delimiter <regex>       Specify the delimiter to use (required)
--i, --input <input_string>    Provide input string directly
--c, --count                   Return the number of results after split
--s, --strict-bounds           Emit error if range is out of bounds (default: disabled)
-```
+| Flag                       | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| -d, --delimiter <regex>    | Specify the delimiter to use (required)                  |
+| -i, --input <input_string> | Provide input string directly                            |
+| -c, --count                | Return the number of results after split                 |
+| -s, --strict-bounds        | Emit error if range is out of bounds (default: disabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
