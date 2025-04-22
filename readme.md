@@ -22,7 +22,7 @@ echo "boo hoo" | splitby -d " " 2
 ```
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 2-3
+echo "boo,hoo,foo" | splitby -d "," 2-3
 > hoo foo
 ```
 
@@ -36,7 +36,7 @@ echo "this is a test" | splitby -d " " 2-
 The count option allows you to get the number of results, useful for scripting:
 
 ```sh
-echo "this is a test" | splitby --count -d " "
+echo "this;is;a;test" | splitby --count -d ";"
 > 4
 ```
 
