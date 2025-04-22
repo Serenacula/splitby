@@ -6,7 +6,7 @@ A bash script that splits a string by a delimiter and returns a selection of the
 
 The usage format is: `splitby [options] -d <delimiter> <index_or_range>`
 
-The delimiter is any regex string, e.g. `"\s+"`
+The delimiter is any regex string, e.g. `-d "\s+"`
 
 The range states which entries you want in the output. It accepts a specific index or a range. A range can be left open, e.g. `-3` will go from the start to the third item.
 
