@@ -21,7 +21,7 @@ show_help() {
     echo "  -v, --version               Show the current version"
     echo
     echo "Example:"
-    echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field
+    echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field"
     echo "  > hoo"
     echo "  echo \"this is a test\" | splitby -d ' ' 1-2   # Extract fields from 1 to 4"
     echo "  > this is"
