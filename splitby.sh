@@ -28,11 +28,31 @@ show_help() {
     exit 0
 }
 
+# --- Check for Perl dependency ---
+required_version="5.10.0"
+
+if ! command -v perl &> /dev/null; then
+    echo "Error: Perl is required but not installed." >&2
+    exit 1
+fi
+
+installed_version=$(perl -e 'print $^V')
+
+if [[ "$installed_version" < "$required_version" ]]; then
+    echo "Error: Perl version $required_version or higher is required. Installed version is $installed_version." >&2
+    exit 1
+fi
+
+
 # --- Parse options ---
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
             show_help
+            ;;
+        -v|--version)
+            echo "1.0.0"
+            exit 0
             ;;
         -d|--delimiter)
             delimiter="$2"
@@ -77,6 +97,12 @@ if [[ -z "$index" ]] && [[ "$count" -eq 0 ]]; then
     exit 1
 fi
 
+# --- Ensure delimiter is provided ---
+if [[ -z "$delimiter" ]]; then
+    echo "Delimiter is required. Use -d or --delimiter to set one." >&2
+    exit 1
+fi
+
 # --- Read from stdin if no input string provided ---
 if [[ -z "$input" ]]; then
     if [[ -t 0 ]]; then
@@ -89,12 +115,6 @@ fi
 # --- Check for empty input ---
 if [[ -z "$input" ]]; then
     echo "No input provided. Use -i/--input or pipe data to stdin." >&2
-    exit 1
-fi
-
-# --- Ensure delimiter is provided ---
-if [[ -z "$delimiter" ]]; then
-    echo "Error: Delimiter is required. Use -d or --delimiter to set one." >&2
     exit 1
 fi
 
