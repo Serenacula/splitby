@@ -28,19 +28,25 @@ The count option allows you to get the number of results, useful for scripting:
 
 To install the command locally, paste the following into terminal:
 
-`curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitby.sh > /usr/local/bin/splitby && chmod +x /usr/local/bin/splitby`
+```sh
+curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitby.sh > /usr/local/bin/splitby && chmod +x /usr/local/bin/splitby
+```
 
 ### Useful Aliases
 
 It's also suggested to add the following aliases, for some common usecases:
 
-`alias getline="splitby -d '\n'"`
-
-`alias getword="splitby -d '\s+'"`
+```sh
+alias getline="splitby -d '\n'"
+alias getword="splitby -d '\s+'"
+```
 
 These allow for fast and simple string processing, for example:
 
-`echo "this is\na test" | getline 2 | getword 2` outputs `test`
+```sh
+echo "this is\na test" | getline 2 | getword 2
+> test
+```
 
 ## Options
 
