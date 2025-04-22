@@ -129,6 +129,11 @@ else
     # Single number
     start="$index"
     end="$index"
+    
+    if [[ ! "$index" =~ ^[0-9]+$ ]] && [[ "$count" -eq 0 ]]; then
+        echo "Error: Index must be a number or range" >&2
+        exit 1
+    fi
 fi
 
 # --- Run Perl split ---
@@ -147,7 +152,8 @@ perl -e '
         my @data_parts = split /(?:$regex)/, $input;
         @data_parts = grep { $_ ne "" } @data_parts;
         
-        print ($#data_parts + 1) . "\n";
+        my $num_parts = $#data_parts + 1;
+        print "$num_parts\n";
         exit 0;
     }
 
