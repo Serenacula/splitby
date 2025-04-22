@@ -4,7 +4,11 @@ A bash script that splits a string by a delimiter and returns a selection of the
 
 ## How to use
 
-The usage format is: `splitby [options] -d <delimiter> <index_or_range>`
+The usage format is:
+
+```sh
+splitby [options] -d <delimiter> <index_or_range>
+```
 
 The delimiter is any regex string, e.g. `-d "\s+"`
 
@@ -12,17 +16,29 @@ The range states which entries you want in the output. It accepts a specific ind
 
 ### Examples
 
-`echo "boo hoo" | splitby -d " " 2` will output `hoo`
+```sh
+echo "boo hoo" | splitby -d " " 2
+> hoo
+```
 
-`echo "boo hoo foo" | splitby -d " " 2-3` will output `hoo foo`
+```sh
+echo "boo hoo foo" | splitby -d " " 2-3
+> hoo foo
+```
 
-`echo "this is a test" | splitby -d " " 2-` will output `is a test`
+```sh
+echo "this is a test" | splitby -d " " 2-
+> is a test
+```
 
 ### Count
 
 The count option allows you to get the number of results, useful for scripting:
 
-`echo "this is a test" | splitby --count -d " "` will output `4`
+```sh
+echo "this is a test" | splitby --count -d " "
+> 4
+```
 
 ## Installation
 
@@ -54,7 +70,7 @@ echo "this is\na test" | getline 2 | getword 2
 | -------------------------- | -------------------------------------------------------- |
 | -d, --delimiter <regex>    | Specify the delimiter to use (required)                  |
 | -i, --input <input_string> | Provide input string directly                            |
-| -c, --count                | Return the number of results after split                 |
+| -c, --count                | Return the number of results after splitting             |
 | -s, --strict-bounds        | Emit error if range is out of bounds (default: disabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
