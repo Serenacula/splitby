@@ -162,6 +162,9 @@ perl -e '
         die "End index must be a number.\n" unless $end_raw =~ /^\d+$/;
         $end = $end_raw - 1;
     }
+    elsif ($end_raw eq "") {
+        $end = $#parts;
+    }
     
 
     # Strict bounds handling (optional)
@@ -182,7 +185,7 @@ perl -e '
 
     # Gracefully ignore out-of-bounds indices if not strict bounds
     if ($start > $#parts || $end < 0) {
-        print "";
+        print "\n";
         exit 0;
     }
     if ($start < 0) {
