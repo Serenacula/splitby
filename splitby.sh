@@ -13,11 +13,12 @@ show_help() {
     echo "Usage: $0 [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d, --delimiter <regex>     Set custom delimiter (required)"
+    echo "  -d, --delimiter <regex>     Specify the delimiter to use (required)"
     echo "  -i, --input <input_string>  Provide input string directly"
     echo "  -c, --count                 Return the number of results"
-    echo "  -s, --strict-bounds         Fail if range is out of bounds (default: disabled)"
-    echo "  --help                      Display this help message"
+    echo "  -s, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
+    echo "  -h, --help                  Display this help message"
+    echo "  -v, --version               Show the current version"
     echo
     echo "Example:"
     echo "  echo \"this is a test\" | $0 1-2   # Extract fields from 1 to 4"

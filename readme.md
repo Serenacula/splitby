@@ -18,6 +18,10 @@ Examples:
 
 `echo "this is a test" | splitby -d " " 2-` will output `is a test`
 
+The count option allows you to get the number of results, useful for scripting:
+
+`echo "this is a test" | splitby --count -d " "` will output `4`
+
 ## Installation
 
 To install the command locally, paste the following into terminal:
@@ -33,3 +37,14 @@ It's also suggested to add the following aliases, for some common usecases:
 These allow for fast and simple string processing, for example:
 
 `echo "this is\na test" | getline 2 | getword 2` outputs `test`
+
+## Options
+
+```
+-d, --delimiter <regex>       Specify the delimiter to use (required)
+-i, --input <input_string>    Provide input string directly
+-c, --count                   Return the number of results after split
+-s, --strict-bounds           Emit error if range is out of bounds (default: disabled)
+```
+
+By default the input string is taken from stdin, unless the `--input` flag is used.
