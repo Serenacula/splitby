@@ -10,7 +10,7 @@ show_help() {
     echo
     echo "Split a string by a delimiter and return a selection of the result."
     echo
-    echo "Usage: $0 [options] -d <delimiter> index_or_range"
+    echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
     echo "  -d, --delimiter <regex>     Specify the delimiter to use (required)"
@@ -21,10 +21,10 @@ show_help() {
     echo "  -v, --version               Show the current version"
     echo
     echo "Example:"
-    echo "  echo \"this is a test\" | $0 1-2   # Extract fields from 1 to 4"
-    echo "    output:  this is"
-    echo "  $0 -i \"this is a test\" 2-        # Extract fields from 2 to 3"
-    echo "    output:  is a test"
+    echo "  echo \"this is a test\" | splitby -d ' ' 1-2   # Extract fields from 1 to 4"
+    echo "  > this is"
+    echo "  splitby -i \"this,is,a,test\" -d ',' 2-        # Extract fields from 2 to 3"
+    echo "  > is a test"
     echo
     exit 0
 }
@@ -94,7 +94,7 @@ done
 
 # --- Ensure index provided ---
 if [[ -z "$index" ]] && [[ "$count" -eq 0 ]]; then
-    echo "Usage: $0 [options] -d <delimiter> index_or_range" >&2
+    echo "Index range required. Use -h or --help to see usage." >&2
     exit 1
 fi
 
