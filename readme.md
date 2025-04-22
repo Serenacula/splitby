@@ -30,6 +30,8 @@ To install the command locally, paste the following into terminal:
 
 `curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitby.sh > /usr/local/bin/splitby && chmod +x /usr/local/bin/splitby`
 
+### Useful Aliases
+
 It's also suggested to add the following aliases, for some common usecases:
 
 `alias getline="splitby -d '\n'"`
