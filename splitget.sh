@@ -1,6 +1,6 @@
 #!/bin/bash
 
-delimiter='\s+'   # default regex for whitespace
+delimiter=""   # default regex for whitespace
 input=""
 index=""
 count=0
@@ -8,12 +8,12 @@ strict_bounds=0
 
 show_help() {
     echo
-    echo "Split a string and return a selection of the result."
+    echo "Split a string by a delimiter and return a selection of the result."
     echo
-    echo "Usage: $0 [options] index_or_range"
+    echo "Usage: $0 [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d, --delimiter <regex>     Set custom delimiter (default: whitespace)"
+    echo "  -d, --delimiter <regex>     Set custom delimiter (required)"
     echo "  -i, --input <input_string>  Provide input string directly"
     echo "  -c, --count                 Return the number of results"
     echo "  -s, --strict-bounds         Fail if range is out of bounds (default: disabled)"
@@ -70,9 +70,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+
 # --- Ensure index provided ---
 if [[ -z "$index" ]] && [[ "$count" -eq 0 ]]; then
-    echo "Usage: $0 [-d delimiter] [-i input] [--strict-bounds] index_or_range"
+    echo "Usage: $0 [options] -d <delimiter> index_or_range" >&2
     exit 1
 fi
 
@@ -87,7 +88,13 @@ fi
 
 # --- Check for empty input ---
 if [[ -z "$input" ]]; then
-    echo "Error: Input is empty. Provide input using -i/--input or via stdin."
+    echo "No input provided. Use -i/--input or pipe data to stdin." >&2
+    exit 1
+fi
+
+# --- Ensure delimiter is provided ---
+if [[ -z "$delimiter" ]]; then
+    echo "Error: Delimiter is required. Use -d or --delimiter to set one." >&2
     exit 1
 fi
 
