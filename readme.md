@@ -23,7 +23,7 @@ echo "boo hoo" | splitby -d " " 2
 
 ```sh
 echo "boo,hoo,foo" | splitby -d "," 2-3
-> hoo foo
+> hoo,foo
 ```
 
 ```sh
