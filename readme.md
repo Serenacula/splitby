@@ -49,34 +49,23 @@ echo "this is a test" | splitby -d " " 1 3-4
 > a test
 ```
 
-### Count
+### Empty Fields
 
-The count option allows you to get the number of results, useful for scripting:
+**Empty fields are considered valid!**
+
+The following will treat the empty space as a valid field when indexing.
 
 ```sh
-echo "this;is;a;test" | splitby --count -d ";"
-> 4
+echo "boo,,hoo" | splitby -d "," 2-3
+> ,foo
 ```
 
-### Strict-bounds
-
-In normal operation, the script silently limits the bounds to within the range. Strict mode tells it to emit an error instead.
-
-For example, this is silently corrected to `2-3`:
+If you wish to skip it, you can do so by altering the regex:
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 2-5
-> hoo foo
-```
-
-This is also true for single indexes, when they are out of bounds. This becomes `3`:
-
-```sh
-echo "boo hoo foo" | splitby -d " " 4
+echo "boo,,hoo" | splitby -d ",+" 2
 > foo
 ```
-
-In both cases, strict mode will instead emit an error.
 
 ## Installation
 
@@ -114,3 +103,39 @@ echo "this is\na test" | getline 2 | getword 2
 | -s, --strict-bounds         | Emit error if range is out of bounds (default: disabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
+
+### Count
+
+The count option allows you to get the number of results, useful for scripting:
+
+```sh
+echo "this;is;a;test" | splitby --count -d ";"
+> 4
+```
+
+**As with index selection, empty fields are counted**
+
+```sh
+echo "boo;;hoo" | splitby --count -d ";"
+> 3
+```
+
+### Strict-bounds
+
+In normal operation, the script silently limits the bounds to within the range. Strict mode tells it to emit an error instead.
+
+For example, this is silently corrected to `2-3`:
+
+```sh
+echo "boo hoo foo" | splitby -d " " 2-5
+> hoo foo
+```
+
+This is also true for single indexes, when they are out of bounds. This becomes `3`:
+
+```sh
+echo "boo hoo foo" | splitby -d " " 4
+> foo
+```
+
+In both cases, strict mode will instead emit an error.
