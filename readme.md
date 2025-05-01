@@ -106,6 +106,8 @@ echo "this is\na test" | getline 2 | getword 2
 
 | Flag                        | Description                                              |
 | --------------------------- | -------------------------------------------------------- |
+| -h, --help                  | Print help text                                          |
+| -v, --version               | Print version number                                     |
 | -d, --delimiter \<regex>    | Specify the delimiter to use (required)                  |
 | -i, --input \<input_string> | Provide input string directly                            |
 | -c, --count                 | Return the number of results after splitting             |
