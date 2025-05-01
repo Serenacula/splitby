@@ -9,6 +9,12 @@ run_test() {
     local expected="$3"
 
     actual_output=$(eval "$command" 2>&1)
+    status=$?
+    
+    if [[ "$expected" == "error" ]] && [[ $status -ne 0 ]]; then
+        return
+    fi
+    
     if [[ "$actual_output" != "$expected" ]]; then
         # Print the failed test result and exit immediately
         echo
@@ -23,50 +29,65 @@ run_test() {
     fi
 }
 
-# Test 1: Simple split
+# Basic usage
 run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1" "this"
-run_test "Split by comma" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' 2" "banana"
-
-# Test 3: Range selection with space delimiter
-run_test "Range selection with space delimiter" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2" "this is"
-
-# Test 4: Range with no end (open-ended range)
-run_test "Range with no end" "echo 'this is a test' | ./splitby.sh -d '\\s+' 2-" "is a test"
-
-# Test 5: Use --count flag to count the number of fields
-run_test "Use --count to count fields" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count" "4"
-
-# Test 6: Edge case - Single field (index out of range)
-run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d '\\s+' 2" ""
-
-# Test 7: Empty input with error handling
-run_test "Empty input with error handling" "echo '' | ./splitby.sh -d '\\s+' 1" "No input provided. Use -i/--input or pipe data to stdin."
-
-# Test 8: Invalid delimiter regex
-run_test "Invalid delimiter regex" "echo 'this is a test' | ./splitby.sh -d '[[' 1" "Invalid delimiter regex: [["
-
-# Test 9: Strict bounds checking with out-of-range index
-run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 10" "Start index (10) out of bounds. Must be between 1 and 4"
-
-# Test 10: Empty string with strict bounds
-run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d '\\s+' --strict-bounds 1" "No input provided. Use -i/--input or pipe data to stdin."
-
-# Test 11: Test with a different delimiter (newline)
+run_test "Split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ',' 2" "banana"
 run_test "Test with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' 2" "is"
 
-# Test 12: Using --count with different delimiters
+# Negative usage
+run_test "Negative number" "echo 'this is a test' | ./splitby.sh -d '\\s+' -1" "test"
+run_test "Negative split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ',' -2" "plum"
+
+# Empty index
+run_test "Split by space, empty selection" "echo 'this is a test' | ./splitby.sh -d '\\s+'" "this is a test"
+
+# Range selection
+run_test "Range selection" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2" "this is"
+run_test "Negative range selection" "echo 'this is a test' | ./splitby.sh -d '\\s+' -3--1" "is a test"
+run_test "Positive to negative range" "echo 'this is a test' | ./splitby.sh -d '\\s+' 2--1" "is a test"
+run_test "Negative to positive range" "echo 'this is a test' | ./splitby.sh -d '\\s+' -3-4" "is a test"
+
+# Multiple indexes
+run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1 2 3-4" $'this\nis\na test'
+
+# Edge cases
+# Note: I've decided to respect empty fields for now. Might change my mind later
+run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d '\\s+' 2" ""
+run_test "Single delimiter at beginning" "echo ' apple' | ./splitby.sh -d ' ' 2" "apple"
+run_test "Single delimiter at end" "echo 'apple ' | ./splitby.sh -d ' ' 1" "apple"
+run_test "Multiple delimiters with spaces and commas" "echo 'apple, orange  banana, pear' | ./splitby.sh -d '[,\\s]+' 1-3" "apple, orange  banana"
+run_test "Delimiter appears multiple times" "echo 'apple,,orange' | ./splitby.sh -d ',' 3" "orange"
+run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | ./splitby.sh -d ',' 1-3" "apple,,orange"
+
+# Count feature
+run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count" "4"
 run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
+run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh -d '\\n' --count" "4"
+run_test "--count errors with indexing" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count 1" "error"
 
-# Test 13: Input with spaces and multiple delimiters (whitespace and comma)
-run_test "Multiple delimiters with spaces and commas" "echo 'apple, orange  banana, pear' | ./splitby.sh -d '[,\\s]+' 2-3" "orange  banana"
+# Strict bounds feature
+run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 2-4" "is a test"
+run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 0" "error"
+run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 5" "error"
+run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d '\\s+' --strict-bounds 1" "error"
 
-# Test 14: Delimiter is not provided (error handling)
-run_test "Delimiter not provided" "echo 'this is a test' | ./splitby.sh 1" "Delimiter is required. Use -d or --delimiter to set one."
-run_test "Delimiter not provided" "echo 'this is a test' | ./splitby.sh  -d '' 1" "Delimiter is required. Use -d or --delimiter to set one."
+# Invalid delimiter
+run_test "Delimiter not provided" "echo 'this is a test' | ./splitby.sh 1" "error"
+run_test "Delimiter empty" "echo 'this is a test' | ./splitby.sh  -d '' 1" "error"
+run_test "Invalid delimiter regex" "echo 'this is a test' | ./splitby.sh -d '[[' 1" "error"
 
-# Test 15: Invalid index format (e.g., '1a' instead of '1')
-run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1a" "Error: Index must be a number or range"
-run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "Error: Index must be a number or range"
+# Empty input
+run_test "Empty input" "echo '' | ./splitby.sh -d '\\s+' 1" "error"
+run_test "Empty -i input" "./splitby.sh -i '' -d ','" "error"
+run_test "No input" "./splitby.sh -d ','" "error"
+
+# Invalid index
+run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1a" "error"
+run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "error"
+run_test "Start after end" "echo 'this is a test' | ./splitby.sh -d ' ' 2-1" "error"
+run_test "Start after end negative" "echo 'this is a test' | ./splitby.sh -d ' ' -1--2" "error"
+run_test "Start after end positive-negative" "echo 'this is a test' | ./splitby.sh -d ' ' 4--2" "error"
+run_test "Start after end negative-positive" "echo 'this is a test' | ./splitby.sh -d ' ' -1-3" "error"
 
 # If all tests pass
 

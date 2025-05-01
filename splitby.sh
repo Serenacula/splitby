@@ -2,7 +2,6 @@
 
 delimiter=""   # default regex for whitespace
 input=""
-index=""
 count=0
 strict_bounds=0
 
@@ -23,9 +22,11 @@ show_help() {
     echo "Example:"
     echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field"
     echo "  > hoo"
-    echo "  echo \"this is a test\" | splitby -d ' ' 1-2   # Extract fields from 1 to 4"
-    echo "  > this is"
-    echo "  splitby -i \"this,is,a,test\" -d ',' 2-        # Extract fields from 2 to 3"
+    echo "  echo \"boo hoo \" | splitby -d ' ' -1          # Negative values count backwards from the end"
+    echo "  > hoo"
+    echo "  echo \"this is a test\" | splitby -d ' ' 1-3   # Extract fields from 1 to 3"
+    echo "  > this is a"
+    echo "  splitby -i \"this,is,a,test\" -d ',' 2--1      # Extract fields from 2 to the last item"
     echo "  > is a test"
     echo
     exit 0
@@ -48,13 +49,15 @@ fi
 
 
 # --- Parse options ---
+selections=()  # To store all range/index inputs
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
             show_help
             ;;
         -v|--version)
-            echo "1.0.0"
+            echo "1.1.0"
             exit 0
             ;;
         -d|--delimiter)
@@ -77,28 +80,18 @@ while [[ $# -gt 0 ]]; do
             shift
             break
             ;;
-        -*)
-            if [[ "$1" =~ ^-[0-9]*$ ]]; then
-                index="$1"  # Keep full -N (we’ll handle it in range parsing)
+        *)
+            # Could be a negative number like -3 or a malformed flag
+            if [[ "$1" =~ ^-?[0-9]+(--?[0-9]+)?$ ]]; then
+                selections+=("$1")
                 shift
             else
-                echo "Unknown option: $1"
+                echo "Unknown option or invalid input: $1, use -h or --help to see usage."
                 exit 1
             fi
             ;;
-        *)
-            index="$1"
-            shift
-            ;;
     esac
 done
-
-
-# --- Ensure index provided ---
-if [[ -z "$index" ]] && [[ "$count" -eq 0 ]]; then
-    echo "Index range required. Use -h or --help to see usage." >&2
-    exit 1
-fi
 
 # --- Ensure delimiter is provided ---
 if [[ -z "$delimiter" ]]; then
@@ -122,88 +115,118 @@ if [[ -z "$input" ]]; then
 fi
 
 # --- Parse range ---
-if [[ "$index" =~ ^([0-9]*)-([0-9]*)$ ]]; then
-    start="${BASH_REMATCH[1]}"
-    end="${BASH_REMATCH[2]}"
+# If no selections provided, select everything (represented as empty start/end)
+[[ ${#selections[@]} -eq 0 ]] && selections+=("")
 
-    [[ -z "$start" ]] && start=1   # "-4" → from 1
-    # Leave end blank if "2-" to signal open-ended range
-else
-    # Single number
-    start="$index"
-    end="$index"
-    
-    if [[ ! "$index" =~ ^[0-9]+$ ]] && [[ "$count" -eq 0 ]]; then
-        echo "Error: Index must be a number or range" >&2
+# For each selection, validate format and prepare ranges
+starts=()
+ends=()
+
+for selection in "${selections[@]}"; do
+    if [[ "$selection" =~ ^(-?[0-9]+)$ ]]; then
+        # Single index
+        starts+=("${BASH_REMATCH[1]}")
+        ends+=("${BASH_REMATCH[1]}")
+    elif [[ "$selection" =~ ^(-?[0-9]+)-(-?[0-9]+)$ ]]; then
+        start="${BASH_REMATCH[1]}"
+        end="${BASH_REMATCH[2]}"
+
+        # Disallow wrapping if both are same sign
+        if [[ "$start" =~ ^- && "$end" =~ ^- ]] || ([[ "$start" =~ ^[0-9] ]] && [[ "$end" =~ ^[0-9] ]]); then
+            if (( end < start )); then
+                echo "Error: end index ($end) is less than start index ($start) in selection '$selection'" >&2
+                exit 1
+            fi
+        fi
+
+        starts+=("$start")
+        ends+=("$end")
+    elif [[ -z "$selection" ]]; then
+        # Empty selection means full range
+        starts+=("1")
+        ends+=("-1")
+    else
+        echo "Invalid selection syntax: '$selection'" >&2
         exit 1
     fi
-fi
+done
 
 # --- Run Perl split ---
-perl -e '
+perl_script='
     use strict;
     use warnings;
 
     my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds) = @ARGV;
+    
 
     my $regex = eval { qr/$regex_raw/ };
     if ($@) {
         die "Invalid delimiter regex: $regex_raw\n";
     }
     
+    my @data_parts = split /(?:$regex)/, $input;
+    # @data_parts = grep { $_ ne "" } @data_parts;
+    my $num_data_parts = scalar @data_parts;
+    
     if ($count) {
-        my @data_parts = split /(?:$regex)/, $input;
-        @data_parts = grep { $_ ne "" } @data_parts;
-        
-        my $num_parts = $#data_parts + 1;
-        print "$num_parts\n";
+        print "$num_data_parts\n";
         exit 0;
     }
 
-    my @parts = split /($regex)/, $input;  # Split with capturing groups to preserve delimiters
-    
 
-    die "Start index is required.\n" unless defined $start_raw && $start_raw =~ /^\d+$/;
-    my $start = $start_raw - 1;  # Convert to zero-indexed
 
+    # Convert start index (can be negative)
+    my $start;
+    if ($start_raw =~ /^-[0-9]+$/) {
+        $start = $num_data_parts + $start_raw;  # e.g. -1 means last element
+    } elsif ($start_raw =~ /^[0-9]+$/) {
+        $start = $start_raw - 1;  # Convert to 0-indexed
+    } else {
+        die "Start index must be an integer.\n";
+    }
+
+    # Convert end index (can be empty or negative)
     my $end;
-    if (defined $end_raw && $end_raw ne "") {
-        die "End index must be a number.\n" unless $end_raw =~ /^\d+$/;
+    if ($end_raw =~ /^-[0-9]+$/) {
+        $end = $num_data_parts + $end_raw;
+    } elsif ($end_raw =~ /^[0-9]+$/) {
         $end = $end_raw - 1;
+    } else {
+        die "End index must be an integer.\n";
     }
-    elsif ($end_raw eq "") {
-        $end = $#parts;
+
+    # Invalid range
+    if ($end < $start) {
+        die "Error: end index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
     }
-    
 
     # Strict bounds handling (optional)
     if ($strict_bounds) {
-        my @data_parts = split /(?:$regex)/, $input;
-        @data_parts = grep { $_ ne "" } @data_parts;
-        
         if ($start < 0 || $start > $#data_parts) {
             die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
         }
         if ($end < 0 || $end > $#data_parts) {
             die "End index ($end_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
         }
-        if ($end < $start) {
-            die "End index ($end_raw) cannot be less than start index ($start_raw)\n";
-        }
     }
 
     # Gracefully ignore out-of-bounds indices if not strict bounds
-    if ($start > $#parts || $end < 0) {
+    if ($start > $#data_parts || $end < 0) {
         print "\n";
         exit 0;
     }
     if ($start < 0) {
-        $start = 0
+        $start = 0;
     }
+    if ($end > $#data_parts) {
+        $end = $#data_parts;
+    }
+    
 
     # Combine fields within range, preserving delimiters
     my @output;
     my $field_index = 0;
+    my @parts = split /($regex)/, $input;  # Split with capturing groups to preserve delimiters
     for (my $i = 0; $i < @parts; $i += 2) {
         my $field = $parts[$i];
         my $delim = $parts[$i + 1] // "";
@@ -222,5 +245,22 @@ perl -e '
 
     # Only add a newline at the end if the input doesnt already have one
     print $result;
-    print "\n" unless $result =~ /\n\z/;
-' "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds"
+'
+
+result=""
+for ((i = 0; i < ${#starts[@]}; i++)); do
+    start="${starts[i]}"
+    end="${ends[i]}"
+    
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" 2>&1)
+    code=$?
+    
+    if [[ $code -ne 0 ]]; then
+        echo "$out"
+        exit $code
+    fi
+    
+    result+="$out"$'\n'
+done
+
+echo -e "$result"

@@ -12,23 +12,41 @@ splitby [options] -d <delimiter> <index_or_range>
 
 The delimiter is any regex string, e.g. `-d "\s+"`
 
-The range states which entries you want in the output. It accepts a specific index or a range. A range can be left open, e.g. `-3` will go from the start to the third item.
+The index states which values you want. It can accept a single number `2` or a range `2-3`.
+
+Negative numbers are valid, and count from the end. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is after the ending index.
+
+Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be separated by a new line.
 
 ### Examples
+
+_Simple usecase_
 
 ```sh
 echo "boo hoo" | splitby -d " " 2
 > hoo
 ```
 
+_Range_
+
 ```sh
 echo "boo,hoo,foo" | splitby -d "," 2-3
 > hoo,foo
 ```
 
+_Negative index_
+
 ```sh
-echo "this is a test" | splitby -d " " 2-
-> is a test
+echo "this is a test" | splitby -d " " -2
+> a
+```
+
+_Multiple indexes_
+
+```sh
+echo "this is a test" | splitby -d " " 1 3-4
+> this
+> a test
 ```
 
 ### Count
@@ -39,6 +57,26 @@ The count option allows you to get the number of results, useful for scripting:
 echo "this;is;a;test" | splitby --count -d ";"
 > 4
 ```
+
+### Strict-bounds
+
+In normal operation, the script silently limits the bounds to within the range. Strict mode tells it to emit an error instead.
+
+For example, this is silently corrected to `2-3`:
+
+```sh
+echo "boo hoo foo" | splitby -d " " 2-5
+> hoo foo
+```
+
+This is also true for single indexes, when they are out of bounds. This becomes `3`:
+
+```sh
+echo "boo hoo foo" | splitby -d " " 4
+> foo
+```
+
+In both cases, strict mode will instead emit an error.
 
 ## Installation
 
