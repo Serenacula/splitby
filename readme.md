@@ -60,10 +60,12 @@ echo "boo,,hoo" | splitby -d "," 2-3
 > ,foo
 ```
 
-If you wish to skip it, you can do so by altering the regex:
+If you wish to skip it, you can do so by altering the regex, or by using the --skip-empty flag:
 
 ```sh
 echo "boo,,hoo" | splitby -d ",+" 2
+> foo
+echo "boo,,hoo" | splitby --skip-empty -d "," 2
 > foo
 ```
 
@@ -93,14 +95,17 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                        | Description                                              |
-| --------------------------- | -------------------------------------------------------- |
-| -h, --help                  | Print help text                                          |
-| -v, --version               | Print version number                                     |
-| -d, --delimiter \<regex>    | Specify the delimiter to use (required)                  |
-| -i, --input \<input_string> | Provide input string directly                            |
-| -c, --count                 | Return the number of results after splitting             |
-| -s, --strict-bounds         | Emit error if range is out of bounds (default: disabled) |
+| Flag                        | Description                                      |
+| --------------------------- | ------------------------------------------------ |
+| -h, --help                  | Print help text                                  |
+| -v, --version               | Print version number                             |
+| -d, --delimiter \<regex>    | Specify the delimiter to use (required)          |
+| -i, --input \<input_string> | Provide input string directly                    |
+| -c, --count                 | Return the number of results after splitting     |
+| -s, --strict                | Shorthand for --strict-bounds and --strict-empty |
+| -sb, --strict-bounds        | Emit error if range is out of bounds             |
+| -se, --strict-empty         | Emit error if there is no result                 |
+| -e, --skip-empty            | Skips empty fields when indexing or counting     |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -113,45 +118,79 @@ echo "this;is;a;test" | splitby --count -d ";"
 > 4
 ```
 
-**As with index selection, empty fields are counted**
+**As with index selection, empty fields are counted** unless you use the --skip-empty flag
 
 ```sh
 echo "boo;;hoo" | splitby --count -d ";"
 > 3
+echo "boo;;hoo" | splitby --count --skip-empty -d ";"
+> 2
 ```
 
 ### Strict-bounds
 
-In normal operation, the script silently limits the bounds to within the range. Strict mode tells it to emit an error instead.
+In normal operation, the script silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
 
-For example, this is silently corrected to `2-3`:
+For example, this is silently corrected to `2-3`. With strict mode, it emits an error to stderr instead:
 
 ```sh
 echo "boo hoo foo" | splitby -d " " 2-5
 > hoo foo
-```
-
-With strict mode, it emits an error to stderr instead:
-
-```sh
 echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
 > End index (5) out of bounds. Must be between 1 and 3
 ```
 
-In situations where a range is entirely out of bounds, it will emit nothing without an error. This is also true for single indexes, when they are out of bounds.
+This also applies to single indexes out of bounds. By default, they emit an empty line:
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 4-5
+echo "boo hoo foo" | splitby --strict-bounds -d " " 4
 >
-echo "boo hoo foo" | splitby -d " " 4
->
+echo "boo hoo foo" | splitby --strict-bounds -d " " 4
+> Index (4) out of bounds. Must be between 1 and 3
 ```
 
-In both cases, strict mode will instead emit an error.
+### Strict-empty
+
+In situations where there is no results at all, the script defaults to emitting nothing. --strict-empty tells it to empty an error instead.
+
+For example if a delimiter has no results:
 
 ```sh
-echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
-> Start index (4) out of bounds. Must be between 1 and 3
-echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
-> Start index (5) out of bounds. Must be between 1 and 3
+echo "boo hoo" | splitby -d ","
+>
+echo "boo hoo" | splitby --strict-empty -d ","
+> Strict empty check failed: No valid fields available
+```
+
+Similarly, if you skip empty fields:
+
+```sh
+echo ",," | splitby --skip-empty -d ","
+>
+echo ",," | splitby --strict-empty -d ","
+> Strict empty check failed: No valid fields available
+```
+
+It has no effect when --count is used.
+
+### Skip-empty
+
+By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
+
+For example, the default behaviour is this:
+
+```sh
+echo "boo,,hoo" | splitby -d "," 2
+>
+echo "boo,,hoo" | splitby -d "," --count
+> 3
+```
+
+With --skip-empty this becomes:
+
+```sh
+echo "boo,,hoo" | splitby --skip-empty -d "," 2
+> hoo
+echo "boo,,hoo" | splitby --skip-empty -d "," --count
+> 2
 ```

@@ -4,6 +4,8 @@ delimiter=""   # default regex for whitespace
 input=""
 count=0
 strict_bounds=0
+strict_empty=0
+skip_empty=0
 
 show_help() {
     echo
@@ -12,12 +14,15 @@ show_help() {
     echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d, --delimiter <regex>     Specify the delimiter to use (required)"
-    echo "  -i, --input <input_string>  Provide input string directly"
-    echo "  -c, --count                 Return the number of results"
-    echo "  -s, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
-    echo "  -h, --help                  Display this help message"
-    echo "  -v, --version               Show the current version"
+    echo "  -d,  --delimiter <regex>     Specify the delimiter to use (required)"
+    echo "  -i,  --input <input_string>  Provide input string directly"
+    echo "  -c,  --count                 Return the number of results"
+    echo "  -s,  --strict                Shorthand for --strict-bounds and --strict-empty"
+    echo "  -sb, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
+    echo "  -se, --strict-empty          Emit error if there is no usable result"
+    echo "  -e,  --skip-empty            Skip empty fields"
+    echo "  -h,  --help                  Display this help message"
+    echo "  -v,  --version               Show the current version"
     echo
     echo "Example:"
     echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field"
@@ -72,8 +77,21 @@ while [[ $# -gt 0 ]]; do
             count=1
             shift
             ;;
-        -s|--strict-bounds)
+        -s|--strict)
             strict_bounds=1
+            strict_empty=1
+            shift
+            ;;
+        -sb|--strict-bounds)
+            strict_bounds=1
+            shift
+            ;;
+        -se|--strict-empty)
+            strict_empty=1
+            shift
+            ;;
+        -e|--skip-empty)
+            skip_empty=1
             shift
             ;;
         --)
@@ -156,7 +174,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds) = @ARGV;
+    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $skip_empty) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -165,7 +183,7 @@ perl_script='
     }
     
     my @data_parts = split /(?:$regex)/, $input;
-    # @data_parts = grep { $_ ne "" } @data_parts;
+    @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts;
     my $num_data_parts = scalar @data_parts;
     
     if ($count) {
@@ -173,7 +191,13 @@ perl_script='
         exit 0;
     }
 
-
+    # This situation is hard-coded, in order to make pipes simpler
+    if ($num_data_parts == 0) {
+        if ($strict_empty) {
+            die "Strict empty check failed: No valid fields available\n"
+        }
+        exit 0;
+    }
 
     # Convert start index (can be negative)
     my $start;
@@ -197,12 +221,15 @@ perl_script='
 
     # Invalid range
     if ($end < $start) {
-        die "Error: end index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
+        die "End index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
     }
 
     # Strict bounds handling (optional)
     if ($strict_bounds) {
         if ($start < 0 || $start > $#data_parts) {
+            if ($start_raw == $end_raw) {
+                die "Index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+            }
             die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
         }
         if ($end < 0 || $end > $#data_parts) {
@@ -237,7 +264,8 @@ perl_script='
                 push @output, $delim;  # Always keep the delimiter
             }
         }
-        $field_index++;
+        my $is_empty = $field eq "";
+        $field_index++ unless $skip_empty && $is_empty;
     }
 
     # Join the result into one string
@@ -256,7 +284,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$skip_empty" 2>&1)
     code=$?
     
     if [[ $code -ne 0 ]]; then

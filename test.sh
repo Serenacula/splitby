@@ -72,6 +72,21 @@ run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./spli
 run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 5" "error"
 run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d '\\s+' --strict-bounds 1" "error"
 
+# Skip empty feature
+run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
+run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' 2" "orange"
+run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" ""
+run_test "All fields empty" "echo ',' | ./splitby.sh -d ','" ""
+
+# Skip with string
+run_test "Strict mode works" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" "error"
+
+# Skip with count
+run_test "Starting empty field with count" "echo ',orange' | ./splitby.sh --skip-empty -d ',' --count" "1"
+run_test "Middle field empty with count" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' --count" "2"
+run_test "Final field empty with count" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' --count" "-1"
+run_test "All fields empty with count" "echo ',' | ./splitby.sh --skip-empty -d ',' --count" "0"
+
 # Invalid delimiter
 run_test "Delimiter not provided" "echo 'this is a test' | ./splitby.sh 1" "error"
 run_test "Delimiter empty" "echo 'this is a test' | ./splitby.sh  -d '' 1" "error"
