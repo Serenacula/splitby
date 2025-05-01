@@ -53,7 +53,7 @@ echo "this is a test" | splitby -d " " 1 3-4
 
 **Empty fields are considered valid!**
 
-The following will treat the empty space as a valid field when indexing.
+The following will treat the empty space as a valid field when indexing:
 
 ```sh
 echo "boo,,hoo" | splitby -d "," 2-3
@@ -131,11 +131,27 @@ echo "boo hoo foo" | splitby -d " " 2-5
 > hoo foo
 ```
 
-This is also true for single indexes, when they are out of bounds. This becomes `3`:
+With strict mode, it emits an error to stderr instead:
 
 ```sh
+echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
+> End index (5) out of bounds. Must be between 1 and 3
+```
+
+In situations where a range is entirely out of bounds, it will emit nothing without an error. This is also true for single indexes, when they are out of bounds.
+
+```sh
+echo "boo hoo foo" | splitby -d " " 4-5
+>
 echo "boo hoo foo" | splitby -d " " 4
-> foo
+>
 ```
 
 In both cases, strict mode will instead emit an error.
+
+```sh
+echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
+> Start index (4) out of bounds. Must be between 1 and 3
+echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
+> Start index (5) out of bounds. Must be between 1 and 3
+```

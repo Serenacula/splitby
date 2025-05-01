@@ -212,7 +212,7 @@ perl_script='
 
     # Gracefully ignore out-of-bounds indices if not strict bounds
     if ($start > $#data_parts || $end < 0) {
-        print "\n";
+        # print "\n";
         exit 0;
     }
     if ($start < 0) {
@@ -249,6 +249,10 @@ perl_script='
 
 result=""
 for ((i = 0; i < ${#starts[@]}; i++)); do
+    if [[ $i -ne 0 ]]; then
+        result+=$'\n'
+    fi
+    
     start="${starts[i]}"
     end="${ends[i]}"
     
@@ -260,7 +264,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
         exit $code
     fi
     
-    result+="$out"$'\n'
+    result+="$out"
 done
 
 echo -e "$result"

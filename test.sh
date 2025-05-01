@@ -63,7 +63,8 @@ run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | .
 run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count" "4"
 run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
 run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh -d '\\n' --count" "4"
-run_test "--count errors with indexing" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count 1" "error"
+# Decided this error was pointlessly strict. It will just ignore indexes when counting
+# run_test "--count errors with indexing" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count 1" "error"
 
 # Strict bounds feature
 run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 2-4" "is a test"
