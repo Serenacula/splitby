@@ -109,7 +109,7 @@ echo "this is\na test" | getline 2 | getword 2
 | -e, --skip-empty            | Skips empty fields when indexing or counting      |
 | -s, --strict                | Shorthand for --strict-bounds and --strict-return |
 | -sb, --strict-bounds        | Emit error if range is out of bounds              |
-| -se, --strict-return        | Emit error if there is no result                  |
+| -sr, --strict-return        | Emit error if there is no result                  |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 

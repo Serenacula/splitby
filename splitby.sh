@@ -19,7 +19,7 @@ show_help() {
     echo "  -c,  --count                 Return the number of results"
     echo "  -s,  --strict                Shorthand for --strict-bounds and --strict-return"
     echo "  -sb, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
-    echo "  -se, --strict-return         Emit error if there is no usable result"
+    echo "  -sr, --strict-return         Emit error if there is no usable result"
     echo "  -e,  --skip-empty            Skip empty fields"
     echo "  -h,  --help                  Display this help message"
     echo "  -v,  --version               Show the current version"
@@ -86,7 +86,7 @@ while [[ $# -gt 0 ]]; do
             strict_bounds=1
             shift
             ;;
-        -se|--strict-return)
+        -sr|--strict-return)
             strict_return=1
             shift
             ;;
