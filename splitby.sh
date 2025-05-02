@@ -5,6 +5,7 @@ input=""
 count=0
 strict_bounds=0
 strict_return=0
+strict_range_order=0
 skip_empty=0
 
 show_help() {
@@ -14,15 +15,16 @@ show_help() {
     echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d,  --delimiter <regex>     Specify the delimiter to use (required)"
-    echo "  -i,  --input <input_string>  Provide input string directly"
-    echo "  -c,  --count                 Return the number of results"
-    echo "  -s,  --strict                Shorthand for --strict-bounds and --strict-return"
-    echo "  -sb, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
-    echo "  -sr, --strict-return         Emit error if there is no usable result"
-    echo "  -e,  --skip-empty            Skip empty fields"
-    echo "  -h,  --help                  Display this help message"
-    echo "  -v,  --version               Show the current version"
+    echo "  -d,   --delimiter <regex>     Specify the delimiter to use (required)"
+    echo "  -i,   --input <input_string>  Provide input string directly"
+    echo "  -c,   --count                 Return the number of results"
+    echo "  -s,   --strict                Shorthand for all strict features"
+    echo "  -sb,  --strict-bounds         Emit error if range is out of bounds (default: disabled)"
+    echo "  -sr,  --strict-return         Emit error if there is no usable result"
+    echo "  -sro, --strict-range-order    Emit error if the start of a range is greater than the end"
+    echo "  -e,   --skip-empty            Skip empty fields"
+    echo "  -h,   --help                  Display this help message"
+    echo "  -v,   --version               Show the current version"
     echo
     echo "Example:"
     echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field"
@@ -80,6 +82,7 @@ while [[ $# -gt 0 ]]; do
         -s|--strict)
             strict_bounds=1
             strict_return=1
+            strict_range_order=1
             shift
             ;;
         -sb|--strict-bounds)
@@ -88,6 +91,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -sr|--strict-return)
             strict_return=1
+            shift
+            ;;
+        -sro|--strict-range-order)
+            strict_range_order=1
             shift
             ;;
         -e|--skip-empty)
@@ -152,7 +159,7 @@ for selection in "${selections[@]}"; do
 
         # Disallow wrapping if both are same sign
         if [[ "$start" =~ ^- && "$end" =~ ^- ]] || ([[ "$start" =~ ^[0-9] ]] && [[ "$end" =~ ^[0-9] ]]); then
-            if (( end < start )); then
+            if (( end < start )) && [[ $strict_range_order -eq 1 ]]; then
                 echo "Error: end index ($end) is less than start index ($start) in selection '$selection'" >&2
                 exit 1
             fi
@@ -175,7 +182,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $skip_empty, $no_selection) = @ARGV;
+    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -231,10 +238,15 @@ perl_script='
     } else {
         die "End index must be an integer.\n";
     }
+    
+    
 
     # Invalid range
-    if ($end < $start) {
-        die "End index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
+    if ($end < $start && !$no_selection) {
+        if ($strict_range_order) {
+            die "End index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
+        }
+        exit 0;
     }
 
     # Strict bounds handling (optional)
@@ -300,7 +312,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$skip_empty" "$no_selection" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
     # Error code
