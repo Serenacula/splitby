@@ -20,7 +20,7 @@ show_help() {
     echo "  -c,   --count                 Return the number of results"
     echo "  -e,   --skip-empty            Skip empty fields"
     echo "  -s,   --strict                Shorthand for all strict features"
-    echo "  -sb,  --strict-bounds         Emit error if range is out of bounds (default: disabled)"
+    echo "  -sb,  --strict-bounds         Emit error if range is out of bounds"
     echo "  -sr,  --strict-return         Emit error if there is no usable result"
     echo "  -sro, --strict-range-order    Emit error if the start of a range is greater than the end"
     echo "  -h,   --help                  Display this help message"
