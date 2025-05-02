@@ -35,42 +35,48 @@ run_test "Split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ','
 run_test "Test with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' 2" "is"
 
 # Negative usage
-run_test "Negative number" "echo 'this is a test' | ./splitby.sh -d '\\s+' -1" "test"
+run_test "Negative number" "echo 'this is a test' | ./splitby.sh -d ' ' -1" "test"
 run_test "Negative split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ',' -2" "plum"
 
 # Empty index
-run_test "Split by space, empty selection" "echo 'this is a test' | ./splitby.sh -d '\\s+'" "this is a test"
+run_test "Split by space, empty selection" "echo 'this is a test' | ./splitby.sh -d ' '" $'this\nis\na\ntest'
 
 # Range selection
-run_test "Range selection" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2" "this is"
-run_test "Negative range selection" "echo 'this is a test' | ./splitby.sh -d '\\s+' -3--1" "is a test"
-run_test "Positive to negative range" "echo 'this is a test' | ./splitby.sh -d '\\s+' 2--1" "is a test"
-run_test "Negative to positive range" "echo 'this is a test' | ./splitby.sh -d '\\s+' -3-4" "is a test"
+run_test "Range selection" "echo 'this is a test' | ./splitby.sh -d ' ' 1-2" "this is"
+run_test "Negative range selection" "echo 'this is a test' | ./splitby.sh -d ' ' -3--1" "is a test"
+run_test "Positive to negative range" "echo 'this is a test' | ./splitby.sh -d ' ' 2--1" "is a test"
+run_test "Negative to positive range" "echo 'this is a test' | ./splitby.sh -d ' ' -3-4" "is a test"
 
 # Multiple indexes
-run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1 2 3-4" $'this\nis\na test'
+run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d ' ' 1 2 3-4" $'this\nis\na test'
 
 # Edge cases
 # Note: I've decided to respect empty fields for now. Might change my mind later
-run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d '\\s+' 2" ""
+run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d ' ' 2" ""
 run_test "Single delimiter at beginning" "echo ' apple' | ./splitby.sh -d ' ' 2" "apple"
 run_test "Single delimiter at end" "echo 'apple ' | ./splitby.sh -d ' ' 1" "apple"
-run_test "Multiple delimiters with spaces and commas" "echo 'apple, orange  banana, pear' | ./splitby.sh -d '[,\\s]+' 1-3" "apple, orange  banana"
+run_test "Multiple delimiters with spaces and commas" "echo 'apple, orange  banana, pear' | ./splitby.sh -d '[, ]+' 1-3" "apple, orange  banana"
 run_test "Delimiter appears multiple times" "echo 'apple,,orange' | ./splitby.sh -d ',' 3" "orange"
 run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | ./splitby.sh -d ',' 1-3" "apple,,orange"
 
 # Count feature
-run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count" "4"
+run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d ' ' --count" "4"
 run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
 run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh -d '\\n' --count" "4"
 # Decided this error was pointlessly strict. It will just ignore indexes when counting
 # run_test "--count errors with indexing" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count 1" "error"
 
 # Strict bounds feature
-run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 2-4" "is a test"
-run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 0" "error"
-run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d '\\s+' --strict-bounds 5" "error"
-run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d '\\s+' --strict-bounds 1" "error"
+run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 2-4" "is a test"
+run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 0" "error"
+run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 5" "error"
+run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d ' ' --strict-bounds 1" "error"
+
+# Strict empty feature
+run_test "Strict empty feature" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z'" "error"
+run_test "Strict empty with out-of-range index" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z' 1" "error"
+run_test "Strict empty allows empty fields" "echo ',' | ./splitby.sh --strict-empty -d ','" ""
+run_test "Strict empty counts" "echo ',' | ./splitby.sh --strict-empty -d ','" "2"
 
 # Skip empty feature
 run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
@@ -78,8 +84,9 @@ run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-empty 
 run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" ""
 run_test "All fields empty" "echo ',' | ./splitby.sh -d ','" ""
 
-# Skip with string
-run_test "Strict mode works" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" "error"
+# Skip with strict
+run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 2" ""
+run_test "Skip with strict empty fails" "echo 'orange,' | ./splitby.sh --skip-empty --strict-empty -d ',' 2" "error"
 
 # Skip with count
 run_test "Starting empty field with count" "echo ',orange' | ./splitby.sh --skip-empty -d ',' --count" "1"

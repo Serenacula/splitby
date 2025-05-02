@@ -133,8 +133,9 @@ if [[ -z "$input" ]]; then
 fi
 
 # --- Parse range ---
-# If no selections provided, select everything (represented as empty start/end)
-[[ ${#selections[@]} -eq 0 ]] && selections+=("")
+# If no selections provided, select everything
+no_selection=0
+[[ ${#selections[@]} -eq 0 ]] && no_selection=1 && selections+=("")
 
 # For each selection, validate format and prepare ranges
 starts=()
@@ -174,7 +175,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $skip_empty) = @ARGV;
+    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_empty, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -187,14 +188,19 @@ perl_script='
     my $num_data_parts = scalar @data_parts;
     
     if ($count) {
+        # Hardcoding to deal with unintuitive perl behaviour
+        if ($num_data_parts == 1) {
+            print "0\n";
+            exit 0;
+        }
         print "$num_data_parts\n";
         exit 0;
     }
 
     # This situation is hard-coded, in order to make pipes simpler
-    if ($num_data_parts == 0) {
+    if ($num_data_parts == 0 || $num_data_parts == 1) {
         if ($strict_empty) {
-            die "Strict empty check failed: No valid fields available\n"
+            die "Strict empty check failed: No valid fields available\n";
         }
         exit 0;
     }
@@ -257,22 +263,25 @@ perl_script='
     for (my $i = 0; $i < @parts; $i += 2) {
         my $field = $parts[$i];
         my $delim = $parts[$i + 1] // "";
-
+        
         if ($field_index >= $start && $field_index <= $end) {
             push @output, $field;
-            if ($field_index < $end) {
+            if ($field_index < $end && !$no_selection) {
                 push @output, $delim;  # Always keep the delimiter
             }
         }
-        my $is_empty = $field eq "";
-        $field_index++ unless $skip_empty && $is_empty;
+        
+        $field_index++ unless $skip_empty && $field eq "";
     }
 
     # Join the result into one string
-    my $result = join("", @output);
-
-    # Only add a newline at the end if the input doesnt already have one
-    print $result;
+    if ($no_selection) {
+        my $result = join("\n", @output);
+        print $result;
+    } else {
+        my $result = join("", @output);
+        print $result;
+    }
 '
 
 result=""
@@ -284,9 +293,10 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$skip_empty" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_empty" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
+    # Error code
     if [[ $code -ne 0 ]]; then
         echo "$out"
         exit $code
@@ -295,4 +305,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     result+="$out"
 done
 
-echo -e "$result"
+# Skip echo if it isn't going to say anything
+if [[ ! -z $result ]]; then
+    echo -e "$result"
+fi

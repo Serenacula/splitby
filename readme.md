@@ -23,15 +23,17 @@ Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be sep
 _Simple usecase_
 
 ```sh
-echo "boo hoo" | splitby -d " " 2
+echo "boo hoo" | splitby -d " " 1
+> boo
+echo "boo,hoo" | splitby -d "," 2
 > hoo
 ```
 
 _Range_
 
 ```sh
-echo "boo,hoo,foo" | splitby -d "," 2-3
-> hoo,foo
+echo "boo hoo foo" | splitby -d " " 2-3 # Delimiter is kept within a range
+> hoo foo
 ```
 
 _Negative index_
@@ -39,6 +41,8 @@ _Negative index_
 ```sh
 echo "this is a test" | splitby -d " " -2
 > a
+echo "this is a test" | splitby -d " " -3--1
+> is a test
 ```
 
 _Multiple indexes_
@@ -82,8 +86,8 @@ curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitb
 It's also suggested to add the following aliases, for some common usecases:
 
 ```sh
-alias getline="splitby -d '\n'"
-alias getword="splitby -d '\s+'"
+alias getline="splitby -d '\n'" # Split on newline
+alias getword="splitby -d '\s+'" # Split on whitespace
 ```
 
 These allow for fast and simple string processing, for example:
@@ -102,28 +106,50 @@ echo "this is\na test" | getline 2 | getword 2
 | -d, --delimiter \<regex>    | Specify the delimiter to use (required)          |
 | -i, --input \<input_string> | Provide input string directly                    |
 | -c, --count                 | Return the number of results after splitting     |
+| -e, --skip-empty            | Skips empty fields when indexing or counting     |
 | -s, --strict                | Shorthand for --strict-bounds and --strict-empty |
 | -sb, --strict-bounds        | Emit error if range is out of bounds             |
 | -se, --strict-empty         | Emit error if there is no result                 |
-| -e, --skip-empty            | Skips empty fields when indexing or counting     |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
 ### Count
 
-The count option allows you to get the number of results, useful for scripting:
+The count option allows you to get the number of results:
 
 ```sh
 echo "this;is;a;test" | splitby --count -d ";"
 > 4
 ```
 
-**As with index selection, empty fields are counted** unless you use the --skip-empty flag
+As with index selection, empty fields are counted unless you use the --skip-empty flag.
 
 ```sh
 echo "boo;;hoo" | splitby --count -d ";"
 > 3
 echo "boo;;hoo" | splitby --count --skip-empty -d ";"
+> 2
+```
+
+### Skip-empty
+
+By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
+
+With indexes:
+
+```sh
+echo "boo,,hoo" | splitby -d "," 2
+>
+echo "boo,,hoo" | splitby --skip-empty -d "," 2
+> hoo
+```
+
+With count:
+
+```sh
+echo "boo,,hoo" | splitby -d "," --count
+> 3
+echo "boo,,hoo" | splitby --skip-empty -d "," --count
 > 2
 ```
 
@@ -172,25 +198,3 @@ echo ",," | splitby --strict-empty -d ","
 ```
 
 It has no effect when --count is used.
-
-### Skip-empty
-
-By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
-
-For example, the default behaviour is this:
-
-```sh
-echo "boo,,hoo" | splitby -d "," 2
->
-echo "boo,,hoo" | splitby -d "," --count
-> 3
-```
-
-With --skip-empty this becomes:
-
-```sh
-echo "boo,,hoo" | splitby --skip-empty -d "," 2
-> hoo
-echo "boo,,hoo" | splitby --skip-empty -d "," --count
-> 2
-```
