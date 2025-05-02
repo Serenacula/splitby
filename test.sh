@@ -79,10 +79,10 @@ run_test "Strict return allows empty fields" "echo ',' | ./splitby.sh --strict-r
 run_test "Strict return counts" "echo ',' | ./splitby.sh --strict-return --count -d ','" "2"
 
 # Skip empty feature
-run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-return -d ',' 1" "orange"
-run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-return -d ',' 2" "orange"
-run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-return -d ',' 2" ""
-run_test "All fields empty" "echo ',' | ./splitby.sh -d ','" ""
+run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
+run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' 2" "orange"
+run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" ""
+run_test "All fields empty" "echo ',' | ./splitby.sh --skip-empty -d ','" ""
 
 # Skip with strict
 run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 1" "orange"
