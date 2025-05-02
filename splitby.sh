@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             ;;
         -v|--version)
-            echo "1.1.0"
+            echo "1.0.0"
             exit 0
             ;;
         -d|--delimiter)
