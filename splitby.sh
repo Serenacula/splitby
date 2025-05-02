@@ -183,22 +183,29 @@ perl_script='
         die "Invalid delimiter regex: $regex_raw\n";
     }
     
-    my @data_parts = split /(?:$regex)/, $input;
-    @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts;
+    my @data_parts_raw = split /(?:$regex)/, $input, -1;
+    my $num_data_parts_raw = scalar @data_parts_raw;
+    
+    my @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts_raw;
     my $num_data_parts = scalar @data_parts;
     
-    if ($count) {
-        # Hardcoding to deal with unintuitive perl behaviour
-        if ($num_data_parts == 1) {
+    if ($num_data_parts_raw == 1) {
+        if ($count) {
             print "0\n";
             exit 0;
         }
+        if ($strict_empty) {
+            die "Strict empty check failed: No valid fields available\n";
+        }
+        exit 0;
+    }
+    
+    if ($count) {
         print "$num_data_parts\n";
         exit 0;
     }
 
-    # This situation is hard-coded, in order to make pipes simpler
-    if ($num_data_parts == 0 || $num_data_parts == 1) {
+    if ($num_data_parts == 0) {
         if ($strict_empty) {
             die "Strict empty check failed: No valid fields available\n";
         }

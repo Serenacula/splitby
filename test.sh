@@ -76,7 +76,7 @@ run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d ' ' --stri
 run_test "Strict empty feature" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z'" "error"
 run_test "Strict empty with out-of-range index" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z' 1" "error"
 run_test "Strict empty allows empty fields" "echo ',' | ./splitby.sh --strict-empty -d ','" ""
-run_test "Strict empty counts" "echo ',' | ./splitby.sh --strict-empty -d ','" "2"
+run_test "Strict empty counts" "echo ',' | ./splitby.sh --strict-empty --count -d ','" "2"
 
 # Skip empty feature
 run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
@@ -85,13 +85,15 @@ run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 
 run_test "All fields empty" "echo ',' | ./splitby.sh -d ','" ""
 
 # Skip with strict
-run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 2" ""
-run_test "Skip with strict empty fails" "echo 'orange,' | ./splitby.sh --skip-empty --strict-empty -d ',' 2" "error"
+run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 1" "orange"
+run_test "Skip with strict bounds fails" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 2" "error"
+run_test "Skip with strict empty works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-empty -d ',' 1" "orange"
+run_test "Skip with strict empty fails" "echo ',,' | ./splitby.sh --skip-empty --strict-empty -d ',' 1" "error"
 
 # Skip with count
 run_test "Starting empty field with count" "echo ',orange' | ./splitby.sh --skip-empty -d ',' --count" "1"
 run_test "Middle field empty with count" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' --count" "2"
-run_test "Final field empty with count" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' --count" "-1"
+run_test "Final field empty with count" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' --count" "1"
 run_test "All fields empty with count" "echo ',' | ./splitby.sh --skip-empty -d ',' --count" "0"
 
 # Invalid delimiter
