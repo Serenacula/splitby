@@ -29,7 +29,7 @@ show_help() {
     echo "Example:"
     echo "  echo \"boo hoo\" | splitby -d ' ' 2            # Extract 2nd field"
     echo "  > hoo"
-    echo "  echo \"boo hoo \" | splitby -d ' ' -1          # Negative values count backwards from the end"
+    echo "  echo \"boo hoo \" | splitby -d ' ' -1          # Extra last field"
     echo "  > hoo"
     echo "  echo \"this is a test\" | splitby -d ' ' 1-3   # Extract fields from 1 to 3"
     echo "  > this is a"
