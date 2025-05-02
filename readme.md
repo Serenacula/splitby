@@ -99,17 +99,18 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                        | Description                                       |
-| --------------------------- | ------------------------------------------------- |
-| -h, --help                  | Print help text                                   |
-| -v, --version               | Print version number                              |
-| -d, --delimiter \<regex>    | Specify the delimiter to use (required)           |
-| -i, --input \<input_string> | Provide input string directly                     |
-| -c, --count                 | Return the number of results after splitting      |
-| -e, --skip-empty            | Skips empty fields when indexing or counting      |
-| -s, --strict                | Shorthand for --strict-bounds and --strict-return |
-| -sb, --strict-bounds        | Emit error if range is out of bounds              |
-| -sr, --strict-return        | Emit error if there is no result                  |
+| Flag                        | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| -h, --help                  | Print help text                                      |
+| -v, --version               | Print version number                                 |
+| -d, --delimiter \<regex>    | Specify the delimiter to use (required)              |
+| -i, --input \<input_string> | Provide input string directly                        |
+| -c, --count                 | Return the number of results after splitting         |
+| -e, --skip-empty            | Skips empty fields when indexing or counting         |
+| -s, --strict                | Shorthand for all strict features                    |
+| -sb, --strict-bounds        | Emit error if range is out of bounds                 |
+| -sr, --strict-return        | Emit error if there is no result                     |
+| -sro, --strict-range-order  | Emit error if the start of a range is before the end |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -127,7 +128,7 @@ As with index selection, empty fields are counted unless you use the --skip-empt
 ```sh
 echo "boo;;hoo" | splitby --count -d ";"
 > 3
-echo "boo;;hoo" | splitby --count --skip-empty -d ";"
+echo "boo;;hoo" | splitby --count -d ";" --skip-empty
 > 2
 ```
 
@@ -140,7 +141,7 @@ With indexes:
 ```sh
 echo "boo,,hoo" | splitby -d "," 2
 >
-echo "boo,,hoo" | splitby --skip-empty -d "," 2
+echo "boo,,hoo" | splitby -d "," 2 --skip-empty
 > hoo
 ```
 
@@ -149,7 +150,7 @@ With count:
 ```sh
 echo "boo,,hoo" | splitby -d "," --count
 > 3
-echo "boo,,hoo" | splitby --skip-empty -d "," --count
+echo "boo,,hoo" | splitby -d "," --count --skip-empty
 > 2
 ```
 
@@ -162,16 +163,16 @@ For example, this is silently corrected to `2-3`. With strict mode, it emits an 
 ```sh
 echo "boo hoo foo" | splitby -d " " 2-5
 > hoo foo
-echo "boo hoo foo" | splitby --strict-bounds -d " " 2-5
+echo "boo hoo foo" | splitby -d " " 2-5  --strict-bounds
 > End index (5) out of bounds. Must be between 1 and 3
 ```
 
 This also applies to single indexes out of bounds. By default, they emit an empty line:
 
 ```sh
-echo "boo hoo foo" | splitby --strict-bounds -d " " 4
+echo "boo hoo foo" | splitby -d " " 4
 >
-echo "boo hoo foo" | splitby --strict-bounds -d " " 4
+echo "boo hoo foo" | splitby -d " " 4  --strict-bounds
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
@@ -184,7 +185,7 @@ For example if a delimiter has no results:
 ```sh
 echo "boo hoo" | splitby -d ","
 >
-echo "boo hoo" | splitby --strict-return -d ","
+echo "boo hoo" | splitby -d "," --strict-return
 > strict return check failed: No valid fields available
 ```
 
@@ -193,7 +194,7 @@ Similarly, if you skip empty fields:
 ```sh
 echo ",," | splitby --skip-empty -d ","
 >
-echo ",," | splitby --strict-return --skip-empty -d ","
+echo ",," | splitby --skip-empty -d "," --strict-return
 > strict return check failed: No valid fields available
 ```
 
@@ -205,3 +206,14 @@ echo ",," | splitby --strict-return -d "," # This still works!
 ```
 
 It has no effect when --count is used.
+
+### Strict-range-order
+
+This flag causes an error to emit if the start of a range is after the end. For example, `3-1`.
+
+```sh
+echo "boo hoo" | splitby -d " " 3-1
+>
+echo "boo hoo" | splitby -d " " 3-1 --strict-range-order
+> End index (1) is less than start index (3) in selection 3-1\n
+```
