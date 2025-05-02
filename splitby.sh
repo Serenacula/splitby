@@ -33,7 +33,7 @@ show_help() {
     echo "  > hoo"
     echo "  echo \"this is a test\" | splitby -d ' ' 1-3   # Extract fields from 1 to 3"
     echo "  > this is a"
-    echo "  splitby -i \"this,is,a,test\" -d ',' 2--1      # Extract fields from 2 to the last item"
+    echo "  splitby -i test.txt -d ',' 2--1      # Extract fields from 2 to the last item"
     echo "  > is a test"
     echo
     exit 0
