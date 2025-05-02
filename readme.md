@@ -99,18 +99,18 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                        | Description                                          |
-| --------------------------- | ---------------------------------------------------- |
-| -h, --help                  | Print help text                                      |
-| -v, --version               | Print version number                                 |
-| -d, --delimiter \<regex>    | Specify the delimiter to use (required)              |
-| -i, --input \<input_string> | Provide input string directly                        |
-| -c, --count                 | Return the number of results after splitting         |
-| -e, --skip-empty            | Skips empty fields when indexing or counting         |
-| -s, --strict                | Shorthand for all strict features                    |
-| -sb, --strict-bounds        | Emit error if range is out of bounds                 |
-| -sr, --strict-return        | Emit error if there is no result                     |
-| -sro, --strict-range-order  | Emit error if the start of a range is before the end |
+| Flag                       | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| -h, --help                 | Print help text                                      |
+| -v, --version              | Print version number                                 |
+| -d, --delimiter \<regex>   | Specify the delimiter to use (required)              |
+| -i, --input \<input_file>  | Provide an input file                                |
+| -c, --count                | Return the number of results after splitting         |
+| -e, --skip-empty           | Skips empty fields when indexing or counting         |
+| -s, --strict               | Shorthand for all strict features                    |
+| -sb, --strict-bounds       | Emit error if range is out of bounds                 |
+| -sr, --strict-return       | Emit error if there is no result                     |
+| -sro, --strict-range-order | Emit error if the start of a range is before the end |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 

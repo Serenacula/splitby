@@ -16,7 +16,7 @@ show_help() {
     echo
     echo "Options:"
     echo "  -d,   --delimiter <regex>     Specify the delimiter to use (required)"
-    echo "  -i,   --input <input_string>  Provide input string directly"
+    echo "  -i,   --input <input_file>    Provide input file"
     echo "  -c,   --count                 Return the number of results"
     echo "  -s,   --strict                Shorthand for all strict features"
     echo "  -sb,  --strict-bounds         Emit error if range is out of bounds (default: disabled)"
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -i|--input)
-            input="$2"
+            input=$(cat $2)
             shift 2
             ;;
         -c|--count)
