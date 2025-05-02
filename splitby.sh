@@ -4,7 +4,7 @@ delimiter=""   # default regex for whitespace
 input=""
 count=0
 strict_bounds=0
-strict_empty=0
+strict_return=0
 skip_empty=0
 
 show_help() {
@@ -17,9 +17,9 @@ show_help() {
     echo "  -d,  --delimiter <regex>     Specify the delimiter to use (required)"
     echo "  -i,  --input <input_string>  Provide input string directly"
     echo "  -c,  --count                 Return the number of results"
-    echo "  -s,  --strict                Shorthand for --strict-bounds and --strict-empty"
+    echo "  -s,  --strict                Shorthand for --strict-bounds and --strict-return"
     echo "  -sb, --strict-bounds         Emit error if range is out of bounds (default: disabled)"
-    echo "  -se, --strict-empty          Emit error if there is no usable result"
+    echo "  -se, --strict-return         Emit error if there is no usable result"
     echo "  -e,  --skip-empty            Skip empty fields"
     echo "  -h,  --help                  Display this help message"
     echo "  -v,  --version               Show the current version"
@@ -79,15 +79,15 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--strict)
             strict_bounds=1
-            strict_empty=1
+            strict_return=1
             shift
             ;;
         -sb|--strict-bounds)
             strict_bounds=1
             shift
             ;;
-        -se|--strict-empty)
-            strict_empty=1
+        -se|--strict-return)
+            strict_return=1
             shift
             ;;
         -e|--skip-empty)
@@ -175,7 +175,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_empty, $skip_empty, $no_selection) = @ARGV;
+    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -194,7 +194,7 @@ perl_script='
             print "0\n";
             exit 0;
         }
-        if ($strict_empty) {
+        if ($strict_return) {
             die "Strict empty check failed: No valid fields available\n";
         }
         exit 0;
@@ -206,7 +206,7 @@ perl_script='
     }
 
     if ($num_data_parts == 0) {
-        if ($strict_empty) {
+        if ($strict_return) {
             die "Strict empty check failed: No valid fields available\n";
         }
         exit 0;
@@ -300,7 +300,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_empty" "$skip_empty" "$no_selection" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
     # Error code

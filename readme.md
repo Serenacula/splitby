@@ -99,17 +99,17 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                        | Description                                      |
-| --------------------------- | ------------------------------------------------ |
-| -h, --help                  | Print help text                                  |
-| -v, --version               | Print version number                             |
-| -d, --delimiter \<regex>    | Specify the delimiter to use (required)          |
-| -i, --input \<input_string> | Provide input string directly                    |
-| -c, --count                 | Return the number of results after splitting     |
-| -e, --skip-empty            | Skips empty fields when indexing or counting     |
-| -s, --strict                | Shorthand for --strict-bounds and --strict-empty |
-| -sb, --strict-bounds        | Emit error if range is out of bounds             |
-| -se, --strict-empty         | Emit error if there is no result                 |
+| Flag                        | Description                                       |
+| --------------------------- | ------------------------------------------------- |
+| -h, --help                  | Print help text                                   |
+| -v, --version               | Print version number                              |
+| -d, --delimiter \<regex>    | Specify the delimiter to use (required)           |
+| -i, --input \<input_string> | Provide input string directly                     |
+| -c, --count                 | Return the number of results after splitting      |
+| -e, --skip-empty            | Skips empty fields when indexing or counting      |
+| -s, --strict                | Shorthand for --strict-bounds and --strict-return |
+| -sb, --strict-bounds        | Emit error if range is out of bounds              |
+| -se, --strict-return        | Emit error if there is no result                  |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -175,17 +175,17 @@ echo "boo hoo foo" | splitby --strict-bounds -d " " 4
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
-### Strict-empty
+### Strict-return
 
-In situations where there is no results at all, the script defaults to emitting nothing. --strict-empty tells it to empty an error instead.
+In situations where there is no results at all, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
 For example if a delimiter has no results:
 
 ```sh
 echo "boo hoo" | splitby -d ","
 >
-echo "boo hoo" | splitby --strict-empty -d ","
-> Strict empty check failed: No valid fields available
+echo "boo hoo" | splitby --strict-return -d ","
+> strict return check failed: No valid fields available
 ```
 
 Similarly, if you skip empty fields:
@@ -193,8 +193,8 @@ Similarly, if you skip empty fields:
 ```sh
 echo ",," | splitby --skip-empty -d ","
 >
-echo ",," | splitby --strict-empty -d ","
-> Strict empty check failed: No valid fields available
+echo ",," | splitby --strict-return -d ","
+> strict return check failed: No valid fields available
 ```
 
 It has no effect when --count is used.
