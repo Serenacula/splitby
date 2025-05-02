@@ -72,23 +72,23 @@ run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./spli
 run_test "Strict bounds with out-of-range index" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 5" "error"
 run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d ' ' --strict-bounds 1" "error"
 
-# Strict empty feature
-run_test "Strict empty feature" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z'" "error"
-run_test "Strict empty with out-of-range index" "echo 'this is a test' | ./splitby.sh --strict-empty -d 'z' 1" "error"
-run_test "Strict empty allows empty fields" "echo ',' | ./splitby.sh --strict-empty -d ','" ""
-run_test "Strict empty counts" "echo ',' | ./splitby.sh --strict-empty --count -d ','" "2"
+# Strict return feature
+run_test "Strict return feature" "echo 'this is a test' | ./splitby.sh --strict-return -d 'z'" "error"
+run_test "Strict return with out-of-range index" "echo 'this is a test' | ./splitby.sh --strict-return -d 'z' 1" "error"
+run_test "Strict return allows empty fields" "echo ',' | ./splitby.sh --strict-return -d ','" ""
+run_test "Strict return counts" "echo ',' | ./splitby.sh --strict-return --count -d ','" "2"
 
 # Skip empty feature
-run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
-run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' 2" "orange"
-run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" ""
+run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-return -d ',' 1" "orange"
+run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-return -d ',' 2" "orange"
+run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-return -d ',' 2" ""
 run_test "All fields empty" "echo ',' | ./splitby.sh -d ','" ""
 
 # Skip with strict
 run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 1" "orange"
 run_test "Skip with strict bounds fails" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 2" "error"
-run_test "Skip with strict empty works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-empty -d ',' 1" "orange"
-run_test "Skip with strict empty fails" "echo ',,' | ./splitby.sh --skip-empty --strict-empty -d ',' 1" "error"
+run_test "Skip with strict return works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-return -d ',' 1" "orange"
+run_test "Skip with strict return fails" "echo ',,' | ./splitby.sh --skip-empty --strict-return -d ',' 1" "error"
 
 # Skip with count
 run_test "Starting empty field with count" "echo ',orange' | ./splitby.sh --skip-empty -d ',' --count" "1"

@@ -193,8 +193,15 @@ Similarly, if you skip empty fields:
 ```sh
 echo ",," | splitby --skip-empty -d ","
 >
-echo ",," | splitby --strict-return -d ","
+echo ",," | splitby --strict-return --skip-empty -d ","
 > strict return check failed: No valid fields available
+```
+
+**Note: This does NOT include situations where the result is empty**
+
+```sh
+echo ",," | splitby --strict-return -d "," # This still works!
+>
 ```
 
 It has no effect when --count is used.
