@@ -2,10 +2,12 @@
 
 delimiter=""   # default regex for whitespace
 input=""
+input_file_provided=0
+input_file=""
 count=0
 strict_bounds=0
 strict_return=0
-strict_range_order=0
+strict_range_order=1
 skip_empty=0
 
 show_help() {
@@ -15,16 +17,20 @@ show_help() {
     echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d,   --delimiter <regex>     Specify the delimiter to use (required)"
-    echo "  -i,   --input <input_file>    Provide input file"
-    echo "  -c,   --count                 Return the number of results"
-    echo "  -e,   --skip-empty            Skip empty fields"
-    echo "  -s,   --strict                Shorthand for all strict features"
-    echo "  -sb,  --strict-bounds         Emit error if range is out of bounds"
-    echo "  -sr,  --strict-return         Emit error if there is no usable result"
-    echo "  -sro, --strict-range-order    Emit error if the start of a range is greater than the end"
-    echo "  -h,   --help                  Display this help message"
-    echo "  -v,   --version               Show the current version"
+    echo "  -d, --delimiter <regex>      Specify the delimiter to use (required)"
+    echo "  -i, --input <input_file>     Provide input file"
+    echo "  -c, --count                  Return the number of results"
+    echo "  -e, --skip-empty             Skip empty fields"
+    echo "  -s, --strict                 Shorthand for all strict features"
+    echo "  -S, --no-strict              Turn off all strict features"
+    echo "      --strict-bounds          Emit error if range is out of bounds"
+    echo "      --no-strict-bounds       Turn off strict bounds"
+    echo "      --strict-return          Emit error if there is no usable result"
+    echo "      --no-strict-return       Turn off strict return"
+    echo "      --strict-range-order     Emit error if the start of a range is greater than the end (default: true)"
+    echo "      --no-strict-range-order  Turn off strict range order"
+    echo "  -h, --help                   Display this help message"
+    echo "  -v, --version                Show the current version"
     echo
     echo "Example:"
     echo "  echo \"this is a test\" | splitby -d ' ' 2            # Extract 2nd field"
@@ -72,7 +78,8 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -i|--input)
-            input=$(cat $2)
+            input_file_provided=1
+            input_file="$2"
             shift 2
             ;;
         -c|--count)
@@ -85,16 +92,34 @@ while [[ $# -gt 0 ]]; do
             strict_range_order=1
             shift
             ;;
-        -sb|--strict-bounds)
+        -S|--no-strict)
+            strict_bounds=0
+            strict_return=0
+            strict_range_order=0
+            shift
+            ;;
+        --strict-bounds)
             strict_bounds=1
             shift
             ;;
-        -sr|--strict-return)
+        --no-strict-bounds)
+            strict_bounds=0
+            shift
+            ;;
+        --strict-return)
             strict_return=1
             shift
             ;;
-        -sro|--strict-range-order)
+        --no-strict-return)
+            strict_return=0
+            shift
+            ;;
+        --strict-range-order)
             strict_range_order=1
+            shift
+            ;;
+        --no-strict-range-order)
+            strict_range_order=0
             shift
             ;;
         -e|--skip-empty)
@@ -124,8 +149,14 @@ if [[ -z "$delimiter" ]]; then
     exit 1
 fi
 
-# --- Read from stdin if no input string provided ---
-if [[ -z "$input" ]]; then
+# --- Check for input file ---
+if [[ "$input_file_provided" -eq 1 ]]; then
+    if [[ -z "$input_file" ]]; then
+        echo "-i flag used but no input file provided." >&2
+        exit 1
+    fi
+    input=$(cat $input_file)
+else
     if [[ -t 0 ]]; then
         echo "No input provided. Use -i/--input or pipe data to stdin." >&2
         exit 1
@@ -135,6 +166,12 @@ fi
 
 # --- Check for empty input ---
 if [[ -z "$input" ]]; then
+    if [[  $input_file_provided -eq 1 ]]; then
+        # The input file was empty, safe to just end here.
+        exit 0
+    fi
+    
+    # They didn't pipe anything
     echo "No input provided. Use -i/--input or pipe data to stdin." >&2
     exit 1
 fi

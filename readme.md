@@ -99,18 +99,22 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                       | Description                                          |
-| -------------------------- | ---------------------------------------------------- |
-| -h, --help                 | Print help text                                      |
-| -v, --version              | Print version number                                 |
-| -d, --delimiter \<regex>   | Specify the delimiter to use (required)              |
-| -i, --input \<input_file>  | Provide an input file                                |
-| -c, --count                | Return the number of results after splitting         |
-| -e, --skip-empty           | Skips empty fields when indexing or counting         |
-| -s, --strict               | Shorthand for all strict features                    |
-| -sb, --strict-bounds       | Emit error if range is out of bounds                 |
-| -sr, --strict-return       | Emit error if there is no result                     |
-| -sro, --strict-range-order | Emit error if the start of a range is before the end |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| -h, --help                | Print help text                                      |
+| -v, --version             | Print version number                                 |
+| -d, --delimiter \<regex>  | Specify the delimiter to use (required)              |
+| -i, --input \<input_file> | Provide an input file                                |
+| -c, --count               | Return the number of results after splitting         |
+| -e, --skip-empty          | Skips empty fields when indexing or counting         |
+| -s, --strict              | Shorthand for all strict features                    |
+| -S, --no-strict           | Turn off all strict features                         |
+| --strict-bounds           | Emit error if range is out of bounds                 |
+| --no-strict-bounds        | Turn off strict bounds                               |
+| --strict-return           | Emit error if there is no result                     |
+| --no-strict-return        | Turn off strict return                               |
+| --strict-range-order      | Emit error if the start of a range is before the end |
+| --no-strict-range-order   | Turn off strict range order                          |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -154,7 +158,13 @@ echo "boo,,hoo" | splitby -d "," --count --skip-empty
 > 2
 ```
 
-### Strict-bounds
+### Strict
+
+Strict controls whether the program will fail silently or explicitly when encountering errors. Both can be useful in different situations.
+
+Strict has several modes of control, each described below. It also has the flags -s|-S or --strict|--no-strict which can be used to activate or deactivate all strict modes.
+
+#### --strict-bounds | --no-strict-bounds (default: false)
 
 In normal operation, the script silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
 
@@ -176,7 +186,7 @@ echo "boo hoo foo" | splitby -d " " 4  --strict-bounds
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
-### Strict-return
+#### --strict-return | --no-strict-return (default: false)
 
 In situations where there is no results at all, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
@@ -207,9 +217,9 @@ echo ",," | splitby --strict-return -d "," # This still works!
 
 It has no effect when --count is used.
 
-### Strict-range-order
+#### --strict-range-order | --no-strict-range-order (default: true)
 
-This flag causes an error to emit if the start of a range is after the end. For example, `3-1`.
+This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
 ```sh
 echo "boo hoo" | splitby -d " " 3-1

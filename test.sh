@@ -7,6 +7,8 @@ run_test() {
     local description="$1"
     local command="$2"
     local expected="$3"
+    
+    echo "testing $1"
 
     actual_output=$(eval "$command" 2>&1)
     status=$?
@@ -78,19 +80,19 @@ run_test "Strict return with out-of-range index" "echo 'this is a test' | ./spli
 run_test "Strict return allows empty fields" "echo ',' | ./splitby.sh --strict-return -d ','" ""
 run_test "Strict return counts" "echo ',' | ./splitby.sh --strict-return --count -d ','" "2"
 
-# Invalid range order
-run_test "Start after end" "echo 'this is a test' | ./splitby.sh -d ' ' 2-1" ""
-run_test "Start after end negative" "echo 'this is a test' | ./splitby.sh -d ' ' -1--2" ""
-run_test "Start after end positive-negative" "echo 'this is a test' | ./splitby.sh -d ' ' 4--2" ""
-run_test "Start after end negative-positive" "echo 'this is a test' | ./splitby.sh -d ' ' -1-3" ""
+# No strict range
+run_test "Start after end" "echo 'this is a test' | ./splitby.sh --no-strict-range-order -d ' ' 2-1" ""
+run_test "Start after end negative" "echo 'this is a test' | ./splitby.sh --no-strict-range-order -d ' ' -1--2" ""
+run_test "Start after end positive-negative" "echo 'this is a test' | ./splitby.sh --no-strict-range-order -d ' ' 4--2" ""
+run_test "Start after end negative-positive" "echo 'this is a test' | ./splitby.sh --no-strict-range-order -d ' ' -1-3" ""
 
-# Strict range order feature
-run_test "Start after end" "echo 'this is a test' | ./splitby.sh -sro -d ' ' 2-1" "error"
-run_test "Start after end negative" "echo 'this is a test' | ./splitby.sh -sro -d ' ' -1--2" "error"
-run_test "Start after end positive-negative" "echo 'this is a test' | ./splitby.sh -sro -d ' ' 4--2" "error"
-run_test "Start after end negative-positive" "echo 'this is a test' | ./splitby.sh -sro -d ' ' -1-3" "error"
-run_test "Works with correct syntax" "echo 'this is a test' | ./splitby.sh -sro -d ' ' 1-2" "this is"
-run_test "Works with no range" "echo 'this is a test' | ./splitby.sh -sro -d ' '" $'this\nis\na\ntest'
+# Strict range feature
+run_test "Start after end" "echo 'this is a test' | ./splitby.sh -d ' ' 2-1" "error"
+run_test "Start after end negative" "echo 'this is a test' | ./splitby.sh -d ' ' -1--2" "error"
+run_test "Start after end positive-negative" "echo 'this is a test' | ./splitby.sh -d ' ' 4--2" "error"
+run_test "Start after end negative-positive" "echo 'this is a test' | ./splitby.sh -d ' ' -1-3" "error"
+run_test "Works with correct syntax" "echo 'this is a test' | ./splitby.sh -d ' ' 1-2" "this is"
+run_test "Works with no range" "echo 'this is a test' | ./splitby.sh -d ' '" $'this\nis\na\ntest'
 
 # Skip empty feature
 run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d ',' 1" "orange"
