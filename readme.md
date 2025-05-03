@@ -164,7 +164,7 @@ Strict controls whether the program will fail silently or explicitly when encoun
 
 Strict has several modes of control, each described below. It also has the flags -s|-S or --strict|--no-strict which can be used to activate or deactivate all strict modes.
 
-#### --strict-bounds | --no-strict-bounds (default: false)
+#### --strict-bounds | --no-strict-bounds (default: disabled)
 
 In normal operation, the script silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
 
@@ -186,7 +186,7 @@ echo "boo hoo foo" | splitby -d " " 4  --strict-bounds
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
-#### --strict-return | --no-strict-return (default: false)
+#### --strict-return | --no-strict-return (default: disabled)
 
 In situations where there is no results at all, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
@@ -217,7 +217,7 @@ echo ",," | splitby --strict-return -d "," # This still works!
 
 It has no effect when --count is used.
 
-#### --strict-range-order | --no-strict-range-order (default: true)
+#### --strict-range-order | --no-strict-range-order (default: enabled)
 
 This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
