@@ -14,7 +14,7 @@ The delimiter is any regex string, e.g. `-d "\s+"`
 
 The index states which values you want. It can accept a single number `2` or a range `2-3`.
 
-Negative numbers are valid, and count from the end. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is after the ending index.
+Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is after the ending index.
 
 Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be separated by a new line.
 
