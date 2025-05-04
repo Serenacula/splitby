@@ -1,6 +1,6 @@
 # splitby
 
-A bash script that splits a string by a delimiter and returns a selection of the result
+A bash script that splits a string by a delimiter and returns a selection of the result.
 
 ## How to use
 
@@ -118,6 +118,8 @@ Disable flags are available for making aliasing easier, allowing you to specify 
 
 ### Count
 
+_-c, --count_
+
 The count option allows you to get the number of results:
 
 ```sh
@@ -135,6 +137,8 @@ echo "boo;;hoo" | splitby --count -d ";" --skip-empty
 ```
 
 ### Skip-empty
+
+_-e, --skip-empty_ | _-E, --no-skip-empty_
 
 By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
 
@@ -158,11 +162,15 @@ echo "boo,,hoo" | splitby -d "," --count --skip-empty
 
 ### Strict
 
+_-s, --strict_ | _-S, --no-strict_
+
 Strict controls whether the program will fail silently or explicitly when encountering errors. Both can be useful in different situations.
 
-Strict has several modes of control, each described below. It also has the flags -s|-S or --strict|--no-strict which can be used to activate or deactivate all strict modes.
+There are several mode available:
 
-#### --strict-bounds | --no-strict-bounds (default: disabled)
+#### Strict Bounds
+
+_--strict-bounds_ | _--no-strict-bounds_ (default: disabled)
 
 In normal operation, the script silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
 
@@ -184,7 +192,9 @@ echo "boo hoo foo" | splitby -d " " 4  --strict-bounds
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
-#### --strict-return | --no-strict-return (default: disabled)
+#### Strict Result
+
+_--strict-return_ | _--no-strict-return_ (default: disabled)
 
 In situations where there is no results at all, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
@@ -206,16 +216,11 @@ echo ",," | splitby --skip-empty -d "," --strict-return
 > strict return check failed: No valid fields available
 ```
 
-**Note: This does NOT include situations where the result is empty**
-
-```sh
-echo ",," | splitby --strict-return -d "," # This still works!
->
-```
-
 It has no effect when --count is used.
 
-#### --strict-range-order | --no-strict-range-order (default: enabled)
+#### Strict Range Order
+
+_--strict-range-order_ | _--no-strict-range-order_ (default: enabled)
 
 This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
