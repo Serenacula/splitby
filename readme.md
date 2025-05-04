@@ -99,24 +99,22 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                      | Description                                          |
-| ------------------------- | ---------------------------------------------------- |
-| -h, --help                | Print help text                                      |
-| -v, --version             | Print version number                                 |
-| -d, --delimiter \<regex>  | Specify the delimiter to use (required)              |
-| -i, --input \<input_file> | Provide an input file                                |
-| -c, --count               | Return the number of results after splitting         |
-| -e, --skip-empty          | Skips empty fields when indexing or counting         |
-| -s, --strict              | Shorthand for all strict features                    |
-| -S, --no-strict           | Turn off all strict features                         |
-| --strict-bounds           | Emit error if range is out of bounds                 |
-| --no-strict-bounds        | Turn off strict bounds                               |
-| --strict-return           | Emit error if there is no result                     |
-| --no-strict-return        | Turn off strict return                               |
-| --strict-range-order      | Emit error if the start of a range is before the end |
-| --no-strict-range-order   | Turn off strict range order                          |
+| Flag                      | Disable Flag            | Description                                                             |
+| ------------------------- | ----------------------- | ----------------------------------------------------------------------- |
+| -h, --help                |                         | Print help text                                                         |
+| -v, --version             |                         | Print version number                                                    |
+| -d, --delimiter \<regex>  |                         | Specify the delimiter to use (required)                                 |
+| -i, --input \<input_file> |                         | Provide an input file                                                   |
+| -c, --count               |                         | Return the number of results after splitting                            |
+| -e, --skip-empty          | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
+| -s, --strict              | -S, --no-strict         | Shorthand for all strict features                                       |
+| --strict-bounds           | --no-strict-bounds      | Emit error if range is out of bounds                                    |
+| --strict-return           | --no-strict-return      | Emit error if there is no result                                        |
+| --strict-range-order      | --no-strict-range-order | Emit error if the start of a range is before the end (Default: enabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
+
+Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Whichever flag was set last will be the one respected.
 
 ### Count
 

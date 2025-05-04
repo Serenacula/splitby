@@ -21,6 +21,7 @@ show_help() {
     echo "  -i, --input <input_file>     Provide input file"
     echo "  -c, --count                  Return the number of results"
     echo "  -e, --skip-empty             Skip empty fields"
+    echo "  -E, --no-skip-empty          Turn off skipping empty fields"
     echo "  -s, --strict                 Shorthand for all strict features"
     echo "  -S, --no-strict              Turn off all strict features"
     echo "      --strict-bounds          Emit error if range is out of bounds"
@@ -86,6 +87,15 @@ while [[ $# -gt 0 ]]; do
             count=1
             shift
             ;;
+            
+        -e|--skip-empty)
+            skip_empty=1
+            shift
+            ;;
+        -E|--no-skip-empty)
+            skip_empty=0
+            shift
+            ;;
         -s|--strict)
             strict_bounds=1
             strict_return=1
@@ -120,10 +130,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-strict-range-order)
             strict_range_order=0
-            shift
-            ;;
-        -e|--skip-empty)
-            skip_empty=1
             shift
             ;;
         --)
