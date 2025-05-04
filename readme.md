@@ -221,7 +221,7 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 
 ```sh
 echo "boo hoo" | splitby -d " " 3-1
->
-echo "boo hoo" | splitby -d " " 3-1 --strict-range-order
 > End index (1) is less than start index (3) in selection 3-1\n
+echo "boo hoo" | splitby -d " " 3-1 --no-strict-range-order
+>
 ```
