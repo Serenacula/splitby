@@ -105,8 +105,10 @@ echo "this is\na test" | getline 2 | getword 2
 | -v, --version             |                         | Print version number                                                    |
 | -d, --delimiter \<regex>  |                         | Specify the delimiter to use (required)                                 |
 | -i, --input \<input_file> |                         | Provide an input file                                                   |
+| -j, --join \<string>      |                         | Join each selection with a given string                                 |
 | -c, --count               |                         | Return the number of results after splitting                            |
 | -e, --skip-empty          | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
+| --placeholder             |                         | Inserts empty fields for invalid selections                             |
 | -s, --strict              | -S, --no-strict         | Shorthand for all strict features                                       |
 | --strict-bounds           | --no-strict-bounds      | Emit error if range is out of bounds                                    |
 | --strict-return           | --no-strict-return      | Emit error if there is no result                                        |
@@ -115,6 +117,21 @@ echo "this is\na test" | getline 2 | getword 2
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
 Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Whichever flag was set last will be the one respected.
+
+### Join
+
+_-j, --join_
+
+Normally each selection is outputted on a new line. This allows you to override that behaviour, replacing the newline with a custom string.
+
+```sh
+echo "this is a test" | splitby -d " " "," 1 2-3 4
+> this
+> is a
+> test
+echo "this is a test" | splitby -d " " --join "," 1 2-3 4
+> this,is a,test
+```
 
 ### Count
 
@@ -158,6 +175,22 @@ echo "boo,,hoo" | splitby -d "," --count
 > 3
 echo "boo,,hoo" | splitby -d "," --count --skip-empty
 > 2
+```
+
+### Placeholder
+
+_--placeholder_
+
+This is a somewhat niche flag, for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however if you explicitly declare this then an invalid selection will output an empty string instead.
+
+```sh
+echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
+> boo
+> hoo
+echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
+> boo
+>
+> hoo
 ```
 
 ### Strict

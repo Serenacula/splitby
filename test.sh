@@ -35,6 +35,7 @@ run_test() {
 run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1" "this"
 run_test "Split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ',' 2" "banana"
 run_test "Test with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' 2" "is"
+run_test "Test equals syntax" "echo 'this is a test' | ./splitby.sh --delimiter=' '" $'this\nis\na\ntest'
 
 # Negative usage
 run_test "Negative number" "echo 'this is a test' | ./splitby.sh -d ' ' -1" "test"
@@ -53,7 +54,6 @@ run_test "Negative to positive range" "echo 'this is a test' | ./splitby.sh -d '
 run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d ' ' 1 2 3-4" $'this\nis\na test'
 
 # Edge cases
-# Note: I've decided to respect empty fields for now. Might change my mind later
 run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d ' ' 2" ""
 run_test "Single delimiter at beginning" "echo ' apple' | ./splitby.sh -d ' ' 2" "apple"
 run_test "Single delimiter at end" "echo 'apple ' | ./splitby.sh -d ' ' 1" "apple"
@@ -61,12 +61,14 @@ run_test "Multiple delimiters with spaces and commas" "echo 'apple, orange  bana
 run_test "Delimiter appears multiple times" "echo 'apple,,orange' | ./splitby.sh -d ',' 3" "orange"
 run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | ./splitby.sh -d ',' 1-3" "apple,,orange"
 
+# Join feature
+run_test "Can join selections" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ','" "boo,hoo,foo"
+run_test "Doesn't join in ranges" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ',' 1 2-3" "boo,hoo foo"
+
 # Count feature
 run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d ' ' --count" "4"
 run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
 run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh -d '\\n' --count" "4"
-# Decided this error was pointlessly strict. It will just ignore indexes when counting
-# run_test "--count errors with indexing" "echo 'this is a test' | ./splitby.sh -d '\\s+' --count 1" "error"
 
 # Strict bounds feature
 run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 2-4" "is a test"

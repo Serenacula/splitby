@@ -1,14 +1,16 @@
 #!/bin/bash
 
 delimiter=""   # default regex for whitespace
+join=$'\n'
 input=""
-input_file_provided=0
 input_file=""
+input_file_provided=0
 count=0
+skip_empty=0
+placeholder=0
 strict_bounds=0
 strict_return=0
 strict_range_order=1
-skip_empty=0
 
 show_help() {
     echo
@@ -19,9 +21,11 @@ show_help() {
     echo "Options:"
     echo "  -d, --delimiter <regex>      Specify the delimiter to use (required)"
     echo "  -i, --input <input_file>     Provide input file"
+    echo "  -j, --join <string>          Join selections with <string>"
     echo "  -c, --count                  Return the number of results"
     echo "  -e, --skip-empty             Skip empty fields"
     echo "  -E, --no-skip-empty          Turn off skipping empty fields"
+    echo "      --placeholder            Preserves invalid selections in output"
     echo "  -s, --strict                 Shorthand for all strict features"
     echo "  -S, --no-strict              Turn off all strict features"
     echo "      --strict-bounds          Emit error if range is out of bounds"
@@ -36,7 +40,7 @@ show_help() {
     echo "Example:"
     echo "  echo \"this is a test\" | splitby -d ' ' 2            # Extract 2nd field"
     echo "  > is"
-    echo "  echo \"this is a test \" | splitby -d ' ' -1          # Extra last field"
+    echo "  echo \"this is a test \" | splitby -d ' ' -1          # Extract last field"
     echo "  > test"
     echo "  echo \"this is a test\" | splitby -d ' ' 1-3   # Extract fields from 1 to 3"
     echo "  > this is a"
@@ -74,13 +78,32 @@ while [[ $# -gt 0 ]]; do
             echo "1.0.0"
             exit 0
             ;;
+        --delimiter=*)
+            delimiter="${1#--delimiter=}"
+            if [[ -z "$delimiter" ]]; then
+                echo "Error: non-empty delimiter not currently supported" >&2
+            fi
+            shift
+            ;;
         -d|--delimiter)
             delimiter="$2"
             shift 2
             ;;
         -i|--input)
-            input_file_provided=1
             input_file="$2"
+            input_file_provided=1
+            shift 2
+            ;;
+        --join=*)
+            join="${1#--join=}"
+            shift
+            ;;
+        -j|--join)
+            if [[ -z "${2+x}" ]]; then
+                echo "Error: --join requires a value (use \"\" for empty string)" >&2
+                exit 1
+            fi
+            join="$2"
             shift 2
             ;;
         -c|--count)
@@ -94,6 +117,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -E|--no-skip-empty)
             skip_empty=0
+            shift
+            ;;
+        --placeholder)
+            placeholder=1
             shift
             ;;
         -s|--strict)
@@ -225,7 +252,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
+    my ($input, $regex_raw, $join_string, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -289,7 +316,7 @@ perl_script='
         if ($strict_range_order) {
             die "End index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
         }
-        exit 0;
+        exit 111;
     }
 
     # Strict bounds handling (optional)
@@ -308,7 +335,7 @@ perl_script='
     # Gracefully ignore out-of-bounds indices if not strict bounds
     if ($start > $#data_parts || $end < 0) {
         # print "\n";
-        exit 0;
+        exit 111;
     }
     if ($start < 0) {
         $start = 0;
@@ -338,7 +365,7 @@ perl_script='
 
     # Join the result into one string
     if ($no_selection) {
-        my $result = join("\n", @output);
+        my $result = join($join_string, @output);
         print $result;
     } else {
         my $result = join("", @output);
@@ -347,22 +374,30 @@ perl_script='
 '
 
 result=""
+skip_join=0
 for ((i = 0; i < ${#starts[@]}; i++)); do
-    if [[ $i -ne 0 ]]; then
-        result+=$'\n'
-    fi
-    
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
     # Error code
-    if [[ $code -ne 0 ]]; then
+    if [[ $code -eq 111 ]]; then
+        # Invalid selector, skip join
+        skip_join=1
+    elif [[ $code -ne 0 ]]; then
         echo "$out"
         exit $code
     fi
+    
+    # Adding selection joiner
+    if [[ $i -ne 0 ]]; then
+        if [[ $skip_join -eq 0 ]] || [[ $placeholder -eq 1 ]]; then
+            result+="$join"
+        fi
+    fi
+    skip_join=0
     
     result+="$out"
 done
