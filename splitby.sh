@@ -1,15 +1,16 @@
 #!/bin/bash
 
 delimiter=""   # default regex for whitespace
-join=$'\n'
 input=""
 input_file=""
 input_file_provided=0
+join_string=$'\n'
+simple_ranges=0
 count=0
 skip_empty=0
 placeholder=0
-strict_bounds=0
 strict_return=0
+strict_bounds=0
 strict_range_order=1
 
 show_help() {
@@ -22,16 +23,17 @@ show_help() {
     echo "  -d, --delimiter <regex>      Specify the delimiter to use (required)"
     echo "  -i, --input <input_file>     Provide input file"
     echo "  -j, --join <string>          Join selections with <string>"
+    echo "      --simple-ranges          Treat ranges as a list of selections"
     echo "  -c, --count                  Return the number of results"
     echo "  -e, --skip-empty             Skip empty fields"
     echo "  -E, --no-skip-empty          Turn off skipping empty fields"
     echo "      --placeholder            Preserves invalid selections in output"
     echo "  -s, --strict                 Shorthand for all strict features"
     echo "  -S, --no-strict              Turn off all strict features"
-    echo "      --strict-bounds          Emit error if range is out of bounds"
-    echo "      --no-strict-bounds       Turn off strict bounds"
     echo "      --strict-return          Emit error if there is no usable result"
     echo "      --no-strict-return       Turn off strict return"
+    echo "      --strict-bounds          Emit error if range is out of bounds"
+    echo "      --no-strict-bounds       Turn off strict bounds"
     echo "      --strict-range-order     Emit error if the start of a range is greater than the end (default: true)"
     echo "      --no-strict-range-order  Turn off strict range order"
     echo "  -h, --help                   Display this help message"
@@ -95,7 +97,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --join=*)
-            join="${1#--join=}"
+            join_string="${1#--join=}"
             shift
             ;;
         -j|--join)
@@ -103,8 +105,12 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --join requires a value (use \"\" for empty string)" >&2
                 exit 1
             fi
-            join="$2"
+            join_string="$2"
             shift 2
+            ;;
+        --simple-ranges)
+            simple_ranges=1
+            shift
             ;;
         -c|--count)
             count=1
@@ -135,20 +141,20 @@ while [[ $# -gt 0 ]]; do
             strict_range_order=0
             shift
             ;;
-        --strict-bounds)
-            strict_bounds=1
-            shift
-            ;;
-        --no-strict-bounds)
-            strict_bounds=0
-            shift
-            ;;
         --strict-return)
             strict_return=1
             shift
             ;;
         --no-strict-return)
             strict_return=0
+            shift
+            ;;
+        --strict-bounds)
+            strict_bounds=1
+            shift
+            ;;
+        --no-strict-bounds)
+            strict_bounds=0
             shift
             ;;
         --strict-range-order)
@@ -252,7 +258,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $join_string, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
+    my ($input, $regex_raw, $join_string, $simple_ranges, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -355,7 +361,7 @@ perl_script='
         
         if ($field_index >= $start && $field_index <= $end) {
             push @output, $field;
-            if ($field_index < $end && !$no_selection) {
+            if ($field_index < $end && !$no_selection && !$simple_ranges) {
                 push @output, $delim;  # Always keep the delimiter
             }
         }
@@ -364,7 +370,7 @@ perl_script='
     }
 
     # Join the result into one string
-    if ($no_selection) {
+    if ($no_selection || $simple_ranges) {
         my $result = join($join_string, @output);
         print $result;
     } else {
@@ -379,7 +385,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join_string" "$simple_ranges" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
     # Error code
@@ -394,7 +400,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     # Adding selection joiner
     if [[ $i -ne 0 ]]; then
         if [[ $skip_join -eq 0 ]] || [[ $placeholder -eq 1 ]]; then
-            result+="$join"
+            result+="$join_string"
         fi
     fi
     skip_join=0
