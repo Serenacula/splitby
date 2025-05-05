@@ -99,20 +99,22 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                      | Disable Flag            | Description                                                             |
-| ------------------------- | ----------------------- | ----------------------------------------------------------------------- |
-| -h, --help                |                         | Print help text                                                         |
-| -v, --version             |                         | Print version number                                                    |
-| -d, --delimiter \<regex>  |                         | Specify the delimiter to use (required)                                 |
-| -i, --input \<input_file> |                         | Provide an input file                                                   |
-| -j, --join \<string>      |                         | Join each selection with a given string                                 |
-| -c, --count               |                         | Return the number of results after splitting                            |
-| -e, --skip-empty          | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
-| --placeholder             |                         | Inserts empty fields for invalid selections                             |
-| -s, --strict              | -S, --no-strict         | Shorthand for all strict features                                       |
-| --strict-bounds           | --no-strict-bounds      | Emit error if range is out of bounds                                    |
-| --strict-return           | --no-strict-return      | Emit error if there is no result                                        |
-| --strict-range-order      | --no-strict-range-order | Emit error if the start of a range is before the end (Default: enabled) |
+| Flag                                | Disable Flag            | Description                                                             |
+| ----------------------------------- | ----------------------- | ----------------------------------------------------------------------- |
+| -h, --help                          |                         | Print help text                                                         |
+| -v, --version                       |                         | Print version number                                                    |
+| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                 |
+| -i, --input \<input_file>           |                         | Provide an input file                                                   |
+| -j, --join \<string>                |                         | Join each selection with a given string                                 |
+| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                    |
+| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                    |
+| -c, --count                         |                         | Return the number of results after splitting                            |
+| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
+| --placeholder                       |                         | Inserts empty fields for invalid selections                             |
+| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                       |
+| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                    |
+| --strict-return                     | --no-strict-return      | Emit error if there is no result                                        |
+| --strict-range-order                | --no-strict-range-order | Emit error if the start of a range is before the end (Default: enabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -131,6 +133,38 @@ echo "this is a test" | splitby -d " " "," 1 2-3 4
 > test
 echo "this is a test" | splitby -d " " --join "," 1 2-3 4
 > this,is a,test
+```
+
+### Simple Ranges
+
+_--simple-ranges_ | _--no-simple-ranges_
+
+By default, if you specify a range then it will treat that as a _single selection_, outputting the entire range with delimiters. This flag will change that behaviour, so that ranges are treated as a list of individual selections.
+
+```sh
+echo "this is a test" | splitby -d " " 1 2-4
+> this
+> is a test
+echo "this is a test" | splitby -d " " --simple-ranges 1 2-4
+> this
+> is
+> a
+> test
+```
+
+### Replace Range Delimiter
+
+_--replace-range-delimiter_
+
+Allows you to specify a different delimiter to use within ranges. It does not affect the functionality of --join, and is ignored when --simple-ranges is used.
+
+```sh
+echo "this is a test" | splitby -d " " 1 2-4
+> this
+> is a test
+echo "this is a test" | splitby -d " " --replace-range-delimiter "," 1 2-4
+> this
+> is,a,test
 ```
 
 ### Count
@@ -181,10 +215,10 @@ echo "boo,,hoo" | splitby -d "," --count --skip-empty
 
 _--placeholder_
 
-This is a somewhat niche flag, for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however if you explicitly declare this then an invalid selection will output an empty string instead.
+This is a somewhat niche flag for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however if you explicitly declare this then an invalid selection will output an empty string instead.
 
 ```sh
-echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
+echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2 # Out of range value gets skipped
 > boo
 > hoo
 echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2

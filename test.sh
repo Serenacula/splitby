@@ -73,6 +73,15 @@ run_test "Simple ranges with join and mixed selection" "echo 'a b c d' | ./split
 run_test "Simple ranges with negative range" "echo 'a b c d' | ./splitby.sh -d ' ' --simple-ranges -3--1" $'b\nc\nd'
 run_test "Join and simple-ranges with out-of-bounds range" "echo 'x y' | ./splitby.sh -d ' ' --simple-ranges -j ',' 3-5" ""
 
+# Replace range delimiter feature
+run_test "Replaces delimiter in range" "echo 'a b c' | ./splitby.sh -d ' ' --replace-range-delimiter ',' 1-3" "a,b,c"
+run_test "Replaces delimiter in range with custom symbol" "echo 'a-b-c' | ./splitby.sh -d '-' --replace-range-delimiter ':' 1-3" "a:b:c"
+run_test "Replace range delimiter only applies to range" "echo 'a b c d' | ./splitby.sh -d ' ' --replace-range-delimiter '|' 1 2-3 4" $'a\nb|c\nd'
+run_test "Replace delimiter with skip-empty" "echo 'a  b   c' | ./splitby.sh -d ' ' --skip-empty --replace-range-delimiter ':' 1-3" "a:b:c"
+run_test "Simple ranges overrides delimiter replacement" "echo 'a b c' | ./splitby.sh -d ' ' --simple-ranges --replace-range-delimiter ':' -j ',' 1-3" "a,b,c"
+run_test "Replace range delimiter on empty result" "echo 'a b' | ./splitby.sh -d ' ' --replace-range-delimiter ':' 5-6" ""
+
+
 # Count feature
 run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d ' ' --count" "4"
 run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
@@ -112,6 +121,7 @@ run_test "Starting empty field" "echo ',orange' | ./splitby.sh --skip-empty -d '
 run_test "Middle field empty" "echo 'apple,,orange' | ./splitby.sh --skip-empty -d ',' 2" "orange"
 run_test "Final field empty" "echo 'orange,' | ./splitby.sh --skip-empty -d ',' 2" ""
 run_test "All fields empty" "echo ',' | ./splitby.sh --skip-empty -d ','" ""
+run_test "Known failure" "echo 'a  b   c' | ./splitby.sh -d ' ' --skip-empty 1-3" "a b c"
 
 # Skip with strict
 run_test "Skip with strict bounds works" "echo 'orange,' | ./splitby.sh --skip-empty --strict-bounds -d ',' 1" "orange"
@@ -137,7 +147,7 @@ run_test "No input" "./splitby.sh -d ','" "error"
 
 # Invalid index
 run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1a" "error"
-run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "error"
+run_test "Invalid range format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "error"
 
 
 # If all tests pass

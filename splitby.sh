@@ -5,6 +5,8 @@ input=""
 input_file=""
 input_file_provided=0
 join_string=$'\n'
+range_delimiter=""
+range_delimiter_provided=0
 simple_ranges=0
 count=0
 skip_empty=0
@@ -20,24 +22,26 @@ show_help() {
     echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
     echo "Options:"
-    echo "  -d, --delimiter <regex>      Specify the delimiter to use (required)"
-    echo "  -i, --input <input_file>     Provide input file"
-    echo "  -j, --join <string>          Join selections with <string>"
-    echo "      --simple-ranges          Treat ranges as a list of selections"
-    echo "  -c, --count                  Return the number of results"
-    echo "  -e, --skip-empty             Skip empty fields"
-    echo "  -E, --no-skip-empty          Turn off skipping empty fields"
-    echo "      --placeholder            Preserves invalid selections in output"
-    echo "  -s, --strict                 Shorthand for all strict features"
-    echo "  -S, --no-strict              Turn off all strict features"
-    echo "      --strict-return          Emit error if there is no usable result"
-    echo "      --no-strict-return       Turn off strict return"
-    echo "      --strict-bounds          Emit error if range is out of bounds"
-    echo "      --no-strict-bounds       Turn off strict bounds"
-    echo "      --strict-range-order     Emit error if the start of a range is greater than the end (default: true)"
-    echo "      --no-strict-range-order  Turn off strict range order"
-    echo "  -h, --help                   Display this help message"
-    echo "  -v, --version                Show the current version"
+    echo "  -d, --delimiter <regex>                 Specify the delimiter to use (required)"
+    echo "  -i, --input <input_file>                Provide input file"
+    echo "  -j, --join <string>                     Join selections with <string>"
+    echo "      --replace-range-delimiter <string>  Replaces the delimiters within ranges"
+    echo "      --simple-ranges                     Treat ranges as a list of selections"
+    echo "      --no-simple-ranges                  Turn off simple ranges"
+    echo "  -c, --count                             Return the number of results"
+    echo "  -e, --skip-empty                        Skip empty fields"
+    echo "  -E, --no-skip-empty                     Turn off skipping empty fields"
+    echo "      --placeholder                       Preserves invalid selections in output"
+    echo "  -s, --strict                            Shorthand for all strict features"
+    echo "  -S, --no-strict                         Turn off all strict features"
+    echo "      --strict-return                     Emit error if there is no usable result"
+    echo "      --no-strict-return                  Turn off strict return"
+    echo "      --strict-bounds                     Emit error if range is out of bounds"
+    echo "      --no-strict-bounds                  Turn off strict bounds"
+    echo "      --strict-range-order                Emit error if the start of a range is greater than the end (default: true)"
+    echo "      --no-strict-range-order             Turn off strict range order"
+    echo "  -h, --help                              Display this help message"
+    echo "  -v, --version                           Show the current version"
     echo
     echo "Example:"
     echo "  echo \"this is a test\" | splitby -d ' ' 2            # Extract 2nd field"
@@ -106,6 +110,20 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             join_string="$2"
+            shift 2
+            ;;
+        --replace-range-delimiter=*)
+            range_delimiter="${1#--replace-range-delimiter=}"
+            range_delimiter_provided=1
+            shift
+            ;;
+        --replace-range-delimiter)
+            if [[ -z "${2+x}" ]]; then
+                echo "Error: --replace-range-delimiter requires a value (use \"\" for empty string)" >&2
+                exit 1
+            fi
+            range_delimiter="$2"
+            range_delimiter_provided=1
             shift 2
             ;;
         --simple-ranges)
@@ -258,7 +276,7 @@ perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $join_string, $simple_ranges, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
+    my ($input, $regex_raw, $join_string, $simple_ranges, $range_delimiter, $range_delimiter_provided, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
     
 
     my $regex = eval { qr/$regex_raw/ };
@@ -356,18 +374,22 @@ perl_script='
     my $field_index = 0;
     my @parts = split /($regex)/, $input;  # Split with capturing groups to preserve delimiters
     for (my $i = 0; $i < @parts; $i += 2) {
-        my $field = $parts[$i];
-        my $delim = $parts[$i + 1] // "";
-        
+    my $field = $parts[$i];
+    my $delim = $parts[$i + 1] // "";
+
+    my $is_skipped = $skip_empty && $field eq "";
+
+    if (!$is_skipped) {
         if ($field_index >= $start && $field_index <= $end) {
             push @output, $field;
+
             if ($field_index < $end && !$no_selection && !$simple_ranges) {
-                push @output, $delim;  # Always keep the delimiter
+                push @output, $range_delimiter_provided ? $range_delimiter : $delim;
             }
         }
-        
-        $field_index++ unless $skip_empty && $field eq "";
+        $field_index++;  # only increment when not skipped
     }
+}
 
     # Join the result into one string
     if ($no_selection || $simple_ranges) {
@@ -385,7 +407,7 @@ for ((i = 0; i < ${#starts[@]}; i++)); do
     start="${starts[i]}"
     end="${ends[i]}"
     
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join_string" "$simple_ranges" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
+    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join_string" "$simple_ranges" "$range_delimiter" "$range_delimiter_provided" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
     code=$?
     
     # Error code
