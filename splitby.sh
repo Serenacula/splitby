@@ -13,6 +13,7 @@ simple_ranges=0
 range_delimiter=""
 range_delimiter_provided=0
 count=0
+invert=0
 skip_empty=0
 placeholder=0
 
@@ -35,6 +36,7 @@ show_help() {
     echo "      --simple-ranges                     Treat ranges as a list of selections"
     echo "      --no-simple-ranges                  Turn off simple ranges"
     echo "  -c, --count                             Return the number of results"
+    echo "      --invert                            Invert the selection"
     echo "  -e, --skip-empty                        Skip empty fields"
     echo "  -E, --no-skip-empty                     Turn off skipping empty fields"
     echo "      --placeholder                       Preserves invalid selections in output"
@@ -139,7 +141,10 @@ while [[ $# -gt 0 ]]; do
             count=1
             shift
             ;;
-            
+        --invert)
+            invert=1
+            shift
+            ;;
         -e|--skip-empty)
             skip_empty=1
             shift
@@ -250,7 +255,8 @@ perl_script='
         $simple_ranges, 
         $range_delimiter, 
         $range_delimiter_provided, 
-        $count, 
+        $count,
+        $invert,
         $skip_empty, 
         $placeholder,
         $strict_return, 
@@ -375,10 +381,64 @@ perl_script='
 
         die "Invalid selection syntax: \"$selection\"\n";
     }
+    
+    # -----  after @starts / @ends are populated  -----
+    if ($invert) {
+
+        # 1. Canonicalise ranges into a list of [start,end] pairs.
+        my @canonical_ranges;
+        for my $range_idx (0 .. $#starts) {
+            next if $starts[$range_idx] == -1;            # skip placeholders
+            my $start = $starts[$range_idx];
+            my $end = $ends[$range_idx];
+            next if $end < $start;                              # silently ignore 3-2 style input
+            push @canonical_ranges, [$start, $end];
+        }
+
+        # 2. Sort by start, then merge overlaps.
+        @canonical_ranges = sort { $a->[0] <=> $b->[0] } @canonical_ranges;
+        my @merged;
+        for my $pair (@canonical_ranges) {
+            if ( @merged && $pair->[0] <= $merged[-1]->[1] + 1 ) {
+                $merged[-1]->[1] = $pair->[1] if $pair->[1] > $merged[-1]->[1];
+            } else {
+                push @merged, [ @$pair ];
+            }
+        }
+
+        # 3. Walk the merged list once to find the complement intervals.
+        my @inv_starts;
+        my @inv_ends;
+        my $next_field = 0;
+        for my $pair (@merged) {
+            my ($sel_start, $sel_end) = @$pair;
+
+            if ( $next_field <= $sel_start - 1 ) {
+                push @inv_starts, $next_field;
+                push @inv_ends,   $sel_start - 1;
+            }
+            $next_field = $sel_end + 1;
+        }
+        # tail-end gap
+        if ( $next_field <= $#data_parts ) {
+            push @inv_starts, $next_field;
+            push @inv_ends,   $#data_parts;
+        }
+
+        # 4. If nothing left and --placeholder is on, add a placeholder range.
+        if ( !@inv_starts && $placeholder ) {
+            @inv_starts = (-1);
+            @inv_ends   = (-1);
+        }
+
+        # 5. Replace the original arrays.
+        @starts = @inv_starts;
+        @ends   = @inv_ends;
+    }
+
 
     my @parts = split /($regex)/, $input;
     my @output_selections = ();
-
     for (my $selection_index = 0; $selection_index < @starts; $selection_index++) {
         my $start = $starts[$selection_index];
         my $end   = $ends[$selection_index];
@@ -437,6 +497,7 @@ result=$(perl -e "$perl_script" \
     "$range_delimiter" \
     "$range_delimiter_provided" \
     "$count" \
+    "$invert"\
     "$skip_empty" \
     "$placeholder" \
     "$strict_return" \

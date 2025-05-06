@@ -89,6 +89,7 @@ echo "this is\na test" | getline 2 | getword 2
 | --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                    |
 | --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                    |
 | -c, --count                         |                         | Return the number of results after splitting                            |
+| --invert                            |                         | Inverts the chosen selection                                            |
 | -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
 | --placeholder                       |                         | Inserts empty fields for invalid selections                             |
 | -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                       |
@@ -167,6 +168,24 @@ echo "boo;;hoo" | splitby --count -d ";" --skip-empty
 > 2
 ```
 
+### Invert
+
+_--invert_
+
+The invert option selects everything _except_ what you choose. Note that ranges are still in effect. You can use the --simple-ranges option if you wish each field to be treated as a single selection.
+
+```sh
+echo "this is a test" | splitby -d " " 2
+> is
+echo "this is a test" | splitby -d " " 2 --invert
+> this
+> a test
+echo "this is a test" | splitby -d " " 2 --invert --simple-ranges
+> this
+> a
+> test
+```
+
 ### Skip-empty
 
 _-e, --skip-empty_ | _-E, --no-skip-empty_
@@ -213,7 +232,7 @@ _-s, --strict_ | _-S, --no-strict_
 
 Strict controls whether the program will fail silently or explicitly when encountering errors. Both can be useful in different situations.
 
-There are several mode available:
+There are several modes available:
 
 #### Strict Bounds
 
