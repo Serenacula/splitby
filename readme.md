@@ -53,26 +53,6 @@ echo "this is a test" | splitby -d " " 1 3-4
 > a test
 ```
 
-### Empty Fields
-
-**Empty fields are considered valid!**
-
-The following will treat the empty space as a valid field when indexing:
-
-```sh
-echo "boo,,hoo" | splitby -d "," 2-3
-> ,foo
-```
-
-If you wish to skip it, you can do so by altering the regex, or by using the --skip-empty flag:
-
-```sh
-echo "boo,,hoo" | splitby -d ",+" 2
-> foo
-echo "boo,,hoo" | splitby --skip-empty -d "," 2
-> foo
-```
-
 ## Installation
 
 To install the command locally, paste the following into terminal:
