@@ -1,16 +1,22 @@
 #!/bin/bash
 
+# Core features
 delimiter=""   # default regex for whitespace
 input=""
 input_file=""
 input_file_provided=0
+selections=()  # To store all range/index inputs
+
+# Options
 join_string=$'\n'
+simple_ranges=0
 range_delimiter=""
 range_delimiter_provided=0
-simple_ranges=0
 count=0
 skip_empty=0
 placeholder=0
+
+# Strict
 strict_return=0
 strict_bounds=0
 strict_range_order=1
@@ -72,8 +78,7 @@ if [[ "$installed_version" < "$required_version" ]]; then
 fi
 
 
-# --- Parse options ---
-selections=()  # To store all range/index inputs
+
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -233,63 +238,43 @@ if [[ -z "$input" ]]; then
     exit 1
 fi
 
-# --- Parse range ---
-# If no selections provided, select everything
-no_selection=0
-[[ ${#selections[@]} -eq 0 ]] && no_selection=1 && selections+=("")
-
-# For each selection, validate format and prepare ranges
-starts=()
-ends=()
-
-for selection in "${selections[@]}"; do
-    if [[ "$selection" =~ ^(-?[0-9]+)$ ]]; then
-        # Single index
-        starts+=("${BASH_REMATCH[1]}")
-        ends+=("${BASH_REMATCH[1]}")
-    elif [[ "$selection" =~ ^(-?[0-9]+)-(-?[0-9]+)$ ]]; then
-        start="${BASH_REMATCH[1]}"
-        end="${BASH_REMATCH[2]}"
-
-        # Disallow wrapping if both are same sign
-        if [[ "$start" =~ ^- && "$end" =~ ^- ]] || ([[ "$start" =~ ^[0-9] ]] && [[ "$end" =~ ^[0-9] ]]); then
-            if (( end < start )) && [[ $strict_range_order -eq 1 ]]; then
-                echo "Error: end index ($end) is less than start index ($start) in selection '$selection'" >&2
-                exit 1
-            fi
-        fi
-
-        starts+=("$start")
-        ends+=("$end")
-    elif [[ -z "$selection" ]]; then
-        # Empty selection means full range
-        starts+=("1")
-        ends+=("-1")
-    else
-        echo "Invalid selection syntax: '$selection'" >&2
-        exit 1
-    fi
-done
-
 # --- Run Perl split ---
 perl_script='
     use strict;
     use warnings;
 
-    my ($input, $regex_raw, $join_string, $simple_ranges, $range_delimiter, $range_delimiter_provided, $start_raw, $end_raw, $count, $strict_bounds, $strict_return, $strict_range_order, $skip_empty, $no_selection) = @ARGV;
-    
+    my (
+        $input, 
+        $delimiter,
+        $join_string, 
+        $simple_ranges, 
+        $range_delimiter, 
+        $range_delimiter_provided, 
+        $count, 
+        $skip_empty, 
+        $placeholder,
+        $strict_return, 
+        $strict_bounds, 
+        $strict_range_order, 
+        @selections
+    ) = @ARGV;
 
-    my $regex = eval { qr/$regex_raw/ };
-    if ($@) {
-        die "Invalid delimiter regex: $regex_raw\n";
+    my $no_selection = 0;
+    if (!@selections || (@selections == 1 && $selections[0] eq "")) {
+        $no_selection = 1;
     }
-    
+
+    my $regex = eval { qr/$delimiter/ };
+    if ($@) {
+        die "Invalid delimiter regex: $delimiter\n";
+    }
+
     my @data_parts_raw = split /(?:$regex)/, $input, -1;
     my $num_data_parts_raw = scalar @data_parts_raw;
-    
+
     my @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts_raw;
     my $num_data_parts = scalar @data_parts;
-    
+
     if ($num_data_parts_raw == 1) {
         if ($count) {
             print "0\n";
@@ -300,7 +285,7 @@ perl_script='
         }
         exit 0;
     }
-    
+
     if ($count) {
         print "$num_data_parts\n";
         exit 0;
@@ -313,124 +298,160 @@ perl_script='
         exit 0;
     }
 
-    # Convert start index (can be negative)
-    my $start;
-    if ($start_raw =~ /^-[0-9]+$/) {
-        $start = $num_data_parts + $start_raw;  # e.g. -1 means last element
-    } elsif ($start_raw =~ /^[0-9]+$/) {
-        $start = $start_raw - 1;  # Convert to 0-indexed
-    } else {
-        die "Start index must be an integer.\n";
+    # Parsing selections into real values
+    
+    sub resolve_index {
+        my ($raw, $total_fields) = @_;
+        return $raw =~ /^-/ ? $total_fields + $raw : $raw - 1;
     }
 
-    # Convert end index (can be empty or negative)
-    my $end;
-    if ($end_raw =~ /^-[0-9]+$/) {
-        $end = $num_data_parts + $end_raw;
-    } elsif ($end_raw =~ /^[0-9]+$/) {
-        $end = $end_raw - 1;
-    } else {
-        die "End index must be an integer.\n";
-    }
-    
-    
+    my @starts;
+    my @ends;
 
-    # Invalid range
-    if ($end < $start && !$no_selection) {
-        if ($strict_range_order) {
-            die "End index ($end_raw) is less than start index ($start_raw) in selection $start_raw-$end_raw\n";
+    foreach my $selection (@selections) {
+        if ($selection eq "") {
+            push @starts, 0;
+            push @ends, $#data_parts;
+            next;
         }
-        exit 111;
-    }
 
-    # Strict bounds handling (optional)
-    if ($strict_bounds) {
-        if ($start < 0 || $start > $#data_parts) {
-            if ($start_raw == $end_raw) {
-                die "Index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+        # Single index
+        if ($selection =~ /^(-?\d+)$/) {
+            my $index = resolve_index($1, scalar(@data_parts));
+
+            if ($strict_bounds) {
+                if ($index < 0 || $index > $#data_parts) {
+                    die "Index ($1) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                }
+            } elsif ($index < 0 || $index > $#data_parts) {
+                # Push empty placeholder if enabled
+                if ($placeholder) {
+                    push @starts, -1;
+                    push @ends, -1;
+                }
+                next;
             }
-            die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+
+            push @starts, $index;
+            push @ends, $index;
+            next;
         }
-        if ($end < 0 || $end > $#data_parts) {
-            die "End index ($end_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+
+        # Range
+        if ($selection =~ /^(-?\d+)-(-?\d+)$/) {
+            my ($start_raw, $end_raw) = ($1, $2);
+            my $start = resolve_index($start_raw, scalar(@data_parts));
+            my $end   = resolve_index($end_raw, scalar(@data_parts));
+
+            if ($strict_range_order && $end < $start) {
+                die "End index ($end_raw) is less than start index ($start_raw)\n";
+            }
+
+            if ($strict_bounds) {
+                if ($start < 0 || $start > $#data_parts) {
+                    die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                }
+                if ($end < 0 || $end > $#data_parts) {
+                    die "End index ($end_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                }
+            } else {
+                $start = 0 if $start < 0;
+                $end = $#data_parts if $end > $#data_parts;
+
+                if ($start > $#data_parts || $end < 0) {
+                    if ($placeholder) {
+                        push @starts, -1;
+                        push @ends, -1;
+                    }
+                    next;
+                }
+            }
+
+            push @starts, $start;
+            push @ends, $end;
+            next;
         }
+
+
+        die "Invalid selection syntax: \"$selection\"\n";
     }
 
-    # Gracefully ignore out-of-bounds indices if not strict bounds
-    if ($start > $#data_parts || $end < 0) {
-        # print "\n";
-        exit 111;
-    }
-    if ($start < 0) {
-        $start = 0;
-    }
-    if ($end > $#data_parts) {
-        $end = $#data_parts;
+    my @parts = split /($regex)/, $input;
+    my @output_selections = ();
+
+    for (my $selection_index = 0; $selection_index < @starts; $selection_index++) {
+        my $start = $starts[$selection_index];
+        my $end   = $ends[$selection_index];
+
+        # Placeholder case
+        if ($start == -1 && $end == -1) {
+            push @output_selections, "";
+            next;
+        }
+
+        my @selection_output = ();
+        my $field_index = 0;
+
+        for (my $i = 0; $i < @parts; $i += 2) {
+            my $field = $parts[$i];
+            my $delim = $parts[$i + 1] // "";
+
+            my $is_skipped = $skip_empty && $field eq "";
+            next if $is_skipped;
+
+            if ($field_index >= $start && $field_index <= $end) {
+                push @selection_output, $field;
+
+                if ($field_index < $end && !$no_selection && !$simple_ranges) {
+                    push @selection_output, $range_delimiter_provided ? $range_delimiter : $delim;
+                }
+            }
+
+            $field_index++;
+        }
+
+        my $joined_selection = ($no_selection || $simple_ranges)
+            ? join($join_string, @selection_output)
+            : join("", @selection_output);
+
+        push @output_selections, $joined_selection;
     }
     
-
-    # Combine fields within range, preserving delimiters
-    my @output;
-    my $field_index = 0;
-    my @parts = split /($regex)/, $input;  # Split with capturing groups to preserve delimiters
-    for (my $i = 0; $i < @parts; $i += 2) {
-    my $field = $parts[$i];
-    my $delim = $parts[$i + 1] // "";
-
-    my $is_skipped = $skip_empty && $field eq "";
-
-    if (!$is_skipped) {
-        if ($field_index >= $start && $field_index <= $end) {
-            push @output, $field;
-
-            if ($field_index < $end && !$no_selection && !$simple_ranges) {
-                push @output, $range_delimiter_provided ? $range_delimiter : $delim;
-            }
-        }
-        $field_index++;  # only increment when not skipped
+    if ($strict_return && !grep { $_ ne "" } @output_selections) {
+        die "Strict return check failed: No valid selections were output\n";
     }
-}
-
-    # Join the result into one string
-    if ($no_selection || $simple_ranges) {
-        my $result = join($join_string, @output);
-        print $result;
-    } else {
-        my $result = join("", @output);
-        print $result;
-    }
+    
+    my $result = join($join_string, @output_selections);
+    print $result;
 '
 
-result=""
-skip_join=0
-for ((i = 0; i < ${#starts[@]}; i++)); do
-    start="${starts[i]}"
-    end="${ends[i]}"
-    
-    out=$(perl -e "$perl_script" "$input" "$delimiter" "$join_string" "$simple_ranges" "$range_delimiter" "$range_delimiter_provided" "$start" "$end" "$count" "$strict_bounds" "$strict_return" "$strict_range_order" "$skip_empty" "$no_selection" 2>&1)
-    code=$?
-    
-    # Error code
-    if [[ $code -eq 111 ]]; then
-        # Invalid selector, skip join
-        skip_join=1
-    elif [[ $code -ne 0 ]]; then
-        echo "$out"
-        exit $code
-    fi
-    
-    # Adding selection joiner
-    if [[ $i -ne 0 ]]; then
-        if [[ $skip_join -eq 0 ]] || [[ $placeholder -eq 1 ]]; then
-            result+="$join_string"
-        fi
-    fi
-    skip_join=0
-    
-    result+="$out"
-done
+if [[ ${#selections[@]} -eq 0 ]]; then
+    selections+=("")
+fi
 
-# Skip echo if it isn't going to say anything
-if [[ ! -z $result ]]; then
+result=$(perl -e "$perl_script" \
+    "$input" \
+    "$delimiter" \
+    "$join_string" \
+    "$simple_ranges" \
+    "$range_delimiter" \
+    "$range_delimiter_provided" \
+    "$count" \
+    "$skip_empty" \
+    "$placeholder" \
+    "$strict_return" \
+    "$strict_bounds" \
+    "$strict_range_order" \
+    "${selections[@]}"\
+    2>&1)
+code=$?
+
+if [[ $code -ne 0 ]]; then
+    echo "$result" >&2
+    exit $code
+fi
+
+if [[ -n $result ]]; then
     echo -e "$result"
 fi
+

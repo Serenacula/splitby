@@ -99,7 +99,7 @@ run_test "Empty string with strict bounds" "echo '' | ./splitby.sh -d ' ' --stri
 # Strict return feature
 run_test "Strict return feature" "echo 'this is a test' | ./splitby.sh --strict-return -d 'z'" "error"
 run_test "Strict return with out-of-range index" "echo 'this is a test' | ./splitby.sh --strict-return -d 'z' 1" "error"
-run_test "Strict return allows empty fields" "echo ',' | ./splitby.sh --strict-return -d ','" ""
+run_test "Strict return doesn't allow empty fields" "echo ',' | ./splitby.sh --strict-return -d ','" "error"
 run_test "Strict return counts" "echo ',' | ./splitby.sh --strict-return --count -d ','" "2"
 
 # No strict range
