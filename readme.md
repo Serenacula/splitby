@@ -10,11 +10,11 @@ The usage format is:
 splitby [options] -d <delimiter> <index_or_range>
 ```
 
-The delimiter is any regex string, e.g. `-d "\s+"`
+The delimiter can be any regex string, e.g. `-d "\s+"`
 
-The index states which values you want. It can accept a single number `2` or a range `2-3`.
+The index states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for bash.
 
-Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is after the ending index.
+Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is greater than the ending index.
 
 Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be separated by a new line.
 
@@ -25,15 +25,15 @@ _Simple usecase_
 ```sh
 echo "boo hoo" | splitby -d " " 1
 > boo
-echo "boo,hoo" | splitby -d "," 2
+echo "boo,hoo" | splitby -d "," 2 # You can use any delimiter you want
 > hoo
 ```
 
 _Range_
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 2-3 # Delimiter is kept within a range
-> hoo foo
+echo "this,is,a,test" | splitby -d " " 2-4
+> is,a,test # Delimiters are kept within a range by default
 ```
 
 _Negative index_
@@ -61,6 +61,8 @@ To install the command locally, paste the following into terminal:
 curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitby.sh > /usr/local/bin/splitby && chmod +x /usr/local/bin/splitby
 ```
 
+Add `sudo` if required.
+
 ### Useful Aliases
 
 It's also suggested to add the following aliases, for some common usecases:
@@ -79,23 +81,23 @@ echo "this is\na test" | getline 2 | getword 2
 
 ## Options
 
-| Flag                                | Disable Flag            | Description                                                             |
-| ----------------------------------- | ----------------------- | ----------------------------------------------------------------------- |
-| -h, --help                          |                         | Print help text                                                         |
-| -v, --version                       |                         | Print version number                                                    |
-| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                 |
-| -i, --input \<input_file>           |                         | Provide an input file                                                   |
-| -j, --join \<string>                |                         | Join each selection with a given string                                 |
-| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                    |
-| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                    |
-| -c, --count                         |                         | Return the number of results after splitting                            |
-| --invert                            |                         | Inverts the chosen selection                                            |
-| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                            |
-| --placeholder                       |                         | Inserts empty fields for invalid selections                             |
-| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                       |
-| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                    |
-| --strict-return                     | --no-strict-return      | Emit error if there is no result                                        |
-| --strict-range-order                | --no-strict-range-order | Emit error if the start of a range is before the end (Default: enabled) |
+| Flag                                | Disable Flag            | Description                                                               |
+| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| -h, --help                          |                         | Print help text                                                           |
+| -v, --version                       |                         | Print version number                                                      |
+| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                   |
+| -i, --input \<input_file>           |                         | Provide an input file                                                     |
+| -j, --join \<string>                |                         | Join each selection with a given string                                   |
+| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                      |
+| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                      |
+| -c, --count                         |                         | Return the number of results after splitting                              |
+| --invert                            |                         | Inverts the chosen selection                                              |
+| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                              |
+| --placeholder                       |                         | Inserts empty fields for invalid selections                               |
+| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                         |
+| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                      |
+| --strict-return                     | --no-strict-return      | Emit error if there is no result                                          |
+| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end (Default: enabled) |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -108,7 +110,7 @@ _-j, --join_
 Normally each selection is outputted on a new line. This allows you to override that behaviour, replacing the newline with a custom string.
 
 ```sh
-echo "this is a test" | splitby -d " " "," 1 2-3 4
+echo "this is a test" | splitby -d " " 1 2-3 4
 > this
 > is a
 > test
@@ -121,6 +123,8 @@ echo "this is a test" | splitby -d " " --join "," 1 2-3 4
 _--simple-ranges_ | _--no-simple-ranges_
 
 By default, if you specify a range then it will treat that as a _single selection_, outputting the entire range with delimiters. This flag will change that behaviour, so that ranges are treated as a list of individual selections.
+
+When used with the --join flag, it will be used between each selection.
 
 ```sh
 echo "this is a test" | splitby -d " " 1 2-4
@@ -161,6 +165,8 @@ echo "this;is;a;test" | splitby --count -d ";"
 
 As with index selection, empty fields are counted unless you use the --skip-empty flag.
 
+Behaviours that affect selections are ignored, e.g. --invert, --placeholder
+
 ```sh
 echo "boo;;hoo" | splitby --count -d ";"
 > 3
@@ -177,10 +183,10 @@ The invert option selects everything _except_ what you choose. Note that ranges 
 ```sh
 echo "this is a test" | splitby -d " " 2
 > is
-echo "this is a test" | splitby -d " " 2 --invert
+echo "this is a test" | splitby -d " " --invert 2
 > this
 > a test
-echo "this is a test" | splitby -d " " 2 --invert --simple-ranges
+echo "this is a test" | splitby -d " " --invert --simple-ranges 2
 > this
 > a
 > test
@@ -217,7 +223,7 @@ _--placeholder_
 This is a somewhat niche flag for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however if you explicitly declare this then an invalid selection will output an empty string instead.
 
 ```sh
-echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2 # Out of range value gets skipped
+echo "boo hoo foo" | splitby -d " " 1 4 2 # Out of range value gets skipped
 > boo
 > hoo
 echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
@@ -245,7 +251,7 @@ For example, this is silently corrected to `2-3`. With strict mode, it emits an 
 ```sh
 echo "boo hoo foo" | splitby -d " " 2-5
 > hoo foo
-echo "boo hoo foo" | splitby -d " " 2-5  --strict-bounds
+echo "boo hoo foo" | splitby -d " " --strict-bounds 2-5
 > End index (5) out of bounds. Must be between 1 and 3
 ```
 
@@ -254,7 +260,7 @@ This also applies to single indexes out of bounds. By default, they emit an empt
 ```sh
 echo "boo hoo foo" | splitby -d " " 4
 >
-echo "boo hoo foo" | splitby -d " " 4  --strict-bounds
+echo "boo hoo foo" | splitby -d " " --strict-bounds 4
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
@@ -293,6 +299,6 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 ```sh
 echo "boo hoo" | splitby -d " " 3-1
 > End index (1) is less than start index (3) in selection 3-1\n
-echo "boo hoo" | splitby -d " " 3-1 --no-strict-range-order
+echo "boo hoo" | splitby -d " " --no-strict-range-order 3-1
 >
 ```

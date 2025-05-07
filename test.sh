@@ -89,6 +89,16 @@ run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./s
 run_test "Count takes precedence over join" "echo 'a b c' | ./splitby.sh -d ' ' --count -j ','" "3"
 run_test "Count takes precedence over simple ranges" "echo 'a b c' | ./splitby.sh -d ' ' --count --simple-ranges 1-3" "3"
 
+# Invert feature
+run_test "Invert single index" "echo 'a b c d' | ./splitby.sh -d ' ' --invert 2" $'a\nc d'
+run_test "Invert range selection" "echo 'a b c d' | ./splitby.sh -d ' ' --invert 2-3" $'a\nd'
+run_test "Invert index with simple ranges" "echo 'a b c d' | ./splitby.sh -d ' ' --invert --simple-ranges 2" $'a\nc\nd'
+run_test "Invert index with simple ranges and join" "echo 'a b c d' | ./splitby.sh -d ' ' --invert --simple-ranges -j ',' 2" "a,c,d"
+run_test "Invert range with join" "echo 'a b c d' | ./splitby.sh -d ' ' --invert -j ',' 2-3" "a,d"
+run_test "Invert whole set (empty result)" "echo 'a b' | ./splitby.sh -d ' ' --invert 1-2" ""
+run_test "Invert whole set with placeholder" "echo 'a b' | ./splitby.sh -d ' ' --invert --placeholder 1-2" ""
+run_test "Invert with count" "echo 'a b c' | ./splitby.sh -d ' ' --invert 2 --count" "3"
+
 
 # Strict bounds feature
 run_test "Strict bounds feature" "echo 'this is a test' | ./splitby.sh -d ' ' --strict-bounds 2-4" "is a test"
