@@ -17,12 +17,11 @@
 -   Replace newline between selections --join (done)
     -   Placeholder to keep invalid selections (done)
 -   --invert flag, to choose everything EXCEPT our indexes (done)
-    -   Don't miss invert + count
 -   --list to show you a list of each item with its index
--   -m/--multiline to run the script once over every line in the input
-    -   Would this be good as on by default..?
-    -   Multiline + count should have one count per line
-    -   Could also be called -p/--per-line
+-   Change to run once over each line of the input
+    -   The legacy implementation can be called -w/--whole
+    -   Disabling it can be called -p/--per-line (this is the default)
+    -   With count, it should count per line unless -w is active
 
 # Post-Feature Refinement
 
@@ -31,7 +30,9 @@
 -   Optimisation:
     -   Work out how to improve the looping. Maybe it can all be brought into a single loop?
     -   The loop inside perl should start at $start, not at 0
-    -   Tbh I just don't really like the current structure. Might be better to bring all the looping code into perl
+    -   Tbh I just don't really like the current structure. Might be better to bring all the looping code into perl (done)
+-   Rebuild:
+    -   Once the core structure is in place and I know how I want it designed, it will be rebuilt in rust. It should prove a good way to learn the language, while also improving the speed.
 
 ## Stretch Features
 
