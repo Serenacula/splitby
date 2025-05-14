@@ -1,4 +1,4 @@
-# Planned features
+# Planned Features
 
 ## Core Features
 
@@ -23,7 +23,15 @@
     -   Disabling it can be called -p/--per-line (this is the default)
     -   With count, it should count per line unless -w is active
 
-# Post-Feature Refinement
+## Stretch Features
+
+-   Drop --input OR replace the string with a file input (done)
+-   --output for output file
+-   --format that can auto-output json or csv for the user
+-   Zero-indexing
+-   Functions to turn off the strict modes (done)
+
+## Post-Feature Refinement
 
 -   Have a think about sensible defaults for each option
     -   Especially strict-range
@@ -33,14 +41,6 @@
     -   Tbh I just don't really like the current structure. Might be better to bring all the looping code into perl (done)
 -   Rebuild:
     -   Once the core structure is in place and I know how I want it designed, it will be rebuilt in rust. It should prove a good way to learn the language, while also improving the speed.
-
-## Stretch Features
-
--   Drop --input OR replace the string with a file input (done)
--   --output for output file
--   --format that can auto-output json or csv for the user
--   Zero-indexing
--   Functions to turn off the strict modes (done)
 
 ## Documentation
 
