@@ -368,17 +368,7 @@ perl_script='
 
         my @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts_raw;
         my $num_data_parts = scalar @data_parts;
-
-        if ($num_data_parts_raw == 1) {
-            if ($count) {
-                return "0";
-            }
-            if ($strict_return) {
-                die "Strict empty check failed: No valid fields available\n";
-            }
-            return "";
-        }
-
+        
         if ($count) {
             return "$num_data_parts";
         }

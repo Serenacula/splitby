@@ -76,7 +76,7 @@ It's also suggested to add the following aliases, for some common usecases:
 
 ```sh
 alias getline="splitby -w -d '\n'" # Split on newline
-alias getword="splitby -s -d '\s+'" # Split on whitespace
+alias getword="splitby -e -d '\s+'" # Split on whitespace
 ```
 
 These allow for fast and simple string processing:
@@ -106,24 +106,24 @@ cat file.csv | getword 1
 
 ## Options
 
-| Flag                                | Disable Flag            | Description                                                               |
-| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------- |
-| -h, --help                          |                         | Print help text                                                           |
-| -v, --version                       |                         | Print version number                                                      |
-| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                   |
-| -i, --input \<input_file>           |                         | Provide an input file                                                     |
-| -j, --join \<string>                |                         | Join each selection with a given string                                   |
-| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately  |
-| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                      |
-| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                      |
-| -c, --count                         |                         | Return the number of results after splitting                              |
-| --invert                            |                         | Inverts the chosen selection                                              |
-| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                              |
-| --placeholder                       |                         | Inserts empty fields for invalid selections                               |
-| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                         |
-| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                      |
-| --strict-return                     | --no-strict-return      | Emit error if there is no result                                          |
-| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end (Default: enabled) |
+| Flag                                | Disable Flag            | Description                                                              |
+| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| -h, --help                          |                         | Print help text                                                          |
+| -v, --version                       |                         | Print version number                                                     |
+| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |
+| -i, --input \<input_file>           |                         | Provide an input file                                                    |
+| -j, --join \<string>                |                         | Join each selection with a given string                                  |
+| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately |
+| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     |
+| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                     |
+| -c, --count                         |                         | Return the number of results after splitting                             |
+| --invert                            |                         | Inverts the chosen selection                                             |
+| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             |
+| --placeholder                       |                         | Inserts empty fields for invalid selections                              |
+| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                        |
+| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                     |
+| --strict-return                     | --no-strict-return      | Emit error if there is no result                                         |
+| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end                   |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -348,14 +348,14 @@ echo "boo hoo foo" | splitby -d " " --strict-bounds 4
 
 _--strict-return_ | _--no-strict-return_ (default: disabled)
 
-In situations where there is no results at all, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
+In situations where the selected result would be empty, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
-For example if a delimiter has no results:
+For example:
 
 ```sh
-echo "boo hoo" | splitby -d ","
+echo ",boo" | splitby -d "," 1
 >
-echo "boo hoo" | splitby -d "," --strict-return
+echo ",boo" | splitby -d "," --strict-return 1
 > strict return check failed: No valid fields available
 ```
 
@@ -372,13 +372,13 @@ It has no effect when --count is used.
 
 #### Strict Range Order
 
-_--strict-range-order_ | _--no-strict-range-order_ (default: enabled)
+_--strict-range-order_ | _--no-strict-range-order_
 
 This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
 ```sh
 echo "boo hoo" | splitby -d " " 3-1
-> End index (1) is less than start index (3) in selection 3-1
-echo "boo hoo" | splitby -d " " --no-strict-range-order 3-1
 >
+echo "boo hoo" | splitby -d " " --strict-range-order 3-1
+> End index (1) is less than start index (3) in selection 3-1
 ```
