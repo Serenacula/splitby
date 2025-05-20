@@ -18,10 +18,10 @@
     -   Placeholder to keep invalid selections (done)
 -   --invert flag, to choose everything EXCEPT our indexes (done)
 -   --list to show you a list of each item with its index
--   Change to run once over each line of the input
-    -   The legacy implementation can be called -w/--whole
-    -   Disabling it can be called -p/--per-line (this is the default)
-    -   With count, it should count per line unless -w is active
+-   Change to run once over each line of the input (done)
+    -   The legacy implementation can be called -w/--whole (done)
+    -   Disabling it can be called -p/--per-line (this is the default) (done)
+    -   With count, it should count per line unless -w is active (done)
 
 ## Stretch Features
 

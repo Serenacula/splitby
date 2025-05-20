@@ -75,15 +75,33 @@ Add `sudo` if required.
 It's also suggested to add the following aliases, for some common usecases:
 
 ```sh
-alias getline="splitby --whole-string -d '\n'" # Split on newline
-alias getword="splitby --skip-empty -d '\s+'" # Split on whitespace
+alias getline="splitby -w -d '\n'" # Split on newline
+alias getword="splitby -s -d '\s+'" # Split on whitespace
 ```
 
-These allow for fast and simple string processing, for example:
+These allow for fast and simple string processing:
 
 ```sh
 echo "this is\na test" | getline 2 | getword 2
 > test
+```
+
+Or quick table processing:
+
+```
+file.csv:
+
+Item,Value
+Apple,1.50
+Pear,1.30
+Car,30,000
+```
+
+```sh
+cat file.csv | getword 1
+> Apple
+> Pear
+> Car
 ```
 
 ## Options
