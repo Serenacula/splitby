@@ -34,8 +34,13 @@ run_test() {
 # Basic usage
 run_test "Split by space" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1" "this"
 run_test "Split by comma" "echo 'apple,banana,plum,cherry' | ./splitby.sh -d ',' 2" "banana"
-run_test "Test with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' 2" "is"
 run_test "Test equals syntax" "echo 'this is a test' | ./splitby.sh --delimiter=' '" $'this\nis\na\ntest'
+
+# Mode: Per line
+run_test "Per-line default extracts index 2 from every row" "printf 'u v w\nx y z\n' | ./splitby.sh -d ' ' 2" $'v\ny'
+
+# Mode: Whole text
+run_test "Test with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh --whole -d '\\n' 2" "is"
 
 # Negative usage
 run_test "Negative number" "echo 'this is a test' | ./splitby.sh -d ' ' -1" "test"
@@ -84,10 +89,11 @@ run_test "Replace range delimiter on empty result" "echo 'a b' | ./splitby.sh -d
 
 # Count feature
 run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d ' ' --count" "4"
-run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh -d '\\n' --count" "4"
-run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh -d '\\n' --count" "4"
+run_test "Using --count with newline delimiter" "echo -e 'this\nis\na\ntest' | ./splitby.sh --whole -d '\\n' --count" "4"
+run_test "Using --count with extra newline" "echo -e 'this\nis\na\ntest\n' | ./splitby.sh --whole -d '\\n' --count" "4"
 run_test "Count takes precedence over join" "echo 'a b c' | ./splitby.sh -d ' ' --count -j ','" "3"
 run_test "Count takes precedence over simple ranges" "echo 'a b c' | ./splitby.sh -d ' ' --count --simple-ranges 1-3" "3"
+run_test "Per-line default with count (per row)" "printf 'one two\nalpha beta gamma\n' | ./splitby.sh -d ' ' --count" $'2\n3'
 
 # Invert feature
 run_test "Invert single index" "echo 'a b c d' | ./splitby.sh -d ' ' --invert 2" $'a\nc d'

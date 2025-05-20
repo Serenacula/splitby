@@ -9,11 +9,13 @@ selections=()  # To store all range/index inputs
 
 # Options
 join_string=$'\n'
+join_provided=0
 simple_ranges=0
 range_delimiter=""
 range_delimiter_provided=0
 count=0
 invert=0
+whole_input=0
 skip_empty=0
 placeholder=0
 
@@ -28,6 +30,8 @@ show_help() {
     echo
     echo "Usage: splitby [options] -d <delimiter> index_or_range"
     echo
+    echo "Flags below run on a last-flag-wins basis, when conflicting flags are enabled"
+    echo
     echo "Options:"
     echo "  -d, --delimiter <regex>                 Specify the delimiter to use (required)"
     echo "  -i, --input <input_file>                Provide input file"
@@ -37,6 +41,8 @@ show_help() {
     echo "      --no-simple-ranges                  Turn off simple ranges"
     echo "  -c, --count                             Return the number of results"
     echo "      --invert                            Invert the selection"
+    echo "  -p  --per-line                          Treats each line as a separate input (default: true)"
+    echo "  -w  --whole-string                      Treats the input as a single string, disabling per-line mode"
     echo "  -e, --skip-empty                        Skip empty fields"
     echo "  -E, --no-skip-empty                     Turn off skipping empty fields"
     echo "      --placeholder                       Preserves invalid selections in output"
@@ -109,6 +115,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --join=*)
             join_string="${1#--join=}"
+            join_provided=1
             shift
             ;;
         -j|--join)
@@ -117,6 +124,7 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             join_string="$2"
+            join_provided=1
             shift 2
             ;;
         --replace-range-delimiter=*)
@@ -143,6 +151,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --invert)
             invert=1
+            shift
+            ;;
+        -w|--whole-string)
+            whole_input=1
+            shift
+            ;;
+        -p|--per-line)
+            whole_input=0
             shift
             ;;
         -e|--skip-empty)
@@ -210,6 +226,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# --- Set join delimiter ---
+if [[ $join_provided -eq 0 ]]; then
+    if [[ $whole_input -eq 1 ]]; then
+        join_string=$'\n'
+    else
+        join_string=" "
+    fi
+fi
+
 # --- Ensure delimiter is provided ---
 if [[ -z "$delimiter" ]]; then
     echo "Delimiter is required. Use -d or --delimiter to set one." >&2
@@ -257,6 +282,7 @@ perl_script='
         $range_delimiter_provided, 
         $count,
         $invert,
+        $whole_input,
         $skip_empty, 
         $placeholder,
         $strict_return, 
@@ -274,215 +300,277 @@ perl_script='
     if ($@) {
         die "Invalid delimiter regex: $delimiter\n";
     }
-
-    my @data_parts_raw = split /(?:$regex)/, $input, -1;
-    my $num_data_parts_raw = scalar @data_parts_raw;
-
-    my @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts_raw;
-    my $num_data_parts = scalar @data_parts;
-
-    if ($num_data_parts_raw == 1) {
-        if ($count) {
-            print "0\n";
-            exit 0;
-        }
-        if ($strict_return) {
-            die "Strict empty check failed: No valid fields available\n";
-        }
-        exit 0;
-    }
-
-    if ($count) {
-        print "$num_data_parts\n";
-        exit 0;
-    }
-
-    if ($num_data_parts == 0) {
-        if ($strict_return) {
-            die "Strict empty check failed: No valid fields available\n";
-        }
-        exit 0;
-    }
-
-    # Parsing selections into real values
     
-    sub resolve_index {
-        my ($raw, $total_fields) = @_;
-        return $raw =~ /^-/ ? $total_fields + $raw : $raw - 1;
-    }
+    if ( !$whole_input ) {
 
-    my @starts;
-    my @ends;
-
-    foreach my $selection (@selections) {
-        if ($selection eq "") {
-            push @starts, 0;
-            push @ends, $#data_parts;
-            next;
+        my @results;
+        foreach my $line ( split /\n/, $input, -1 ) {
+            push @results,
+                process_input(
+                    $line,      
+                    $regex,  
+                    $join_string, 
+                    $simple_ranges,
+                    $range_delimiter,    
+                    $range_delimiter_provided,
+                    $count,     
+                    $skip_empty,  
+                    $placeholder,
+                    $strict_return, 
+                    $strict_bounds, 
+                    $strict_range_order,
+                    \@selections
+                );
         }
 
-        # Single index
-        if ($selection =~ /^(-?\d+)$/) {
-            my $index = resolve_index($1, scalar(@data_parts));
+        # Decide counting policy: here we join per line (change if you prefer total)
+        print join "\n", @results;
+        exit 0;
+    } else {
+        my $final = process_input(
+            $input,   
+            $regex,  
+            $join_string, 
+            $simple_ranges,
+            $range_delimiter,  
+            $range_delimiter_provided,
+            $count,   
+            $skip_empty, 
+            $placeholder,
+            $strict_return, 
+            $strict_bounds, 
+            $strict_range_order,
+            \@selections
+        );
+        print $final;
+        exit 0;
+    }
+    
+    sub process_input {
+        my (
+            $input, 
+            $regex, 
+            $join_string, 
+            $simple_ranges, 
+            $range_delimiter,
+            $range_delimiter_provided, 
+            $count, 
+            $skip_empty, 
+            $placeholder,
+            $strict_return, 
+            $strict_bounds, 
+            $strict_range_order,
+            $selections
+        ) = @_;
+        
+        my @data_parts_raw = split /(?:$regex)/, $input, -1;
+        my $num_data_parts_raw = scalar @data_parts_raw;
 
-            if ($strict_bounds) {
-                if ($index < 0 || $index > $#data_parts) {
-                    die "Index ($1) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
-                }
-            } elsif ($index < 0 || $index > $#data_parts) {
-                # Push empty placeholder if enabled
-                if ($placeholder) {
-                    push @starts, -1;
-                    push @ends, -1;
-                }
+        my @data_parts = grep { !$skip_empty || ($_ ne "") } @data_parts_raw;
+        my $num_data_parts = scalar @data_parts;
+
+        if ($num_data_parts_raw == 1) {
+            if ($count) {
+                return "0";
+            }
+            if ($strict_return) {
+                die "Strict empty check failed: No valid fields available\n";
+            }
+            return "";
+        }
+
+        if ($count) {
+            return "$num_data_parts";
+        }
+
+        if ($num_data_parts == 0) {
+            if ($strict_return) {
+                die "Strict empty check failed: No valid fields available\n";
+            }
+            return "";
+        }
+
+        # Parsing selections into real values
+        
+        sub resolve_index {
+            my ($raw, $total_fields) = @_;
+            return $raw =~ /^-/ ? $total_fields + $raw : $raw - 1;
+        }
+
+        my @starts;
+        my @ends;
+
+        foreach my $selection (@selections) {
+            if ($selection eq "") {
+                push @starts, 0;
+                push @ends, $#data_parts;
                 next;
             }
 
-            push @starts, $index;
-            push @ends, $index;
-            next;
-        }
+            # Single index
+            if ($selection =~ /^(-?\d+)$/) {
+                my $index = resolve_index($1, scalar(@data_parts));
 
-        # Range
-        if ($selection =~ /^(-?\d+)-(-?\d+)$/) {
-            my ($start_raw, $end_raw) = ($1, $2);
-            my $start = resolve_index($start_raw, scalar(@data_parts));
-            my $end   = resolve_index($end_raw, scalar(@data_parts));
-
-            if ($strict_range_order && $end < $start) {
-                die "End index ($end_raw) is less than start index ($start_raw)\n";
-            }
-
-            if ($strict_bounds) {
-                if ($start < 0 || $start > $#data_parts) {
-                    die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
-                }
-                if ($end < 0 || $end > $#data_parts) {
-                    die "End index ($end_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
-                }
-            } else {
-                $start = 0 if $start < 0;
-                $end = $#data_parts if $end > $#data_parts;
-
-                if ($start > $#data_parts || $end < 0) {
+                if ($strict_bounds) {
+                    if ($index < 0 || $index > $#data_parts) {
+                        die "Index ($1) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                    }
+                } elsif ($index < 0 || $index > $#data_parts) {
+                    # Push empty placeholder if enabled
                     if ($placeholder) {
                         push @starts, -1;
                         push @ends, -1;
                     }
                     next;
                 }
+
+                push @starts, $index;
+                push @ends, $index;
+                next;
             }
 
-            push @starts, $start;
-            push @ends, $end;
-            next;
-        }
+            # Range
+            if ($selection =~ /^(-?\d+)-(-?\d+)$/) {
+                my ($start_raw, $end_raw) = ($1, $2);
+                my $start = resolve_index($start_raw, scalar(@data_parts));
+                my $end   = resolve_index($end_raw, scalar(@data_parts));
 
+                if ($strict_range_order && $end < $start) {
+                    die "End index ($end_raw) is less than start index ($start_raw)\n";
+                }
 
-        die "Invalid selection syntax: \"$selection\"\n";
-    }
-    
-    # -----  after @starts / @ends are populated  -----
-    if ($invert) {
+                if ($strict_bounds) {
+                    if ($start < 0 || $start > $#data_parts) {
+                        die "Start index ($start_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                    }
+                    if ($end < 0 || $end > $#data_parts) {
+                        die "End index ($end_raw) out of bounds. Must be between 1 and " . ($#data_parts + 1) . "\n";
+                    }
+                } else {
+                    $start = 0 if $start < 0;
+                    $end = $#data_parts if $end > $#data_parts;
 
-        # 1. Canonicalise ranges into a list of [start,end] pairs.
-        my @canonical_ranges;
-        for my $range_idx (0 .. $#starts) {
-            next if $starts[$range_idx] == -1;            # skip placeholders
-            my $start = $starts[$range_idx];
-            my $end = $ends[$range_idx];
-            next if $end < $start;                              # silently ignore 3-2 style input
-            push @canonical_ranges, [$start, $end];
-        }
+                    if ($start > $#data_parts || $end < 0) {
+                        if ($placeholder) {
+                            push @starts, -1;
+                            push @ends, -1;
+                        }
+                        next;
+                    }
+                }
 
-        # 2. Sort by start, then merge overlaps.
-        @canonical_ranges = sort { $a->[0] <=> $b->[0] } @canonical_ranges;
-        my @merged;
-        for my $pair (@canonical_ranges) {
-            if ( @merged && $pair->[0] <= $merged[-1]->[1] + 1 ) {
-                $merged[-1]->[1] = $pair->[1] if $pair->[1] > $merged[-1]->[1];
-            } else {
-                push @merged, [ @$pair ];
+                push @starts, $start;
+                push @ends, $end;
+                next;
             }
+
+
+            die "Invalid selection syntax: \"$selection\"\n";
         }
+        
+        # -----  after @starts / @ends are populated  -----
+        if ($invert) {
 
-        # 3. Walk the merged list once to find the complement intervals.
-        my @inv_starts;
-        my @inv_ends;
-        my $next_field = 0;
-        for my $pair (@merged) {
-            my ($sel_start, $sel_end) = @$pair;
-
-            if ( $next_field <= $sel_start - 1 ) {
-                push @inv_starts, $next_field;
-                push @inv_ends,   $sel_start - 1;
+            # 1. Canonicalise ranges into a list of [start,end] pairs.
+            my @canonical_ranges;
+            for my $range_idx (0 .. $#starts) {
+                next if $starts[$range_idx] == -1;            # skip placeholders
+                my $start = $starts[$range_idx];
+                my $end = $ends[$range_idx];
+                next if $end < $start;                              # silently ignore 3-2 style input
+                push @canonical_ranges, [$start, $end];
             }
-            $next_field = $sel_end + 1;
-        }
-        # tail-end gap
-        if ( $next_field <= $#data_parts ) {
-            push @inv_starts, $next_field;
-            push @inv_ends,   $#data_parts;
-        }
 
-        # 4. If nothing left and --placeholder is on, add a placeholder range.
-        if ( !@inv_starts && $placeholder ) {
-            @inv_starts = (-1);
-            @inv_ends   = (-1);
-        }
-
-        # 5. Replace the original arrays.
-        @starts = @inv_starts;
-        @ends   = @inv_ends;
-    }
-
-
-    my @parts = split /($regex)/, $input;
-    my @output_selections = ();
-    for (my $selection_index = 0; $selection_index < @starts; $selection_index++) {
-        my $start = $starts[$selection_index];
-        my $end   = $ends[$selection_index];
-
-        # Placeholder case
-        if ($start == -1 && $end == -1) {
-            push @output_selections, "";
-            next;
-        }
-
-        my @selection_output = ();
-        my $field_index = 0;
-
-        for (my $i = 0; $i < @parts; $i += 2) {
-            my $field = $parts[$i];
-            my $delim = $parts[$i + 1] // "";
-
-            my $is_skipped = $skip_empty && $field eq "";
-            next if $is_skipped;
-
-            if ($field_index >= $start && $field_index <= $end) {
-                push @selection_output, $field;
-
-                if ($field_index < $end && !$no_selection && !$simple_ranges) {
-                    push @selection_output, $range_delimiter_provided ? $range_delimiter : $delim;
+            # 2. Sort by start, then merge overlaps.
+            @canonical_ranges = sort { $a->[0] <=> $b->[0] } @canonical_ranges;
+            my @merged;
+            for my $pair (@canonical_ranges) {
+                if ( @merged && $pair->[0] <= $merged[-1]->[1] + 1 ) {
+                    $merged[-1]->[1] = $pair->[1] if $pair->[1] > $merged[-1]->[1];
+                } else {
+                    push @merged, [ @$pair ];
                 }
             }
 
-            $field_index++;
+            # 3. Walk the merged list once to find the complement intervals.
+            my @inv_starts;
+            my @inv_ends;
+            my $next_field = 0;
+            for my $pair (@merged) {
+                my ($sel_start, $sel_end) = @$pair;
+
+                if ( $next_field <= $sel_start - 1 ) {
+                    push @inv_starts, $next_field;
+                    push @inv_ends,   $sel_start - 1;
+                }
+                $next_field = $sel_end + 1;
+            }
+            # tail-end gap
+            if ( $next_field <= $#data_parts ) {
+                push @inv_starts, $next_field;
+                push @inv_ends,   $#data_parts;
+            }
+
+            # 4. If nothing left and --placeholder is on, add a placeholder range.
+            if ( !@inv_starts && $placeholder ) {
+                @inv_starts = (-1);
+                @inv_ends   = (-1);
+            }
+
+            # 5. Replace the original arrays.
+            @starts = @inv_starts;
+            @ends   = @inv_ends;
         }
 
-        my $joined_selection = ($no_selection || $simple_ranges)
-            ? join($join_string, @selection_output)
-            : join("", @selection_output);
 
-        push @output_selections, $joined_selection;
+        my @parts = split /($regex)/, $input;
+        my @output_selections = ();
+        for (my $selection_index = 0; $selection_index < @starts; $selection_index++) {
+            my $start = $starts[$selection_index];
+            my $end   = $ends[$selection_index];
+
+            # Placeholder case
+            if ($start == -1 && $end == -1) {
+                push @output_selections, "";
+                next;
+            }
+
+            my @selection_output = ();
+            my $field_index = 0;
+
+            for (my $i = 0; $i < @parts; $i += 2) {
+                my $field = $parts[$i];
+                my $delim = $parts[$i + 1] // "";
+
+                my $is_skipped = $skip_empty && $field eq "";
+                next if $is_skipped;
+
+                if ($field_index >= $start && $field_index <= $end) {
+                    push @selection_output, $field;
+
+                    if ($field_index < $end && !$no_selection && !$simple_ranges) {
+                        push @selection_output, $range_delimiter_provided ? $range_delimiter : $delim;
+                    }
+                }
+
+                $field_index++;
+            }
+
+            my $joined_selection = ($no_selection || $simple_ranges)
+                ? join($join_string, @selection_output)
+                : join("", @selection_output);
+
+            push @output_selections, $joined_selection;
+        }
+        
+        if ($strict_return && !grep { $_ ne "" } @output_selections) {
+            die "Strict return check failed: No valid selections were output\n";
+        }
+        
+        my $result = join($join_string, @output_selections);
+        
+        return $result;
     }
-    
-    if ($strict_return && !grep { $_ ne "" } @output_selections) {
-        die "Strict return check failed: No valid selections were output\n";
-    }
-    
-    my $result = join($join_string, @output_selections);
-    print $result;
 '
 
 if [[ ${#selections[@]} -eq 0 ]]; then
@@ -498,6 +586,7 @@ result=$(perl -e "$perl_script" \
     "$range_delimiter_provided" \
     "$count" \
     "$invert"\
+    "$whole_input"\
     "$skip_empty" \
     "$placeholder" \
     "$strict_return" \

@@ -1,6 +1,6 @@
 # splitby
 
-A bash script that splits a string by a delimiter and returns a selection of the result.
+A bash script that splits each input line by a delimiter and returns a selection of the result.
 
 ## How to use
 
@@ -32,7 +32,7 @@ echo "boo,hoo" | splitby -d "," 2 # You can use any delimiter you want
 _Range_
 
 ```sh
-echo "this,is,a,test" | splitby -d " " 2-4
+echo "this,is,a,test" | splitby -d "," 2-4
 > is,a,test # Delimiters are kept within a range by default
 ```
 
@@ -49,6 +49,13 @@ _Multiple indexes_
 
 ```sh
 echo "this is a test" | splitby -d " " 1 3-4
+> this a test
+```
+
+_Whole-input mode_
+
+```sh
+echo "this is\na test" | splitby -d " " 1 3-4
 > this
 > a test
 ```
@@ -68,8 +75,8 @@ Add `sudo` if required.
 It's also suggested to add the following aliases, for some common usecases:
 
 ```sh
-alias getline="splitby -d '\n'" # Split on newline
-alias getword="splitby -d '\s+'" # Split on whitespace
+alias getline="splitby --whole-string -d '\n'" # Split on newline
+alias getword="splitby --skip-empty -d '\s+'" # Split on whitespace
 ```
 
 These allow for fast and simple string processing, for example:
@@ -88,6 +95,7 @@ echo "this is\na test" | getline 2 | getword 2
 | -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                   |
 | -i, --input \<input_file>           |                         | Provide an input file                                                     |
 | -j, --join \<string>                |                         | Join each selection with a given string                                   |
+| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately  |
 | --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                      |
 | --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                      |
 | -c, --count                         |                         | Return the number of results after splitting                              |
@@ -103,18 +111,80 @@ By default the input string is taken from stdin, unless the `--input` flag is us
 
 Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Whichever flag was set last will be the one respected.
 
+### MODE: Per-line
+
+_-p, --per-line_ (default: enabled)
+
+This functionality will have the script run once per line. Useful for when dealing with a table of information.
+
+Note: By default, selections in this mode are joined with a space when not otherwise specified.
+
+For example:
+
+```
+staff.csv:
+
+Name,Age
+Bob,20
+Alice,30
+Alex,35
+```
+
+```sh
+cat staff.csv | splitby -d "," 1 # Extract just the names
+> Bob
+> Alice
+> Alex
+```
+
+### MODE: Whole-string
+
+_-w, --whole-string_
+
+This treats the input as a single string. It runs once over the entire input. Useful for situations where you want to treat the string as a single blob, or you wish to use `\n` as your delimiter.
+
+```
+test-result.md:
+
+Test results:
+1. No problem
+2. Error
+3. No problem
+4. No problem
+```
+
+```sh
+cat test-result.md | splitby --whole-string -d "\n" 2 # By using \n we can select a specific line
+> 2. Error
+```
+
 ### Join
 
 _-j, --join_
 
-Normally each selection is outputted on a new line. This allows you to override that behaviour, replacing the newline with a custom string.
+Normally each selection is outputted with a space between in per-line mode, or a newline in whole-string mode. This allows you to override that behaviour, replacing the default joiner with a custom string.
+
+It does not affect delimiters within ranges unless simple-ranges is enabled.
+
+Per-line Behaviour:
 
 ```sh
-echo "this is a test" | splitby -d " " 1 2-3 4
+echo "this is\na test" | splitby -d " " 1 2
+> this is
+> a test
+echo "this is\na test" | splitby -d " " --join "," 1 2
+> this,is
+> a,test
+```
+
+Whole-string Behaviour:
+
+```sh
+echo "this is a test" | splitby --whole-string -d " " 1 2-3 4
 > this
 > is a
 > test
-echo "this is a test" | splitby -d " " --join "," 1 2-3 4
+echo "this is a test" | splitby --whole-string -d " " --join "," 1 2-3 4
 > this,is a,test
 ```
 
@@ -126,15 +196,13 @@ By default, if you specify a range then it will treat that as a _single selectio
 
 When used with the --join flag, it will be used between each selection.
 
+In per-line mode:
+
 ```sh
-echo "this is a test" | splitby -d " " 1 2-4
-> this
-> is a test
-echo "this is a test" | splitby -d " " --simple-ranges 1 2-4
-> this
-> is
-> a
-> test
+echo "this,is,a,test" | splitby -d "," 1 3-4
+> this a,test
+echo "this,is,a,test" | splitby -d "," --simple-ranges 1 3-4
+> this a test
 ```
 
 ### Replace Range Delimiter
@@ -184,12 +252,7 @@ The invert option selects everything _except_ what you choose. Note that ranges 
 echo "this is a test" | splitby -d " " 2
 > is
 echo "this is a test" | splitby -d " " --invert 2
-> this
-> a test
-echo "this is a test" | splitby -d " " --invert --simple-ranges 2
-> this
-> a
-> test
+> this a test
 ```
 
 ### Skip-empty
@@ -220,16 +283,15 @@ echo "boo,,hoo" | splitby -d "," --count --skip-empty
 
 _--placeholder_
 
-This is a somewhat niche flag for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however if you explicitly declare this then an invalid selection will output an empty string instead.
+This is a somewhat niche flag for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however with this flag an invalid selection will output an empty string instead.
+
+A join string is added here for clarity:
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 1 4 2 # Out of range value gets skipped
-> boo
-> hoo
+echo "boo hoo foo" | splitby -d " " -j ":" 1 4 2 # Out of range value gets skipped
+> boo:hoo
 echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
-> boo
->
-> hoo
+> boo::hoo
 ```
 
 ### Strict
@@ -298,7 +360,7 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 
 ```sh
 echo "boo hoo" | splitby -d " " 3-1
-> End index (1) is less than start index (3) in selection 3-1\n
+> End index (1) is less than start index (3) in selection 3-1
 echo "boo hoo" | splitby -d " " --no-strict-range-order 3-1
 >
 ```
