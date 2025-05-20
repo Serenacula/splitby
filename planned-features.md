@@ -45,7 +45,7 @@
 ## Documentation
 
 -   Add a list of common usecases:
-    -   echo $PATH | splitby -d ":"
+    -   echo $PATH | splitby -w -d ":"
     -   Stripping the headers from a csv
     -   Grabbing a particular piece of information from some output
     -   Getting specific columns from a file
