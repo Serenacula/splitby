@@ -17,7 +17,6 @@
 -   Replace newline between selections --join (done)
     -   Placeholder to keep invalid selections (done)
 -   --invert flag, to choose everything EXCEPT our indexes (done)
--   --list to show you a list of each item with its index
 -   Change to run once over each line of the input (done)
     -   The legacy implementation can be called -w/--whole (done)
     -   Disabling it can be called -p/--per-line (this is the default) (done)
@@ -26,10 +25,11 @@
 ## Stretch Features
 
 -   Drop --input OR replace the string with a file input (done)
--   --output for output file
--   --format that can auto-output json or csv for the user
--   Zero-indexing
 -   Functions to turn off the strict modes (done)
+-   --format that can auto-output json or csv for the user (dropped)
+-   -o,--output for specifying output file
+-   Zero-indexing
+-   --list to show you a list of each item with its index
 
 ## Post-Feature Refinement
 
