@@ -113,8 +113,8 @@ cat file.csv | getword 1
 | -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |               |
 | -i, --input \<input_file>           |                         | Provide an input file                                                    |               |
 | -j, --join \<string>                |                         | Join each selection with a given string                                  |               |
-| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately |               |
-| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     |               |
+| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately | Per-line      |
+| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     | Disabled      |
 | --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                     |               |
 | -c, --count                         |                         | Return the number of results after splitting                             |               |
 | --invert                            |                         | Inverts the chosen selection                                             |               |
