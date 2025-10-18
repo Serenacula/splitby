@@ -107,7 +107,7 @@ cat file.csv | getword 1
 ## Options
 
 | Flag                                | Disable Flag            | Description                                                              | Default Value |
-| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ |               |
+| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ | ------------- |
 | -h, --help                          |                         | Print help text                                                          |               |
 | -v, --version                       |                         | Print version number                                                     |               |
 | -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |               |
