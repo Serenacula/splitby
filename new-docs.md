@@ -31,5 +31,6 @@ Selections: 1 4 6-10  -3--1  etc.  Negative counts from end.
     -   Mode flags
     -   Delimiter flags
 -   Cut comparison cheatsheet
+    -   Differences in syntax!
 -   FAQ
     -   E.g. starting delimiters causing trouble

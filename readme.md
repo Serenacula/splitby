@@ -106,24 +106,24 @@ cat file.csv | getword 1
 
 ## Options
 
-| Flag                                | Disable Flag            | Description                                                              |
-| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ |
-| -h, --help                          |                         | Print help text                                                          |
-| -v, --version                       |                         | Print version number                                                     |
-| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |
-| -i, --input \<input_file>           |                         | Provide an input file                                                    |
-| -j, --join \<string>                |                         | Join each selection with a given string                                  |
-| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately |
-| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     |
-| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                     |
-| -c, --count                         |                         | Return the number of results after splitting                             |
-| --invert                            |                         | Inverts the chosen selection                                             |
-| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             |
-| --placeholder                       |                         | Inserts empty fields for invalid selections                              |
-| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                        |
-| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                     |
-| --strict-return                     | --no-strict-return      | Emit error if there is no result                                         |
-| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end                   |
+| Flag                                | Disable Flag            | Description                                                              | Default Value |
+| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ |               |
+| -h, --help                          |                         | Print help text                                                          |               |
+| -v, --version                       |                         | Print version number                                                     |               |
+| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |               |
+| -i, --input \<input_file>           |                         | Provide an input file                                                    |               |
+| -j, --join \<string>                |                         | Join each selection with a given string                                  |               |
+| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately |               |
+| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     |               |
+| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                     |               |
+| -c, --count                         |                         | Return the number of results after splitting                             |               |
+| --invert                            |                         | Inverts the chosen selection                                             |               |
+| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             | Disabled      |
+| --placeholder                       |                         | Inserts empty fields for invalid selections                              |               |
+| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                        |               |
+| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                     | Disabled      |
+| --strict-return                     | --no-strict-return      | Emit error if there is no result                                         | Disabled      |
+| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end                   | Enabled       |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
@@ -275,7 +275,7 @@ echo "this is a test" | splitby -d " " --invert 2
 
 ### Skip-empty
 
-_-e, --skip-empty_ | _-E, --no-skip-empty_
+_-e, --skip-empty_ | _-E, --no-skip-empty_ (default: disabled)
 
 By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
 
@@ -372,7 +372,7 @@ It has no effect when --count is used.
 
 #### Strict Range Order
 
-_--strict-range-order_ | _--no-strict-range-order_
+_--strict-range-order_ | _--no-strict-range-order_ (default: enabled)
 
 This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
