@@ -65,6 +65,7 @@ On reflection, entirely on accident this is essentially a more powerful version 
 -   -o,--output for specifying output file
 -   Zero-indexing
 -   --list to show you a list of each item with its index
+-   Special `start` `end` or `first` `last` tags in ranges
 
 ## Post-Feature Refinement
 
