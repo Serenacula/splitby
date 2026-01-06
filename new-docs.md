@@ -26,10 +26,29 @@ Selections: 1 4 6-10  -3--1  etc.  Negative counts from end.
 ## Doc Sections
 
 -   Quick Start
+-   Modes
+    -   Input modes
+        -   Mode: Per line (default)
+        -   Mode: Whole string
+        -   Mode: Zero-terminated
+    -   Selection modes
+        -   Mode: Fields (default)
+        -   Mode: Characters
+        -   Mode: Bytes
+        -   Flag: Invert, reverse the selection
+    -   Delimiter modes
+        -   Mode: Cut, delimiters are kept between selections, which is how original cut works
+        -   Mode: Classic, delimiters are dropped between selections, kept within ranges, which is how mine worked
+        -   Mode: Simple ranges, dropped
+        -   Flag: Join, changes the delimiter used for connecting, --output-delimiter as synonym for compatibility
 -   Flags
     -   Input flags
-    -   Mode flags
-    -   Delimiter flags
+    -   Selection flags
+    -   Delimiter mode flags
+        -   Cut mode: delimiters are kept between selections, which is how original cut works
+        -   Classic mode: delimiters are dropped between selections, which is how mine worked
+        -   Simple Ranges: dropped! Since it can already be achieved alternatively
+        -   Join: changes the delimiter used for connecting fields
 -   Cut comparison cheatsheet
     -   Differences in syntax!
 -   FAQ

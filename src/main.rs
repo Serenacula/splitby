@@ -1,3 +1,549 @@
+use clap::Parser;
+use crossbeam::channel;
+use fancy_regex::Regex as FancyRegex;
+use regex::Regex as SimpleRegex;
+use std::{
+    cmp::max,
+    fs::File,
+    io::{self, BufRead, BufReader},
+    path::PathBuf,
+    sync::Arc,
+};
+
+// CLI Parser: Uses clap to handle the basic setup
+
+#[derive(Parser)]
+#[command(
+    name = "splitby",
+    version,
+    about = "Split text by a regex delimiter (flags only; no processing yet).",
+    disable_help_subcommand = true
+)]
+struct Options {
+    #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
+    delimiter: Option<String>,
+
+    // Input mode
+    #[arg(long = "per-line")]
+    per_line: bool,
+
+    #[arg(short = 'w', long = "whole-string")]
+    whole_string: bool,
+
+    #[arg(short = 'z', long = "zero-terminated")]
+    zero_terminated: bool,
+
+    #[arg(short = 'j', long = "join", value_name = "STRING")]
+    join: Option<String>,
+
+    #[arg(long = "replace-range-delimiter", value_name = "STRING")]
+    replace_range_delimiter: Option<String>,
+
+    #[arg(short = 'e', long = "skip-empty")]
+    skip_empty: bool,
+
+    #[arg(short = 'E', long = "no-skip-empty")]
+    no_skip_empty: bool,
+
+    #[arg(long = "invert")]
+    invert: bool,
+
+    #[arg(short = 's', long = "strict")]
+    strict: bool,
+
+    #[arg(short = 'S', long = "no-strict")]
+    no_strict: bool,
+
+    #[arg(long = "strict-bounds")]
+    strict_bounds: bool,
+
+    #[arg(long = "no-strict-bounds")]
+    no_strict_bounds: bool,
+
+    #[arg(long = "strict-return")]
+    strict_return: bool,
+
+    #[arg(long = "no-strict-return")]
+    no_strict_return: bool,
+
+    #[arg(long = "strict-range-order")]
+    strict_range_order: bool,
+
+    #[arg(long = "no-strict-range-order")]
+    no_strict_range_order: bool,
+
+    #[arg(short = 'i', long = "input", value_name = "FILE")]
+    input: Option<PathBuf>,
+
+    #[arg(short = 'o', long = "output", value_name = "FILE")]
+    output: Option<PathBuf>,
+
+    #[arg(long = "count")]
+    count: bool,
+
+    #[arg(
+        short = 'f',
+        long = "fields",
+        value_name = "SELECTION",
+        num_args = 0..=1,
+        allow_hyphen_values = true,
+    )]
+    field_list: Vec<String>,
+
+    #[arg(short = 'b',
+        long = "bytes",
+        value_name = "SELECTION",
+        num_args = 0..=1,
+        allow_hyphen_values = true,
+    )]
+    byte_list: Vec<String>,
+
+    #[arg(short = 'c',
+        long = "characters",
+        value_name = "SELECTION",
+        num_args = 0..=1,
+        allow_hyphen_values = true,
+    )]
+    char_list: Vec<String>,
+
+    #[arg(value_name = "SELECTION", num_args = 0.., allow_hyphen_values = true)]
+    selection_list: Vec<String>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum InputMode {
+    PerLine,
+    WholeString,
+    ZeroTerminated,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum SelectionMode {
+    Fields,
+    Bytes,
+    Chars,
+}
+
 fn main() {
-    println!("Hello, world!");
+    let options = Options::parse();
+
+    // Sorting out our last-flag-wins, since clap doesn't do this automatically
+    let mut input_mode: InputMode = InputMode::PerLine;
+    let mut skip_empty = false;
+    let mut strict_return = false;
+    let mut strict_bounds = false;
+    let mut strict_range_order = true;
+    let mut field_mode = false;
+    let mut byte_mode = false;
+    let mut char_mode = false;
+    for arg in std::env::args_os() {
+        match arg.to_string_lossy().as_ref() {
+            "--per-line" => input_mode = InputMode::PerLine,
+            "-w" | "--whole-string" => input_mode = InputMode::WholeString,
+            "-z" | "--zero-terminated" => input_mode = InputMode::ZeroTerminated,
+
+            "-b" | "--bytes" => byte_mode = true,
+            "-f" | "--fields" => field_mode = true,
+            "-c" | "--characters" => char_mode = true,
+
+            "-e" | "--skip-empty" => skip_empty = true,
+            "-E" | "--no-skip-empty" => skip_empty = false,
+
+            "--strict-return" => strict_return = true,
+            "--no-strict-return" => strict_return = false,
+
+            "--strict-bounds" => strict_bounds = true,
+            "--no-strict-bounds" => strict_bounds = false,
+
+            "--strict-range-order" => strict_range_order = true,
+            "--no-strict-range-order" => strict_range_order = false,
+
+            "-s" | "--strict" => {
+                strict_return = true;
+                strict_bounds = true;
+                strict_range_order = true;
+            }
+            "-S" | "--no-strict" => {
+                strict_return = false;
+                strict_bounds = false;
+                strict_range_order = false;
+            }
+
+            _ => {}
+        }
+    }
+
+    // Set the join string default, if no join is provided
+    let join = match (&options.join, input_mode == InputMode::WholeString) {
+        (Some(join_string), _) => join_string.clone(),
+        (None, true) => "\n".to_string(), // whole-string default
+        (None, false) => " ".to_string(), // per-line default
+    };
+
+    // SELECTIONS
+
+    // First, work out the mode we're in
+    let uses_fields = field_mode || !options.field_list.is_empty();
+    let uses_bytes = byte_mode || !options.byte_list.is_empty();
+    let uses_chars = char_mode || !options.char_list.is_empty();
+
+    if (uses_fields as u8 + uses_bytes as u8 + uses_chars as u8) > 1 {
+        eprintln!("cannot combine --fields, --bytes and --characters");
+        std::process::exit(2);
+    }
+    let selection_mode = if uses_bytes {
+        SelectionMode::Bytes
+    } else if uses_chars {
+        SelectionMode::Chars
+    } else {
+        SelectionMode::Fields
+    };
+
+    if selection_mode == SelectionMode::Fields && options.delimiter.is_none() {
+        eprintln!("Delimiter required: you can provide one with the -d <REGEX> flag");
+        std::process::exit(2);
+    }
+
+    // Merge all raw selection sources and parse
+    let mut selection_strings: Vec<String> = Vec::new();
+    match selection_mode {
+        SelectionMode::Fields => selection_strings.extend(options.field_list.iter().cloned()),
+        SelectionMode::Bytes => selection_strings.extend(options.byte_list.iter().cloned()),
+        SelectionMode::Chars => selection_strings.extend(options.char_list.iter().cloned()),
+    }
+    selection_strings.extend(options.selection_list.iter().cloned());
+
+    // PARSING SELECTIONS
+
+    fn parse_selection(string_raw: &str) -> Result<(i32, i32), String> {
+        fn parse_number(string: &str) -> Result<i32, String> {
+            let lowered = string.to_ascii_lowercase();
+            match lowered.as_str() {
+                "start" | "first" => Ok(1),
+                "end" | "last" => Ok(-1),
+                _ => lowered
+                    .parse::<i32>()
+                    .map_err(|_| format!("range has invalid number: {string}")),
+            }
+        }
+
+        let string = string_raw.trim();
+
+        // First try to parse the whole selection
+        if let Ok(value) = parse_number(string) {
+            return Ok((value, value));
+        }
+
+        // Okay, this is either a range or something invalid, so we need to find the two parts to it
+        // Gonna tear this out an just use regex later, but it's good enough for now
+        let split_index: usize;
+        if string.starts_with('-') {
+            let split_index_search = string.strip_prefix('-').unwrap().find('-');
+            if split_index_search.is_none() {
+                return Err(format!("invalid selection: {string}"));
+            }
+            split_index = split_index_search.unwrap() + 1
+        } else {
+            let split_index_search = string.find('-');
+            if split_index_search.is_none() {
+                return Err(format!("invalid selection: {string}"));
+            }
+            split_index = split_index_search.unwrap()
+        }
+
+        let (first_split, second_split) = string.split_at(split_index);
+
+        let no_hyphen = &second_split[1..];
+
+        let start = parse_number(first_split);
+        let end = parse_number(no_hyphen); // Strip the range hyphen
+        if start.is_err() || end.is_err() {
+            return Err(format!("invalid range '{string}'"));
+        }
+
+        Ok((start.unwrap(), end.unwrap()))
+    }
+
+    let mut selections: Vec<(i32, i32)> = Vec::new();
+    for string_raw in selection_strings {
+        let parse_result = parse_selection(string_raw.as_str());
+        if parse_result.is_err() {
+            eprintln!("invalid selection: '{string_raw}'");
+            std::process::exit(2);
+        }
+
+        selections.push(parse_result.unwrap());
+    }
+
+    enum RegexEngine {
+        Simple(SimpleRegex),
+        Fancy(FancyRegex),
+    }
+
+    let regex_engine: Option<RegexEngine> = match selection_mode {
+        SelectionMode::Bytes | SelectionMode::Chars => None,
+        SelectionMode::Fields => {
+            let delimiter: String = options.delimiter.unwrap_or_else(|| {
+                eprintln!("error: delimiter required in Fields mode");
+                std::process::exit(2)
+            });
+            let simple_regex = SimpleRegex::new(&delimiter);
+
+            match simple_regex {
+                Ok(regex) => Some(RegexEngine::Simple(regex)),
+                Err(_) => {
+                    let fancy_regex = FancyRegex::new(&delimiter).unwrap_or_else(|error| {
+                        eprintln!("error: failed to compile regex: {error}");
+                        std::process::exit(2)
+                    });
+                    Some(RegexEngine::Fancy(fancy_regex))
+                }
+            }
+        }
+    };
+
+    struct Instructions {
+        // Input
+        input_mode: InputMode,
+        input: Option<PathBuf>,
+        // Processing
+        selection_mode: SelectionMode,
+        selections: Vec<(i32, i32)>,
+        invert: bool,
+        skip_empty: bool,
+        // Failure Modes
+        strict_return: bool,
+        strict_bounds: bool,
+        strict_range_order: bool,
+        // Output
+        output: Option<PathBuf>,
+        count: bool,
+        join: String,
+        replace_range_delimiter: Option<String>, // might get rid of this not sure yet
+
+        regex_engine: Option<RegexEngine>,
+    }
+
+    let instructions = Arc::new(Instructions {
+        input_mode: input_mode,
+        input: options.input,
+        selection_mode: selection_mode,
+        selections: selections,
+        invert: options.invert,
+        skip_empty: skip_empty,
+        strict_return: strict_return,
+        strict_bounds: strict_bounds,
+        strict_range_order: strict_range_order,
+        output: options.output,
+        count: options.count,
+        join: join,
+        replace_range_delimiter: options.replace_range_delimiter,
+
+        regex_engine: regex_engine,
+    });
+
+    struct Record {
+        index: usize,
+        text: String,
+    }
+
+    enum RecordResult {
+        Ok { index: usize, line: String },
+        Err { index: usize, error: String },
+    }
+
+    let (record_sender, record_receiver) = channel::bounded::<Record>(1024);
+    let (result_sender, result_receiver) = channel::bounded::<RecordResult>(1024);
+
+    fn read_input(
+        input_mode: &InputMode,
+        input_path: &Option<PathBuf>,
+        record_sender: channel::Sender<Record>,
+    ) -> Result<(), String> {
+        let mut reader: Box<dyn BufRead> = match input_path.as_ref() {
+            Some(path) => {
+                let file = File::open(path)
+                    .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
+                Box::new(BufReader::new(file))
+            }
+            None => {
+                let stdin = io::stdin();
+                Box::new(stdin.lock())
+            }
+        };
+        let mut index: usize = 0;
+
+        match input_mode {
+            InputMode::PerLine => {
+                let mut buffer = String::new();
+                loop {
+                    buffer.clear();
+                    let bytes_read = reader
+                        .read_line(&mut buffer)
+                        .map_err(|error| format!("{error}"))?;
+                    if bytes_read == 0 {
+                        return Ok(()); // EOF
+                    }
+
+                    if buffer.ends_with('\n') {
+                        buffer.pop();
+                        if buffer.ends_with('\r') {
+                            buffer.pop();
+                        }
+                    }
+
+                    record_sender
+                        .send(Record {
+                            index: index,
+                            text: buffer.clone(),
+                        })
+                        .map_err(|error| format!("{error}"))?;
+
+                    index += 1;
+                }
+            }
+            InputMode::ZeroTerminated => {
+                let mut buffer: Vec<u8> = Vec::new();
+                loop {
+                    buffer.clear();
+                    let bytes_read = reader
+                        .read_until(b'\0', &mut buffer)
+                        .map_err(|error| format!("error while reading: {error}"))?;
+                    if bytes_read == 0 {
+                        return Ok(());
+                    }
+
+                    if buffer.last() == Some(&b'\0') {
+                        buffer.pop();
+                    }
+
+                    record_sender
+                        .send(Record {
+                            index: index,
+                            text: String::from_utf8_lossy(&buffer).to_string(),
+                        })
+                        .map_err(|error| format!("{error}"))?;
+
+                    index += 1;
+                }
+            }
+            InputMode::WholeString => {
+                let mut buffer = String::new();
+                reader
+                    .read_to_string(&mut buffer)
+                    .map_err(|error| format!("{error}"))?;
+
+                record_sender
+                    .send(Record {
+                        index: index,
+                        text: buffer,
+                    })
+                    .map_err(|error| format!("{error}"))?;
+
+                Ok(())
+            }
+        }
+    }
+
+    // fn split_fields(
+    //     record: Record,
+    //     selection_mode: SelectionMode,
+    //     regex_engine: Option<RegexEngine>,
+    // ) -> Result<Vec<u8>, String> {
+    //     fn split_by_byte(record: Record) -> Vec<u8> {
+    //         return record.text.as_bytes().to_vec();
+    //     }
+
+    //     match selection_mode {
+    //         SelectionMode::Bytes => Ok(record.text.as_bytes().to_vec()),
+    //         SelectionMode::Chars => Ok(record.text.chars()),
+    //         SelectionMode::Fields => Err("Invalid selection mode"),
+    //     }
+    // }
+
+    fn process_records(
+        instructions: Arc<Instructions>,
+        record_receiver: channel::Receiver<Record>,
+        result_sender: channel::Sender<RecordResult>,
+    ) -> Result<(), String> {
+        let mut buffer: Record;
+
+        if instructions.selection_mode == SelectionMode::Bytes
+            || instructions.selection_mode == SelectionMode::Chars
+        {
+            return Err(format!("not supporting byte or character queries yet!"));
+        }
+
+        loop {
+            // Get the record
+            let record_result = record_receiver.recv();
+            if record_result.is_err() {
+                return Ok(());
+            }
+            buffer = record_result.unwrap();
+
+            // Split the record into fields
+
+            let regex = instructions.regex_engine.as_ref().unwrap();
+
+            let fields: Vec<&str> = match regex {
+                RegexEngine::Simple(simple_regex) => simple_regex.split(&buffer.text).collect(),
+                RegexEngine::Fancy(fancy_regex) => {
+                    let field_results = fancy_regex.split(&buffer.text);
+                    let fields: Result<Vec<&str>, fancy_regex::Error> =
+                        field_results.into_iter().collect();
+
+                    if fields.is_err() {}
+
+                    fields.unwrap()
+                }
+            };
+
+            // Count and exit if --count
+
+            // Choose our selections and ranges
+
+            // etc
+        }
+    }
+
+    fn get_results(
+        instructions: Arc<Instructions>,
+        result_receiver: channel::Receiver<RecordResult>,
+    ) -> Result<Vec<String>, String> {
+        Err("Not implemented".to_string())
+    }
+
+    let reader_instructions = Arc::clone(&instructions);
+    let reader_sender = record_sender.clone();
+    std::thread::spawn(move || {
+        let _ = read_input(
+            &reader_instructions.input_mode,
+            &reader_instructions.input,
+            reader_sender,
+        )
+        .map_err(|error| eprintln!("{error}"));
+    });
+    drop(record_sender);
+
+    let worker_count = std::thread::available_parallelism()
+        .map(|count| count.get())
+        .unwrap_or(1);
+
+    for _ in 0..max(worker_count, 1) {
+        let worker_instructions = Arc::clone(&instructions);
+        let worker_receiver = record_receiver.clone();
+        let worker_sender = result_sender.clone();
+        std::thread::spawn(move || {
+            let _ = process_records(worker_instructions, worker_receiver, worker_sender)
+                .map_err(|error| eprintln!("{error}"));
+        });
+    }
+    drop(result_sender);
+
+    let results = get_results(instructions, result_receiver).unwrap();
+
+    for result in results {
+        println!("{}", result)
+    }
 }
