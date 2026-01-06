@@ -344,7 +344,7 @@ fn main() {
 
     struct Record {
         index: usize,
-        text: String,
+        bytes: Vec<u8>,
     }
 
     enum RecordResult {
@@ -375,19 +375,18 @@ fn main() {
 
         match input_mode {
             InputMode::PerLine => {
-                let mut buffer = String::new();
+                let mut buffer: Vec<u8> = Vec::new();
                 loop {
-                    buffer.clear();
                     let bytes_read = reader
-                        .read_line(&mut buffer)
+                        .read_until(b'\n', &mut buffer)
                         .map_err(|error| format!("{error}"))?;
                     if bytes_read == 0 {
                         return Ok(()); // EOF
                     }
 
-                    if buffer.ends_with('\n') {
+                    if buffer.last() == Some(&b'\n') {
                         buffer.pop();
-                        if buffer.ends_with('\r') {
+                        if buffer.last() == Some(&b'\r') {
                             buffer.pop();
                         }
                     }
@@ -395,7 +394,7 @@ fn main() {
                     record_sender
                         .send(Record {
                             index: index,
-                            text: buffer.clone(),
+                            bytes: std::mem::take(&mut buffer),
                         })
                         .map_err(|error| format!("{error}"))?;
 
@@ -405,7 +404,6 @@ fn main() {
             InputMode::ZeroTerminated => {
                 let mut buffer: Vec<u8> = Vec::new();
                 loop {
-                    buffer.clear();
                     let bytes_read = reader
                         .read_until(b'\0', &mut buffer)
                         .map_err(|error| format!("error while reading: {error}"))?;
@@ -420,7 +418,7 @@ fn main() {
                     record_sender
                         .send(Record {
                             index: index,
-                            text: String::from_utf8_lossy(&buffer).to_string(),
+                            bytes: std::mem::take(&mut buffer),
                         })
                         .map_err(|error| format!("{error}"))?;
 
@@ -428,15 +426,15 @@ fn main() {
                 }
             }
             InputMode::WholeString => {
-                let mut buffer = String::new();
+                let mut buffer: Vec<u8> = Vec::new();
                 reader
-                    .read_to_string(&mut buffer)
+                    .read_to_end(&mut buffer)
                     .map_err(|error| format!("{error}"))?;
 
                 record_sender
                     .send(Record {
                         index: index,
-                        text: buffer,
+                        bytes: buffer,
                     })
                     .map_err(|error| format!("{error}"))?;
 
