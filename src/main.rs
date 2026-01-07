@@ -1,11 +1,16 @@
+mod types;
+mod worker;
+use crate::types::*;
+use crate::worker::*;
 use clap::Parser;
 use crossbeam::channel;
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
 use std::{
     cmp::max,
+    collections::BTreeMap,
     fs::File,
-    io::{self, BufRead, BufReader},
+    io::{self, BufRead, BufReader, Write},
     path::PathBuf,
     sync::Arc,
 };
@@ -108,20 +113,6 @@ struct Options {
 
     #[arg(value_name = "SELECTION", num_args = 0.., allow_hyphen_values = true)]
     selection_list: Vec<String>,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum InputMode {
-    PerLine,
-    WholeString,
-    ZeroTerminated,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum SelectionMode {
-    Fields,
-    Bytes,
-    Chars,
 }
 
 fn main() {
@@ -275,11 +266,7 @@ fn main() {
         selections.push(parse_result.unwrap());
     }
 
-    enum RegexEngine {
-        Simple(SimpleRegex),
-        Fancy(FancyRegex),
-    }
-
+    // We don't want to compile this inside the workers, so it gets done here
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
@@ -302,28 +289,6 @@ fn main() {
         }
     };
 
-    struct Instructions {
-        // Input
-        input_mode: InputMode,
-        input: Option<PathBuf>,
-        // Processing
-        selection_mode: SelectionMode,
-        selections: Vec<(i32, i32)>,
-        invert: bool,
-        skip_empty: bool,
-        // Failure Modes
-        strict_return: bool,
-        strict_bounds: bool,
-        strict_range_order: bool,
-        // Output
-        output: Option<PathBuf>,
-        count: bool,
-        join: String,
-        replace_range_delimiter: Option<String>, // might get rid of this not sure yet
-
-        regex_engine: Option<RegexEngine>,
-    }
-
     let instructions = Arc::new(Instructions {
         input_mode: input_mode,
         input: options.input,
@@ -341,16 +306,6 @@ fn main() {
 
         regex_engine: regex_engine,
     });
-
-    struct Record {
-        index: usize,
-        bytes: Vec<u8>,
-    }
-
-    enum RecordResult {
-        Ok { index: usize, line: String },
-        Err { index: usize, error: String },
-    }
 
     let (record_sender, record_receiver) = channel::bounded::<Record>(1024);
     let (result_sender, result_receiver) = channel::bounded::<RecordResult>(1024);
@@ -464,37 +419,28 @@ fn main() {
         record_receiver: channel::Receiver<Record>,
         result_sender: channel::Sender<RecordResult>,
     ) -> Result<(), String> {
-        let mut buffer: Record;
-
-        if instructions.selection_mode == SelectionMode::Bytes
-            || instructions.selection_mode == SelectionMode::Chars
-        {
-            return Err(format!("not supporting byte or character queries yet!"));
-        }
+        let mut record: Record;
 
         loop {
             // Get the record
-            let record_result = record_receiver.recv();
-            if record_result.is_err() {
-                return Ok(());
-            }
-            buffer = record_result.unwrap();
+            let record = match record_receiver.recv() {
+                Ok(record) => record,
+                Err(_) => return Ok(()),
+            };
 
             // Split the record into fields
 
-            let regex = instructions.regex_engine.as_ref().unwrap();
-
-            let fields: Vec<&str> = match regex {
-                RegexEngine::Simple(simple_regex) => simple_regex.split(&buffer.text).collect(),
-                RegexEngine::Fancy(fancy_regex) => {
-                    let field_results = fancy_regex.split(&buffer.text);
-                    let fields: Result<Vec<&str>, fancy_regex::Error> =
-                        field_results.into_iter().collect();
-
-                    if fields.is_err() {}
-
-                    fields.unwrap()
-                }
+            let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
+                SelectionMode::Bytes => process_bytes(&instructions, record),
+                SelectionMode::Chars => process_chars(&instructions, record),
+                SelectionMode::Fields => match instructions.regex_engine.as_ref().unwrap() {
+                    RegexEngine::Simple(engine) => {
+                        process_simple_regex(&instructions, engine, record)
+                    }
+                    RegexEngine::Fancy(engine) => {
+                        process_fancy_regex(&instructions, engine, record)
+                    }
+                },
             };
 
             // Count and exit if --count
@@ -508,8 +454,58 @@ fn main() {
     fn get_results(
         instructions: Arc<Instructions>,
         result_receiver: channel::Receiver<RecordResult>,
-    ) -> Result<Vec<String>, String> {
-        Err("Not implemented".to_string())
+    ) -> Result<(), String> {
+        // Decide record terminator (what separates records in output)
+        let record_terminator: Option<u8> = match instructions.input_mode {
+            InputMode::PerLine => Some(b'\n'),
+            InputMode::ZeroTerminated => Some(b'\0'),
+            InputMode::WholeString => None,
+        };
+
+        // Output target (stdout for now; file can come next)
+        let stdout = io::stdout();
+        let mut writer = io::BufWriter::new(stdout.lock());
+
+        let mut next_index: usize = 0;
+        let mut pending: BTreeMap<usize, Vec<u8>> = BTreeMap::new();
+
+        while let Ok(result) = result_receiver.recv() {
+            match result {
+                RecordResult::Err { index, error } => {
+                    return Err(format!("record {index}: {error}"));
+                }
+                RecordResult::Ok { index, bytes } => {
+                    pending.insert(index, bytes);
+                }
+            }
+
+            // Flush anything now in order
+            while let Some(bytes) = pending.remove(&next_index) {
+                writer
+                    .write_all(&bytes)
+                    .map_err(|error| error.to_string())?;
+
+                if let Some(terminator_byte) = record_terminator {
+                    writer
+                        .write_all(&[terminator_byte])
+                        .map_err(|error| error.to_string())?;
+                }
+
+                next_index += 1;
+            }
+        }
+
+        // Channel closed: all senders dropped.
+        // If anything remains pending, indices were skipped (worker died early, etc.)
+        if !pending.is_empty() {
+            let first_missing = next_index;
+            return Err(format!(
+                "result stream ended early; missing record {first_missing}"
+            ));
+        }
+
+        writer.flush().map_err(|error| error.to_string())?;
+        Ok(())
     }
 
     let reader_instructions = Arc::clone(&instructions);
@@ -528,7 +524,7 @@ fn main() {
         .map(|count| count.get())
         .unwrap_or(1);
 
-    for _ in 0..max(worker_count, 1) {
+    for _ in 0..max(worker_count - 1, 1) {
         let worker_instructions = Arc::clone(&instructions);
         let worker_receiver = record_receiver.clone();
         let worker_sender = result_sender.clone();
@@ -539,9 +535,5 @@ fn main() {
     }
     drop(result_sender);
 
-    let results = get_results(instructions, result_receiver).unwrap();
-
-    for result in results {
-        println!("{}", result)
-    }
+    get_results(instructions, result_receiver);
 }
