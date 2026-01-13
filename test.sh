@@ -186,7 +186,7 @@ run_test "Invert range selection" "echo 'a b c d' | ./splitby.sh -d ' ' --invert
 run_test "Invert range with join" "echo 'a b c d' | ./splitby.sh -d ' ' --invert -j ',' 2-3" "a,d"
 run_test "Invert whole set (empty result)" "echo 'a b' | ./splitby.sh -d ' ' --invert 1-2" ""
 run_test "Invert whole set with placeholder" "echo 'a b' | ./splitby.sh -d ' ' --invert --placeholder 1-2" ""
-run_test "Invert with count" "echo 'a b c' | ./splitby.sh -d ' ' --invert 2 --count" "3"
+run_test "Invert with count" "echo 'a b c' | ./splitby.sh -d ' ' --count --invert 2" "3"
 
 
 # Strict bounds feature
