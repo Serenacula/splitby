@@ -3,6 +3,28 @@ use std::borrow::Cow;
 use crate::types::*;
 use unicode_segmentation::UnicodeSegmentation;
 
+/// Estimate field count from input size and delimiter length
+fn estimate_field_count(input_len: usize, delimiter_len: usize) -> usize {
+    if input_len == 0 {
+        return 1;
+    }
+    // Estimate: assume average field size of 50 bytes
+    // Add buffer by dividing by slightly less to account for variation
+    let estimated = input_len / 50.max(delimiter_len + 10);
+    // Cap at reasonable maximum to avoid excessive allocation
+    estimated.max(1).min(10000)
+}
+
+/// Estimate output buffer size from input length and selection count
+fn estimate_output_size(input_len: usize, selection_count: usize) -> usize {
+    if selection_count == 0 {
+        return input_len; // Output all
+    }
+    // Assume we're keeping roughly a portion of data
+    // Conservative estimate: at least 1/4 of input, or proportional to selections
+    (input_len * 2 / selection_count.max(1)).max(input_len / 4)
+}
+
 fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
     if raw_index > 0 {
         Ok(raw_index - 1)
@@ -123,7 +145,8 @@ fn invert_selections(
     strict_range_order: bool,
 ) -> Result<Vec<(i32, i32)>, String> {
     // Step 1: Resolve selections to 0-based, filtering invalid ones
-    let mut canonical_ranges: Vec<(i32, i32)> = Vec::new();
+    // Pre-allocate with known size (same or smaller than input)
+    let mut canonical_ranges: Vec<(i32, i32)> = Vec::with_capacity(selections.len());
 
     for &(raw_start, raw_end) in selections {
         // Resolve indices
@@ -177,7 +200,8 @@ fn invert_selections(
     canonical_ranges.sort_by_key(|(start, _)| *start);
 
     // Step 3: Merge overlapping/adjacent ranges
-    let mut merged: Vec<(i32, i32)> = Vec::new();
+    // Pre-allocate: merged will be same size or smaller
+    let mut merged: Vec<(i32, i32)> = Vec::with_capacity(canonical_ranges.len());
     for range in canonical_ranges {
         if let Some(last) = merged.last_mut() {
             if range.0 <= last.1 + 1 {
@@ -190,7 +214,8 @@ fn invert_selections(
     }
 
     // Step 4: Compute complement intervals
-    let mut inverted: Vec<(i32, i32)> = Vec::new();
+    // Pre-allocate: worst case is gaps between every selection, so +1
+    let mut inverted: Vec<(i32, i32)> = Vec::with_capacity(merged.len() + 1);
     let mut next_field = 0i32;
 
     for (sel_start, sel_end) in merged {
@@ -253,7 +278,8 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     // Process the selections
     // We process selections and build output_selections, then join them
     // This allows us to handle placeholders (empty strings for invalid selections)
-    let mut output_selections: Vec<Vec<u8>> = Vec::new();
+    // Pre-allocate with known size
+    let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
 
     // For each set of selections
     for &(raw_start, raw_end) in &selections_to_process {
@@ -281,7 +307,9 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Join all selections with the join string (or default delimiter)
-    let mut output: Vec<u8> = Vec::new();
+    // Pre-allocate output buffer with estimated size
+    let estimated_output_size = estimate_output_size(byte_length, output_selections.len());
+    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
     for (index, selection) in output_selections.iter().enumerate() {
         if index > 0 && instructions.join.is_some() {
             if let Some(join) = &instructions.join {
@@ -343,7 +371,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     // Process the selections
     // We process selections and build output_selections, then join them
     // This allows us to handle placeholders (space for invalid selections)
-    let mut output_selections: Vec<Vec<u8>> = Vec::new();
+    // Pre-allocate with known size
+    let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
 
     // For each set of selections
     for &(raw_start, raw_end) in &selections_to_process {
@@ -375,7 +404,9 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Join all selections with the join string (or default delimiter)
-    let mut output: Vec<u8> = Vec::new();
+    // Pre-allocate output buffer with estimated size
+    let estimated_output_size = estimate_output_size(text.len(), output_selections.len());
+    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
     for (index, selection) in output_selections.iter().enumerate() {
         if index > 0 {
             if let Some(join) = &instructions.join {
@@ -403,7 +434,13 @@ pub fn process_fields(
     };
 
     // Extract fields from text using the appropriate regex engine
-    let mut fields: Vec<Field> = Vec::new();
+    // Pre-allocate fields vector with estimated capacity
+    let delimiter_len = match engine {
+        RegexEngine::Simple(re) => re.as_str().len(),
+        RegexEngine::Fancy(_) => 1, // Conservative estimate for fancy regex
+    };
+    let estimated_field_count = estimate_field_count(record.bytes.len(), delimiter_len);
+    let mut fields: Vec<Field> = Vec::with_capacity(estimated_field_count);
     let mut cursor = 0usize;
 
     match engine {
@@ -458,7 +495,9 @@ pub fn process_fields(
 
     // Filter out empty fields if --skip-empty is enabled
     if instructions.skip_empty {
-        fields = fields.into_iter().filter(|f| !f.text.is_empty()).collect();
+        // Pre-allocate filtered vector: worst case is no fields filtered (same size)
+        let filtered: Vec<Field> = fields.into_iter().filter(|f| !f.text.is_empty()).collect();
+        fields = filtered;
     }
 
     // Handle --count flag: return field count instead of processing selections
@@ -492,7 +531,16 @@ pub fn process_fields(
             return Ok(Vec::new()); // Inverted to nothing
         }
         // No selections provided, output all fields
-        let mut output: Vec<u8> = Vec::new();
+        // Pre-allocate output buffer: estimate size from fields
+        let estimated_output_size = if fields.is_empty() {
+            0
+        } else {
+            // Estimate: sum of field sizes plus delimiters
+            let total_field_size: usize = fields.iter().map(|f| f.text.len()).sum();
+            let delimiter_overhead = (fields.len().saturating_sub(1)) * 2; // Rough delimiter size estimate
+            total_field_size + delimiter_overhead
+        };
+        let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
         for (index, field) in fields.iter().enumerate() {
             if index > 0 {
                 // Add delimiter/join between fields
@@ -519,7 +567,8 @@ pub fn process_fields(
     // Process the extracted fields
     // We process selections and build output_selections, then join them
     // This allows us to handle placeholders (empty strings for invalid selections)
-    let mut output_selections: Vec<Vec<u8>> = Vec::new();
+    // Pre-allocate with known size
+    let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
 
     // For each set of selections
     for &(raw_start, raw_end) in &selections_to_process {
@@ -541,7 +590,16 @@ pub fn process_fields(
         };
 
         // Build output for this selection
-        let mut selection_output: Vec<u8> = Vec::new();
+        // Pre-allocate: estimate size based on range and average field size
+        let range_size = (process_end - process_start + 1) as usize;
+        let avg_field_size = if fields.is_empty() {
+            50
+        } else {
+            let total_size: usize = fields.iter().map(|f| f.text.len()).sum();
+            total_size / fields.len().max(1)
+        };
+        let estimated_selection_size = range_size * avg_field_size;
+        let mut selection_output: Vec<u8> = Vec::with_capacity(estimated_selection_size);
         let mut selection_has_output = false;
         let mut previous_index: Option<usize> = None;
 
@@ -597,7 +655,9 @@ pub fn process_fields(
     }
 
     // Join all selections with the join string (or default delimiter)
-    let mut output: Vec<u8> = Vec::new();
+    // Pre-allocate output buffer with estimated size
+    let estimated_output_size = estimate_output_size(record.bytes.len(), output_selections.len());
+    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
     for (index, selection) in output_selections.iter().enumerate() {
         if index > 0 {
             // Add join delimiter between selections
