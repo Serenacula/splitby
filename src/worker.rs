@@ -325,12 +325,19 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
 
 pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
     // Convert bytes to UTF-8 string (with strict_utf8 validation)
+    // Optimization: Try to borrow when data is already valid UTF-8 to avoid allocation
     let text: Cow<str> = match instructions.strict_utf8 {
         true => Cow::Borrowed(
             std::str::from_utf8(&record.bytes)
                 .map_err(|_| "input is not valid UTF-8".to_string())?,
         ),
-        false => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
+        false => {
+            // Try to borrow first - if data is valid UTF-8, no allocation needed
+            match std::str::from_utf8(&record.bytes) {
+                Ok(valid_str) => Cow::Borrowed(valid_str),
+                Err(_) => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
+            }
+        }
     };
 
     // Build grapheme cluster list
@@ -425,12 +432,19 @@ pub fn process_fields(
     record: Record,
 ) -> Result<Vec<u8>, String> {
     // Sort out normalising the text
+    // Optimization: Try to borrow when data is already valid UTF-8 to avoid allocation
     let text: Cow<str> = match instructions.strict_utf8 {
         true => Cow::Borrowed(
             std::str::from_utf8(&record.bytes)
                 .map_err(|_| "input is not valid UTF-8".to_string())?,
         ),
-        false => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
+        false => {
+            // Try to borrow first - if data is valid UTF-8, no allocation needed
+            match std::str::from_utf8(&record.bytes) {
+                Ok(valid_str) => Cow::Borrowed(valid_str),
+                Err(_) => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
+            }
+        }
     };
 
     // Extract fields from text using the appropriate regex engine

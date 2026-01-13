@@ -36,6 +36,19 @@ if [[ "$SINGLE_CORE" == "true" ]]; then
     echo "Note: Only Rust version will run in single-core mode."
 fi
 
+# Build Rust version if needed
+if [[ "$VERSION" == "rust" ]] || [[ "$VERSION" == "both" ]]; then
+    echo "Building Rust release version..."
+    echo "----------------------------------------"
+    cargo build --release
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to build Rust binary"
+        exit 1
+    fi
+    echo "Build complete."
+    echo
+fi
+
 # Determine which splitby command to use
 if [[ "$VERSION" == "rust" ]]; then
     SPLITBY_CMD="./target/release/splitby"
@@ -110,6 +123,14 @@ bench() {
   local total=0
 
   echo "$label:"
+
+  # Warmup run
+  local start=$(perl -MTime::HiRes=time -e 'print time')
+  "${cmd[@]}" >/dev/null
+  local stop=$(perl -MTime::HiRes=time -e 'print time')
+  local t=$(perl -e "printf '%.3f', $stop - $start")
+  printf "  warmup run: %s s\n" "$t"
+
   for ((run=1; run<=ITER; run++)); do
     # Hi-res timestamp before
     local start=$(perl -MTime::HiRes=time -e 'print time')
