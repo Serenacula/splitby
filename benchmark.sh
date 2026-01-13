@@ -1,11 +1,62 @@
 #!/usr/bin/env bash
 # bench_splitby_vs_cut.sh  — portable cut vs splitby micro-benchmark
+#
+# Usage:
+#   ./benchmark.sh [VERSION] [LINES] [FIELDS] [ITERATIONS]
+#   ./benchmark.sh 10000 20 3              # Old API: tests rust version (default)
+#   ./benchmark.sh rust 10000 20 3         # New API: test rust version
+#   ./benchmark.sh bash 10000 20 3         # New API: test bash version
+#   ./benchmark.sh both 10000 20 3         # New API: test both versions
+#
+# Defaults: VERSION=rust, LINES=10000, FIELDS=20, ITERATIONS=3
 
 set -euo pipefail
 
-LINES=${1:-10000}     # records to generate
-FIELDS=${2:-20}       # columns per record
-ITER=${3:-3}          # repetition count
+# Determine if first argument is a version string or a number (for backward compatibility)
+if [[ "${1:-}" =~ ^[0-9]+$ ]] || [[ -z "${1:-}" ]]; then
+    # Old API: first arg is LINES (or empty), default to rust
+    VERSION="rust"
+    LINES=${1:-10000}
+    FIELDS=${2:-20}
+    ITER=${3:-3}
+else
+    # New API: first arg is version
+    VERSION="$1"
+    LINES=${2:-10000}
+    FIELDS=${3:-20}
+    ITER=${4:-3}
+fi
+
+# Determine which splitby command to use
+if [[ "$VERSION" == "rust" ]]; then
+    SPLITBY_CMD="./target/release/splitby"
+    if [[ ! -f "$SPLITBY_CMD" ]]; then
+        echo "Error: Rust binary not found at $SPLITBY_CMD"
+        echo "Please build it first with: cargo build --release"
+        exit 1
+    fi
+elif [[ "$VERSION" == "bash" ]]; then
+    SPLITBY_CMD="./splitby.sh"
+    if [[ ! -f "$SPLITBY_CMD" ]]; then
+        echo "Error: Bash script not found at $SPLITBY_CMD"
+        exit 1
+    fi
+elif [[ "$VERSION" == "both" ]]; then
+    # Will test both versions
+    RUST_CMD="./target/release/splitby"
+    BASH_CMD="./splitby.sh"
+    if [[ ! -f "$RUST_CMD" ]]; then
+        echo "Warning: Rust binary not found at $RUST_CMD, skipping Rust benchmarks"
+        RUST_CMD=""
+    fi
+    if [[ ! -f "$BASH_CMD" ]]; then
+        echo "Warning: Bash script not found at $BASH_CMD, skipping bash benchmarks"
+        BASH_CMD=""
+    fi
+else
+    echo "Error: Invalid version '$VERSION'. Use 'rust', 'bash', or 'both'"
+    exit 1
+fi
 
 # ---------------------------------------------------------------------
 # Pick a timer: GNU/BSD 'time', 'gtime' (Homebrew), or bash built-in.
@@ -71,5 +122,17 @@ bench() {
 bench "cut       (3,5,7)" \
       cut -d',' -f3,5,7 "$TMP_DATA"
 
-bench "splitby   (3 5 7)" \
-      splitby -i "$TMP_DATA" -d ',' 3 5 7 
+# Benchmark splitby based on selected version
+if [[ "$VERSION" == "both" ]]; then
+    if [[ -n "$RUST_CMD" ]]; then
+        bench "splitby-rust (3 5 7)" \
+              "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+    fi
+    if [[ -n "$BASH_CMD" ]]; then
+        bench "splitby-bash (3 5 7)" \
+              "$BASH_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+    fi
+else
+    bench "splitby   (3 5 7)" \
+          "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+fi

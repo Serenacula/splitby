@@ -510,9 +510,18 @@ fn main() {
             InputMode::WholeString => None,
         };
 
-        // Output target (stdout for now; file can come next)
-        let stdout = io::stdout();
-        let mut writer = io::BufWriter::new(stdout.lock());
+        // Output target (file or stdout)
+        let mut writer: Box<dyn Write> = match &instructions.output {
+            Some(path) => {
+                let file = File::create(path)
+                    .map_err(|e| format!("failed to create {}: {}", path.display(), e))?;
+                Box::new(io::BufWriter::new(file))
+            }
+            None => {
+                let stdout = io::stdout();
+                Box::new(io::BufWriter::new(stdout.lock()))
+            }
+        };
 
         let mut next_index: usize = 0;
         let mut pending: BTreeMap<usize, Vec<u8>> = BTreeMap::new();

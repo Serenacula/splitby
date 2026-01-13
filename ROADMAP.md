@@ -54,7 +54,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
 3. **Writer Thread** (`get_results` function in `main.rs`)
     - Receives results from workers
     - Maintains order using a `BTreeMap` to buffer out-of-order results
-    - Writes to stdout (file output not yet implemented)
+    - Writes to stdout or file (--output flag implemented)
     - Handles record terminators (newline, null byte, or none)
 
 ### Current Implementation Status
@@ -158,10 +158,10 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Should extract character ranges
     - Needs UTF-8 validation
 
-3. **File Output** (`main.rs`)
+3. **File Output** (`main.rs`) ✅ COMPLETED
 
-    - `--output` flag parsed but not used
-    - Currently only writes to stdout
+    - `--output` flag implemented
+    - Writes to file or stdout based on flag
 
 ### Code Flow Example
 
@@ -260,7 +260,7 @@ struct Field<'a> {
 ### Current Limitations
 
 1. **Byte/char modes**: `-b` and `-c` flags don't work (stubs exist)
-2. **File output**: `-o` flag parsed but not implemented
+2. **File output**: `-o` flag implemented
 3. **Behavior differences**: Some behaviors differ from bash version (see [Behavior Differences](#behavior-differences-from-bash-version) section)
 
 ---
@@ -500,16 +500,19 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
 
 ### Phase 4: File Output
 
-#### 4.1 Implement `--output` flag
+#### 4.1 Implement `--output` flag ✅ COMPLETED
 
-**Location**: `main.rs::get_results()`
+**Location**: `main.rs::get_results()` lines 513-523
+
+**Status**: ✅ Implemented - The `--output` flag is now fully functional.
 
 **Implementation**:
 
 -   Check `instructions.output`
--   If `Some(path)`, open file for writing
+-   If `Some(path)`, open file for writing using `File::create()`
 -   Use `BufWriter` for performance
--   Handle errors (permissions, disk full, etc.)
+-   Handle errors (permissions, disk full, etc.) with descriptive error messages
+-   Falls back to stdout if `None`
 
 **Example**:
 
@@ -518,7 +521,7 @@ let mut writer: Box<dyn Write> = match &instructions.output {
     Some(path) => {
         let file = File::create(path)
             .map_err(|e| format!("failed to create {}: {}", path.display(), e))?;
-        Box::new(BufWriter::new(file))
+        Box::new(io::BufWriter::new(file))
     }
     None => {
         let stdout = io::stdout();
@@ -526,6 +529,11 @@ let mut writer: Box<dyn Write> = match &instructions.output {
     }
 };
 ```
+
+**Test Cases**:
+
+-   `echo 'apple,banana,cherry' | splitby -d ',' -o output.txt 1 2` → writes to file
+-   `echo 'test' | splitby -d ',' -o /nonexistent/file.txt 1` → error with descriptive message
 
 ### Phase 5: Error Handling & Polish
 
@@ -590,12 +598,116 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 
 #### 5.3 Performance Optimization
 
-**Areas to optimize**:
+**Goal**: Optimize Rust version to match or beat `cut`'s performance.
 
--   Reduce allocations in hot paths
--   Consider using `Cow<str>` more effectively
--   Profile with `cargo bench`
--   Compare with bash version using `benchmark.sh`
+**Current Status**: Rust version is ~1.2x slower than `cut` but ~14x faster than bash version. Target: match or beat `cut` performance.
+
+**Optimization Strategies** (in priority order):
+
+1. **Fast Path for Single-Character Delimiters** (Highest Impact - Expected 2-3x speedup)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Detect single-byte delimiters before regex matching
+        - Use `memchr` crate for fast byte scanning instead of regex
+        - Bypass UTF-8 conversion for simple cases
+        - Extract fields directly as byte slices
+    - **Expected Impact**: 2-3x faster for common use case (comma, tab, space delimiters)
+    - **Dependencies**: Add `memchr` crate to `Cargo.toml`
+
+2. **Pre-allocate Vectors with Capacity** (Expected 10-20% speedup)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Estimate field count: `record.bytes.len() / avg_field_size`
+        - Use `Vec::with_capacity()` for `fields`, `output_selections`, and `output`
+        - Pre-allocate output buffer with estimated size
+    - **Expected Impact**: Reduces reallocations, 10-20% faster
+
+3. **Avoid UTF-8 Conversion When Unnecessary** (Expected 5-10% speedup)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Only convert to UTF-8 if:
+            - `strict_utf8` is true, OR
+            - Delimiter contains non-ASCII (needs regex)
+        - Work directly with bytes for simple ASCII delimiters
+    - **Expected Impact**: 5-10% faster for ASCII-only input
+
+4. **Single-Pass Processing for Simple Cases** (Expected 10-15% speedup)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Fast path: single selection, no invert, no skip-empty
+        - Extract and output in single pass
+        - Avoid building full `fields` Vec for simple selections
+    - **Expected Impact**: 10-15% faster for common simple use cases
+
+5. **Use SmallVec for Small Collections** (Expected 5-10% speedup)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Use `SmallVec<[Vec<u8>; 4]>` for `output_selections`
+        - Avoids heap allocation for common case of 1-4 selections
+    - **Dependencies**: Add `smallvec` crate to `Cargo.toml`
+    - **Expected Impact**: 5-10% faster, reduces allocations
+
+6. **Avoid Intermediate Vec Allocations**
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Instead of `Vec<Vec<u8>>` for selections, write directly to output buffer
+        - Track position in output, avoid collecting then joining
+    - **Expected Impact**: Reduces memory allocations and copies
+
+7. **Profile-Guided Optimizations**
+
+    - **Location**: Throughout `worker.rs`
+    - **Implementation**:
+        - Add `#[inline(always)]` to hot path functions (`resolve_index`, etc.)
+        - Use `#[cold]` attribute for error handling paths
+        - Profile with `cargo bench` and `perf` to identify bottlenecks
+    - **Expected Impact**: 5-10% faster through better inlining
+
+8. **Compile with Aggressive Optimizations**
+
+    - **Location**: `Cargo.toml`
+    - **Implementation**:
+        ```toml
+        [profile.release]
+        opt-level = 3
+        lto = "fat"
+        codegen-units = 1
+        panic = "abort"
+        ```
+    - **Expected Impact**: 5-15% faster through better code generation
+
+9. **Consider SIMD for Delimiter Matching** (Advanced, Low Priority)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Use SIMD-accelerated byte scanning for very large inputs
+        - Leverage `memchr` or `aho-corasick` crates
+    - **Expected Impact**: Significant speedup for very large inputs (>1MB)
+    - **Priority**: Low - only if needed after other optimizations
+
+**Implementation Priority**:
+
+1. **High Priority**: Fast path for single-byte delimiters (#1) - Highest impact
+2. **High Priority**: Pre-allocate vectors (#2) - Easy win
+3. **Medium Priority**: Avoid UTF-8 conversion (#3) - Good ROI
+4. **Medium Priority**: Single-pass processing (#4) - Good for common cases
+5. **Low Priority**: SmallVec (#5), Intermediate Vec elimination (#6)
+6. **Low Priority**: Profile-guided (#7), Compiler flags (#8)
+7. **Very Low Priority**: SIMD (#9) - Only if needed
+
+**Expected Combined Impact**: 2-4x faster, potentially matching or beating `cut` performance.
+
+**Testing**:
+
+-   Use `benchmark.sh` to measure improvements
+-   Compare against `cut` and bash version
+-   Profile with `cargo bench` and `perf` to validate optimizations
 
 #### 5.4 Large Input Support
 
@@ -637,12 +749,12 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 1. ✅ Complete `process_fields()` - Phase 1 (All core features: skip-empty, count, invert, strict-return)
 2. ✅ Implement `process_fancy_regex()` - Phase 2.1 (Integrated into process_fields)
 3. ✅ Fix whole-string mode join behavior - Phase 5.0 (Fixed: now uses newlines)
-4. ⏳ File output - Phase 4 (Flag parsed but not implemented)
+4. ✅ File output - Phase 4 (Implemented: --output flag now works)
 5. ✅ Fix no selections behavior - Phase 5.0 (Fixed: now outputs all fields)
 
 **Medium Priority** (Feature completeness): 6. ⏳ Byte/char modes - Phase 2.2, 2.3 7. ✅ Fix behavior differences to match bash - Phase 5.0 (All fixed) 8. ✅ Error handling - Phase 5.1
 
-**Low Priority** (Polish): 9. ✅ Tests - Phase 5.2 10. ✅ Performance - Phase 5.3 11. ✅ Large Input Support - Phase 5.4 12. ✅ Documentation - Phase 6
+**Low Priority** (Polish): 9. ⏳ Tests - Phase 5.2 10. ⏳ Performance Optimization - Phase 5.3 (Detailed optimization strategies documented) 11. ✅ Large Input Support - Phase 5.4 12. ✅ Documentation - Phase 6
 
 ### Testing Strategy
 
@@ -750,8 +862,6 @@ These features remain available in the bash version for backward compatibility. 
 
 **Remaining Work** (see [Implementation Priority](#implementation-priority) for details):
 
--   Fixing behavior differences to match bash version (no selections, empty delimiter, newline counting, whole-string join) - Phase 5.0
 -   Additional selection modes (bytes/chars) - Phase 2.2, 2.3
--   File output feature - Phase 4
 
 **Note**: The `--simple-ranges` and `--replace-range-delimiter` features were deprecated during the Rust migration and are not planned for implementation.
