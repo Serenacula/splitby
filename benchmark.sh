@@ -2,13 +2,14 @@
 # bench_splitby_vs_cut.sh  — portable cut vs splitby micro-benchmark
 #
 # Usage:
-#   ./benchmark.sh [VERSION] [LINES] [FIELDS] [ITERATIONS]
+#   ./benchmark.sh [VERSION] [LINES] [FIELDS] [ITERATIONS] [SINGLE_CORE]
 #   ./benchmark.sh 10000 20 3              # Old API: tests rust version (default)
 #   ./benchmark.sh rust 10000 20 3         # New API: test rust version
 #   ./benchmark.sh bash 10000 20 3         # New API: test bash version
 #   ./benchmark.sh both 10000 20 3         # New API: test both versions
+#   ./benchmark.sh both 10000 20 3 true    # New API: single-core mode (fair comparison with cut)
 #
-# Defaults: VERSION=rust, LINES=10000, FIELDS=20, ITERATIONS=3
+# Defaults: VERSION=rust, LINES=10000, FIELDS=20, ITERATIONS=3, SINGLE_CORE=false
 
 set -euo pipefail
 
@@ -19,12 +20,20 @@ if [[ "${1:-}" =~ ^[0-9]+$ ]] || [[ -z "${1:-}" ]]; then
     LINES=${1:-10000}
     FIELDS=${2:-20}
     ITER=${3:-3}
+    SINGLE_CORE=${4:-false}
 else
     # New API: first arg is version
     VERSION="$1"
     LINES=${2:-10000}
     FIELDS=${3:-20}
     ITER=${4:-3}
+    SINGLE_CORE=${5:-false}
+fi
+
+# Enable single-core mode via environment variable (Rust binary will respect it)
+if [[ "$SINGLE_CORE" == "true" ]]; then
+    echo "Single-core mode enabled (using SPLITBY_SINGLE_CORE=1)"
+    echo "Note: Only Rust version will run in single-core mode."
 fi
 
 # Determine which splitby command to use
@@ -125,14 +134,24 @@ bench "cut       (3,5,7)" \
 # Benchmark splitby based on selected version
 if [[ "$VERSION" == "both" ]]; then
     if [[ -n "$RUST_CMD" ]]; then
-        bench "splitby-rust (3 5 7)" \
-              "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+        if [[ "$SINGLE_CORE" == "true" ]]; then
+            bench "splitby-rust (3 5 7) [single-core]" \
+                  env SPLITBY_SINGLE_CORE=1 "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+        else
+            bench "splitby-rust (3 5 7)" \
+                  "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+        fi
     fi
     if [[ -n "$BASH_CMD" ]]; then
         bench "splitby-bash (3 5 7)" \
               "$BASH_CMD" -i "$TMP_DATA" -d ',' 3 5 7
     fi
 else
-    bench "splitby   (3 5 7)" \
-          "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+    if [[ "$SINGLE_CORE" == "true" ]]; then
+        bench "splitby   (3 5 7) [single-core]" \
+              env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+    else
+        bench "splitby   (3 5 7)" \
+              "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+    fi
 fi

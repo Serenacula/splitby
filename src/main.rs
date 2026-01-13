@@ -577,9 +577,14 @@ fn main() {
     });
     drop(record_sender);
 
-    let worker_count = std::thread::available_parallelism()
-        .map(|count| count.get())
-        .unwrap_or(1);
+    // Check for single-core mode via environment variable (useful for macOS testing)
+    let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
+        1  // Single-core mode: only 1 worker thread
+    } else {
+        std::thread::available_parallelism()
+            .map(|count| count.get())
+            .unwrap_or(1)
+    };
 
     for _ in 0..max(worker_count - 1, 1) {
         let worker_instructions = Arc::clone(&instructions);
