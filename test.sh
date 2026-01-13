@@ -12,11 +12,15 @@ VERSION="${1:-bash}"
 # Set the command based on version
 if [[ "$VERSION" == "rust" ]]; then
     SPLITBY_CMD="./target/release/splitby"
-    if [[ ! -f "$SPLITBY_CMD" ]]; then
-        echo "Error: Rust binary not found at $SPLITBY_CMD"
-        echo "Please build it first with: cargo build --release"
+    echo "Building Rust release version..."
+    echo "----------------------------------------"
+    cargo build --release
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to build Rust binary"
         exit 1
     fi
+    echo "Build complete."
+    echo
 elif [[ "$VERSION" == "both" ]]; then
     # Test both versions
     echo "========================================="
@@ -30,8 +34,18 @@ elif [[ "$VERSION" == "both" ]]; then
     echo
     echo "Testing Rust version..."
     echo "----------------------------------------"
-    "$0" rust
-    rust_status=$?
+    # Always build Rust version before testing to ensure latest code
+    echo "Building Rust release version..."
+    cargo build --release
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Failed to build Rust binary"
+        rust_status=1
+    else
+        echo "Build complete."
+        echo
+        "$0" rust
+        rust_status=$?
+    fi
     echo
     if [[ $bash_status -eq 0 && $rust_status -eq 0 ]]; then
         echo "========================================="
