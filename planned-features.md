@@ -35,19 +35,27 @@ On reflection, entirely on accident this is essentially a more powerful version 
 
 ### Selection Mode
 
--   Add feature for byte slicing -b/--byte
--   Add feature for character slicing -c/--char
+-   Add feature for byte slicing -b/--byte (done)
+-   Add feature for character slicing -c/--char (done)
 -   Add --f/--field mode, which accepts input selections
 -   Add support for comma-separated selections
--   Add feature to skip empty lines (--only-delimited or --skip-delimited)
+-   Add feature to skip empty lines
+-   Add byte-based field parsing
+    -   Maybe with --delimiter-bytes or a separate mode
 
 ### Delimiter Mode
 
--   Add 'cut' mode as the default - this keeps delimiters between selections.
-    -   --join should replace between ranges in this mode
-    -   Add the ability to select the delimiter BEFORE each item rather than after. Wouldn't be relevant in `cut`, but is when you're dealing with regex!
--   Have a think about whether --simple-ranges is worth keeping as a feature.
--   Map --output-delimiter to --join
+-   Add the ability to select the delimiter BEFORE each item rather than after. Wouldn't be relevant in `cut`, but is when you're dealing with regex!
+-   Make --placeholder accept an optional value
+    -   Should support string or hex in bytemode!
+-   Field separation flags for --join
+    -   @auto: follows existing logic, try after-previous, then try before-next, then space
+    -   @after-previous: delimiter from after previous field
+    -   @before-next: delimiter from before next field
+    -   @empty: inserts an empty byte
+-   Add --join-ranges, which only applies within ranges
+-   Add --join-selections, which only applies between discrete selections
+-   Add --join-records, which applies between each record
 
 ### Documentation Overhaul
 
@@ -62,21 +70,10 @@ On reflection, entirely on accident this is essentially a more powerful version 
 -   Drop --input OR replace the string with a file input (done)
 -   Functions to turn off the strict modes (done)
 -   --format that can auto-output json or csv for the user (dropped)
--   -o,--output for specifying output file
+-   -o,--output for specifying output file (done)
 -   Zero-indexing
 -   --list to show you a list of each item with its index
 -   Special `start` `end` or `first` `last` tags in ranges
-
-## Post-Feature Refinement
-
--   Have a think about sensible defaults for each option
-    -   Especially strict-range
--   Optimisation:
-    -   Work out how to improve the looping. Maybe it can all be brought into a single loop?
-    -   The loop inside perl should start at $start, not at 0
-    -   Tbh I just don't really like the current structure. Might be better to bring all the looping code into perl (done)
--   Rebuild:
-    -   Once the core structure is in place and I know how I want it designed, it will be rebuilt in rust. It should prove a good way to learn the language, while also improving the speed.
 
 ## Documentation
 
