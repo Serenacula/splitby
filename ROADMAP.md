@@ -448,7 +448,7 @@ struct Field<'a> {
 
 #### 6.1 Input Mode Enhancements
 
-1. **Automatic Delimiter Detection** (Medium Priority)
+1. **Automatic Delimiter Detection** ✅ COMPLETED
 
     - **Location**: `main.rs` argument parsing
     - **Implementation**:
@@ -463,6 +463,7 @@ struct Field<'a> {
     - **Example**: `splitby \s+ 1 2` → `\s+` fails to parse as selection, detected as regex delimiter, selects fields 1, 2
     - **Example**: `splitby -d ',' . 2 3` → `-d` flag takes priority, `.` is treated as selection and errors (normal behavior)
     - **Example**: `splitby 1 2 3` → `1` parses as selection, no delimiter auto-detection needed
+    - **Status**: ✅ Implemented with helper functions `can_parse_as_selection()` and `is_valid_regex()` for clean, maintainable code
 
 2. **Trailing Newline Control** (Medium Priority)
 
@@ -502,14 +503,17 @@ struct Field<'a> {
 
 #### 6.2 Selection Mode Enhancements
 
-1. **Comma-Separated Selections** (Medium Priority)
+1. **Comma-Separated Selections** ✅ COMPLETED
 
     - **Location**: `main.rs` selection parsing
     - **Implementation**:
         - Support `1,3,5` syntax in addition to `1 3 5`
         - Parse comma-separated values and convert to selection list
         - Should work with ranges: `1-3,5,7-9`
+        - Handles leading/trailing commas: `,1` or `1,` (empty parts are skipped)
+        - Supports ambiguity detection for first selection when `-d` flag not set
     - **Example**: `splitby -d ',' 1,3,5` or `splitby -d ',' 1-3,5,7-9`
+    - **Status**: ✅ Implemented with delimiter priority logic (afterPrevious, beforeNext, space) between selections. All tests passing.
 
 2. **Skip Empty Lines / Only Delimited** (Medium Priority)
 
@@ -656,14 +660,15 @@ struct Field<'a> {
 -   File output, error handling, bug fixes
 -   Selection parsing refactoring
 -   Performance optimization: UTF-8 conversion optimization, performance profiling and analysis
+-   Automatic delimiter detection (optional `-d` flag)
+-   Comma-separated selections (`1,2,3` syntax)
+-   Delimiter priority logic between selections (afterPrevious, beforeNext, space)
 
 **Medium Priority** (Feature completeness):
 
 -   Core Feature Refinement (Phase 6):
-    -   automatic delimiter detection
     -   trailing newline control
     -   I/O error codes
-    -   comma-separated selections
     -   skip empty lines / only delimited (`-s/--only-delimited`)
     -   placeholder with value
     -   field separation flags
@@ -739,15 +744,17 @@ These features remain available in the bash version for backward compatibility. 
 
 4. **UTF-8 Handling**: Supports both strict validation (`strict_utf8`) and lossy conversion for binary/malformed data.
 
-5. **Selection Parsing**: Handles special keywords (`start`, `first`, `end`, `last`) and negative indices. Shared `parse_selection()` function used by all processing modes for consistent validation.
+5. **Selection Parsing**: Handles special keywords (`start`, `first`, `end`, `last`) and negative indices. Shared `parse_selection()` function used by all processing modes for consistent validation. Supports comma-separated selections (`1,2,3`) and automatic delimiter detection when `-d` flag is not provided.
+
+6. **Delimiter Priority Logic**: When joining selections, uses priority order: delimiter after previous selection's last field (afterPrevious) → delimiter before current selection's first field (beforeNext) → space/newline. This ensures delimiters are preserved intelligently between selections.
 
 ---
 
 ## Summary
 
-**Current Status**: All core functionality complete. All three selection modes (fields, bytes, chars) implemented with all flags. All known bugs fixed. Architecture supports parallel processing with ordered output. Initial performance optimizations completed.
+**Current Status**: All core functionality complete. All three selection modes (fields, bytes, chars) implemented with all flags. All known bugs fixed. Architecture supports parallel processing with ordered output. Initial performance optimizations completed. Automatic delimiter detection and comma-separated selections implemented.
 
-**Completed**: All selection modes, all core flags, file output, error handling, bug fixes, selection parsing refactoring, UTF-8 conversion optimization, performance profiling and analysis.
+**Completed**: All selection modes, all core flags, file output, error handling, bug fixes, selection parsing refactoring, UTF-8 conversion optimization, performance profiling and analysis, automatic delimiter detection, comma-separated selections, delimiter priority logic between selections.
 
 **Remaining Work**: See [Implementation Priority](#implementation-priority) for details:
 

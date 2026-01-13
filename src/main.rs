@@ -681,7 +681,7 @@ fn main() {
         if next_index == 0 && instructions.strict_bounds && !instructions.selections.is_empty() {
             let (raw_start, _) = instructions.selections[0];
             return Err(format!(
-                "index ({}) out of bounds. must be between 1 and {}",
+                "index ({}) out of bounds, must be between 1 and {}",
                 raw_start, 0
             ));
         }
@@ -692,13 +692,12 @@ fn main() {
 
     let reader_instructions = Arc::clone(&instructions);
     let reader_sender = record_sender.clone();
-    std::thread::spawn(move || {
-        let _ = read_input(
+    let reader_handle = std::thread::spawn(move || {
+        read_input(
             &reader_instructions.input_mode,
             &reader_instructions.input,
             reader_sender,
         )
-        .map_err(|error| eprintln!("{error}"));
     });
     drop(record_sender);
 
@@ -722,8 +721,26 @@ fn main() {
     }
     drop(result_sender);
 
+    // Check if read_input thread encountered an I/O error
+    if let Err(error) = reader_handle.join().unwrap() {
+        eprintln!("{}", error);
+        // Exit with code 2 for I/O errors
+        let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
+            2
+        } else {
+            1
+        };
+        std::process::exit(exit_code);
+    }
+
     if let Err(error) = get_results(instructions, result_receiver) {
         eprintln!("{}", error);
-        std::process::exit(1);
+        // Exit with code 2 for I/O errors, code 1 for other errors
+        let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
+            2
+        } else {
+            1
+        };
+        std::process::exit(exit_code);
     }
 }
