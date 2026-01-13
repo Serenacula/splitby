@@ -176,13 +176,6 @@ fn main() {
         }
     }
 
-    // Set the join string default, if no join is provided
-    // let join = match (&options.join, input_mode == InputMode::WholeString) {
-    //     (Some(join_string), _) => join_string.clone(),
-    //     (None, true) => "\n".to_string(), // whole-string default
-    //     (None, false) => " ".to_string(), // per-line default
-    // };
-
     // SELECTIONS
 
     // First, work out the mode we're in
@@ -303,7 +296,7 @@ fn main() {
         && detected_delimiter.is_none()
     {
         eprintln!(
-            "Delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
+            "delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
         );
         std::process::exit(2);
     }
@@ -405,14 +398,12 @@ fn main() {
                 .clone()
                 .or(detected_delimiter)
                 .unwrap_or_else(|| {
-                    eprintln!(
-                        "Delimiter is required in fields mode. Use -d or --delimiter to set one."
-                    );
+                    eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
                     std::process::exit(2)
                 });
 
             if delimiter.is_empty() {
-                eprintln!("Empty string is not a valid delimiter.");
+                eprintln!("empty string is not a valid delimiter");
                 std::process::exit(2)
             }
 
@@ -423,7 +414,7 @@ fn main() {
                 Ok(regex) => Some(RegexEngine::Simple(regex)),
                 Err(_) => {
                     let fancy_regex = FancyRegex::new(&delimiter).unwrap_or_else(|error| {
-                        eprintln!("error: failed to compile regex: {error}");
+                        eprintln!("failed to compile regex: {error}");
                         std::process::exit(2)
                     });
                     Some(RegexEngine::Fancy(fancy_regex))
@@ -576,7 +567,7 @@ fn main() {
                     let engine = instructions
                         .regex_engine
                         .as_ref()
-                        .ok_or_else(|| "Internal error: missing regex engine".to_string())?;
+                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
                     process_fields(&instructions, engine, record)
                 }
             };
@@ -586,7 +577,7 @@ fn main() {
                     if instructions.strict_return && bytes.is_empty() {
                         let _ = result_sender.send(RecordResult::Err {
                             index: record_index,
-                            error: "strict return error: Empty field".to_string(),
+                            error: "strict return error: empty field".to_string(),
                         });
                         return Ok(());
                     }
@@ -623,7 +614,7 @@ fn main() {
         let mut writer: Box<dyn Write> = match &instructions.output {
             Some(path) => {
                 let file = File::create(path)
-                    .map_err(|error| format!("Failed to create {}: {}", path.display(), error))?;
+                    .map_err(|error| format!("failed to create {}: {}", path.display(), error))?;
                 Box::new(io::BufWriter::new(file))
             }
             None => {
@@ -643,7 +634,7 @@ fn main() {
                         InputMode::WholeString => return Err(error),
                         InputMode::PerLine => return Err(format!("line {index}: {error}")),
                         InputMode::ZeroTerminated => {
-                            return Err(format!("record {index}: error"));
+                            return Err(format!("record {index}: {error}"));
                         }
                     }
                 }
@@ -683,14 +674,14 @@ fn main() {
 
         // Check strict_return: fail if no input was received
         if next_index == 0 && instructions.strict_return {
-            return Err("strict return check failed: No input received".to_string());
+            return Err("strict return check failed: no input received".to_string());
         }
 
         // Check strict_bounds: fail if no input was received and selections are provided
         if next_index == 0 && instructions.strict_bounds && !instructions.selections.is_empty() {
             let (raw_start, _) = instructions.selections[0];
             return Err(format!(
-                "Index ({}) out of bounds. Must be between 1 and {}",
+                "index ({}) out of bounds. must be between 1 and {}",
                 raw_start, 0
             ));
         }

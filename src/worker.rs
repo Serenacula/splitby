@@ -34,7 +34,7 @@ fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
         if len > MAX_SAFE_LEN {
             return Err(format!(
                 "input too large: {} fields exceeds maximum of {} fields. \
-                Negative indices cannot be resolved for inputs this large.",
+                negative indices cannot be resolved for inputs this large",
                 len, MAX_SAFE_LEN
             ));
         }
@@ -69,7 +69,7 @@ fn parse_selection(
         match strict_range_order {
             true => {
                 return Err(format!(
-                    "End index ({}) is less than start index ({}) in selection {}-{}",
+                    "end index ({}) is less than start index ({}) in selection {}-{}",
                     raw_end, raw_start, raw_start, raw_end
                 ));
             }
@@ -83,7 +83,7 @@ fn parse_selection(
     // Check our fail states (strict_bounds) and determine the range to process
     let (process_start, process_end) = if strict_bounds {
         if len == 0 {
-            return Err(format!("Strict bounds error: no valid fields to select"));
+            return Err(format!("strict bounds error: no valid fields to select"));
         }
 
         // Check if this is a single index (start == end) for better error message
@@ -92,19 +92,19 @@ fn parse_selection(
         if start < 0 || start >= len as i32 {
             if is_single_index {
                 return Err(format!(
-                    "Strict bounds error: index ({}) out of bounds. Must be between 1 and {}",
+                    "strict bounds error: index ({}) out of bounds. must be between 1 and {}",
                     raw_start, len
                 ));
             } else {
                 return Err(format!(
-                    "Strict bounds error: start index ({}) out of bounds. Must be between 1 and {}",
+                    "strict bounds error: start index ({}) out of bounds. must be between 1 and {}",
                     raw_start, len
                 ));
             }
         }
         if end < 0 || end >= len as i32 {
             return Err(format!(
-                "Strict bounds error: end index ({}) out of bounds. Must be between 1 and {}",
+                "strict bounds error: end index ({}) out of bounds. must be between 1 and {}",
                 raw_end, len
             ));
         }
@@ -157,7 +157,7 @@ fn invert_selections(
         if end < start {
             if strict_range_order {
                 return Err(format!(
-                    "End index ({}) is less than start index ({}) in selection {}-{}",
+                    "end index ({}) is less than start index ({}) in selection {}-{}",
                     raw_end, raw_start, raw_start, raw_end
                 ));
             }
@@ -168,17 +168,17 @@ fn invert_selections(
         // When strict_bounds is true, errors should have been caught earlier, but handle defensively
         if strict_bounds {
             if fields_len == 0 {
-                return Err(format!("Strict bounds error: no valid fields to select"));
+                return Err(format!("strict bounds error: no valid fields to select"));
             }
             if start < 0 || start >= fields_len as i32 {
                 return Err(format!(
-                    "Strict bounds error: start index ({}) out of bounds. Must be between 1 and {}",
+                    "strict bounds error: start index ({}) out of bounds, must be between 1 and {}",
                     raw_start, fields_len
                 ));
             }
             if end < 0 || end >= fields_len as i32 {
                 return Err(format!(
-                    "Strict bounds error: end index ({}) out of bounds. Must be between 1 and {}",
+                    "strict bounds error: end index ({}) out of bounds, must be between 1 and {}",
                     raw_end, fields_len
                 ));
             }
