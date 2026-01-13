@@ -359,8 +359,8 @@ pub fn process_fields(
 
     // Join all selections with the join string (or default delimiter)
     let mut output: Vec<u8> = Vec::new();
-    for (idx, selection) in output_selections.iter().enumerate() {
-        if idx > 0 {
+    for (index, selection) in output_selections.iter().enumerate() {
+        if index > 0 {
             // Add join delimiter between selections
             match &instructions.join {
                 Some(join) => {
