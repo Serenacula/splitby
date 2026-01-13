@@ -30,7 +30,7 @@ pub struct Instructions {
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
     pub skip_empty: bool,
-    pub placeholder: bool,
+    pub placeholder: Option<Vec<u8>>,
     // Failure Modes
     pub strict_return: bool,
     pub strict_bounds: bool,

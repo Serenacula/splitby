@@ -289,19 +289,22 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
             byte_length,
             instructions.strict_bounds,
             instructions.strict_range_order,
-        )? {
-            Some((process_start, process_end)) => {
+        ) {
+            Ok(Some((process_start, process_end))) => {
                 // Extract byte slice for this selection
                 let start_usize = process_start as usize;
                 let end_usize = process_end as usize;
                 let selection_bytes = bytes[start_usize..=end_usize].to_vec();
                 output_selections.push(selection_bytes);
             }
-            None => {
-                // Invalid range - add placeholder if enabled (null byte for byte mode)
-                if instructions.placeholder {
-                    output_selections.push(vec![0u8]);
+            Ok(None) => {
+                // Invalid range - add placeholder if provided
+                if let Some(ref placeholder) = instructions.placeholder {
+                    output_selections.push(placeholder.clone());
                 }
+            }
+            Err(error) => {
+                return Err(error);
             }
         }
     }
@@ -389,8 +392,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
             grapheme_count,
             instructions.strict_bounds,
             instructions.strict_range_order,
-        )? {
-            Some((process_start, process_end)) => {
+        ) {
+            Ok(Some((process_start, process_end))) => {
                 // Extract grapheme clusters for this selection
                 let start_usize = process_start as usize;
                 let end_usize = process_end as usize;
@@ -401,11 +404,14 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
 
                 output_selections.push(selected_graphemes.into_bytes());
             }
-            None => {
-                // Invalid range - add placeholder (space) if enabled
-                if instructions.placeholder {
-                    output_selections.push(b" ".to_vec());
+            Ok(None) => {
+                // Invalid range - add placeholder if provided
+                if let Some(ref placeholder) = instructions.placeholder {
+                    output_selections.push(placeholder.clone());
                 }
+            }
+            Err(error) => {
+                return Err(error);
             }
         }
     }
@@ -595,15 +601,39 @@ pub fn process_fields(
             fields.len(),
             instructions.strict_bounds,
             instructions.strict_range_order,
-        )? {
-            Some(range) => range,
-            None => {
-                // Invalid range - add placeholder if enabled
-                if instructions.placeholder {
-                    output_selections.push(Vec::new());
-                    selection_field_indices.push((None, None));
+        ) {
+            Ok(Some(range)) => range,
+            Ok(None) => {
+                // Invalid range - add placeholder if provided
+                if let Some(ref placeholder) = instructions.placeholder {
+                    output_selections.push(placeholder.clone());
+                    // Estimate field indices for delimiter handling
+                    // Use the requested position to determine appropriate delimiter
+                    let estimated_first = if fields.is_empty() {
+                        None
+                    } else {
+                        // Try to determine what field position this would be at
+                        match resolve_index(raw_start, fields.len()) {
+                            Ok(resolved) if (resolved as usize) < fields.len() => {
+                                Some(resolved as usize)
+                            }
+                            _ => {
+                                // Out of bounds - use last field if after, first if before
+                                if raw_start > fields.len() as i32 {
+                                    Some(fields.len() - 1) // After last field
+                                } else {
+                                    Some(0) // Before first field (or very negative)
+                                }
+                            }
+                        }
+                    };
+                    let estimated_last = estimated_first;
+                    selection_field_indices.push((estimated_first, estimated_last));
                 }
                 continue;
+            }
+            Err(error) => {
+                return Err(error);
             }
         };
 
@@ -673,10 +703,12 @@ pub fn process_fields(
             previous_index = Some(field_index);
         }
 
-        // If selection produced no output and placeholder is enabled, add empty string
-        if !selection_has_output && instructions.placeholder {
-            output_selections.push(Vec::new());
-            selection_field_indices.push((None, None));
+        // If selection produced no output and placeholder is provided, add placeholder
+        if !selection_has_output {
+            if let Some(ref placeholder) = instructions.placeholder {
+                output_selections.push(placeholder.clone());
+                selection_field_indices.push((None, None));
+            }
         } else if selection_has_output {
             output_selections.push(selection_output);
             selection_field_indices.push((first_field_index, last_field_index));
