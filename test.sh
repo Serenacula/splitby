@@ -1,85 +1,23 @@
 #!/bin/bash
 
-# Test cases for splitby (both bash and Rust versions)
-# Usage: ./test.sh [bash|rust|both]
-#   bash: Test only the bash version (default)
-#   rust: Test only the Rust version
-#   both: Test both versions sequentially
+# Test cases for splitby (Rust version)
+# Usage: ./test.sh
 
-# Determine which version to test
-VERSION="${1:-bash}"
+SPLITBY_CMD="./target/release/splitby"
 
-# Set the command based on version
-if [[ "$VERSION" == "rust" ]]; then
-    SPLITBY_CMD="./target/release/splitby"
-    echo "Building Rust release version..."
-    echo "----------------------------------------"
-    cargo build --release
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to build Rust binary"
-        exit 1
-    fi
-    echo "Build complete."
-    echo
-elif [[ "$VERSION" == "both" ]]; then
-    # Test both versions
-    echo "========================================="
-    echo "Testing both bash and Rust versions"
-    echo "========================================="
-    echo
-    echo "Testing bash version..."
-    echo "----------------------------------------"
-    "$0" bash
-    bash_status=$?
-    echo
-    echo "Testing Rust version..."
-    echo "----------------------------------------"
-    # Always build Rust version before testing to ensure latest code
-    echo "Building Rust release version..."
-    cargo build --release
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to build Rust binary"
-        rust_status=1
-    else
-        echo "Build complete."
-        echo
-        "$0" rust
-        rust_status=$?
-    fi
-    echo
-    if [[ $bash_status -eq 0 && $rust_status -eq 0 ]]; then
-        echo "========================================="
-        echo "All tests passed for both versions!"
-        echo "========================================="
-        exit 0
-    else
-        echo "========================================="
-        echo "Some tests failed"
-        echo "========================================="
-        exit 1
-    fi
-elif [[ "$VERSION" == "bash" ]]; then
-    SPLITBY_CMD="./splitby.sh"
-    if [[ ! -f "$SPLITBY_CMD" ]]; then
-        echo "Error: Bash script not found at $SPLITBY_CMD"
-        exit 1
-    fi
-else
-    echo "Usage: $0 [bash|rust|both]"
-    echo "  bash: Test only the bash version (default)"
-    echo "  rust: Test only the Rust version"
-    echo "  both: Test both versions sequentially"
+echo "Building Rust release version..."
+echo "----------------------------------------"
+cargo build --release
+if [[ $? -ne 0 ]]; then
+    echo "Error: Failed to build Rust binary"
     exit 1
 fi
-
-echo "Testing with: $SPLITBY_CMD (version: $VERSION)"
+echo "Build complete."
 echo
 
-# Function to normalize output (strip "record 0: " prefix from Rust errors)
+# Function to normalize output (strip trailing newline for comparison)
 normalize_output() {
     local output="$1"
-    # Remove "record 0: " prefix if present (Rust version)
-    output="${output#record 0: }"
     # Remove trailing newline for comparison
     echo -n "$output"
 }
@@ -176,11 +114,7 @@ run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | .
 
 # Join feature
 run_test "Can join selections" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ','" "boo,hoo,foo"
-if [[ "$VERSION" == "rust" ]]; then
-    run_test "Doesn't join in ranges" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ',' 1 2-3" "boo,hoo,foo"
-else
-    run_test "Doesn't join in ranges" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ',' 1 2-3" "boo,hoo foo"
-fi
+run_test "Doesn't join in ranges" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ',' 1 2-3" "boo,hoo,foo"
 
 
 
@@ -262,10 +196,9 @@ run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 
 run_test "Invalid range format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "error"
 
 
-# Byte mode tests (Rust version only - bash doesn't support byte mode)
-if [[ "$VERSION" == "rust" ]]; then
-    echo
-    echo "=== Byte Mode Tests (Rust only) ==="
+# Byte mode tests
+echo
+echo "=== Byte Mode Tests ==="
     run_test "Byte mode: single byte" "echo 'hello' | ./splitby.sh --bytes 1" "h"
     run_test "Byte mode: byte range" "echo 'hello' | ./splitby.sh --bytes 1-3" "hel"
     run_test "Byte mode: negative index" "echo 'hello' | ./splitby.sh --bytes -2" "l"
@@ -286,13 +219,11 @@ if [[ "$VERSION" == "rust" ]]; then
     run_test "Byte mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder --bytes 1 10 3 | hexdump -C | head -1 | sed 's/^[^ ]*  //; s/  .*$//'" "68 00 6c 0a"
     run_test "Byte mode: whole-string mode" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1-5" "hello"
     run_test "Byte mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1 2" "he"
-    run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --bytes 10" ""
-fi
+run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --bytes 10" ""
 
-# Char mode tests (Rust version only - bash doesn't support char mode)
-if [[ "$VERSION" == "rust" ]]; then
-    echo
-    echo "=== Char Mode Tests (Rust only) ==="
+# Char mode tests
+echo
+echo "=== Char Mode Tests ==="
     run_test "Char mode: single character" "echo 'hello' | ./splitby.sh --characters 1" "h"
     run_test "Char mode: character range" "echo 'hello' | ./splitby.sh --characters 1-3" "hel"
     run_test "Char mode: negative index" "echo 'hello' | ./splitby.sh --characters -2" "l"
@@ -315,36 +246,8 @@ if [[ "$VERSION" == "rust" ]]; then
     run_test "Char mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --characters 1 2" "he"
     run_test "Char mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --characters 10" " "
     run_test "Char mode: grapheme cluster (café)" "echo 'café' | ./splitby.sh --characters 1-4" "café"
-    # Test could not be run accurately, bash interferes with it when evaluating
+    # Test broken because bash was interfering with it, needs manual confirmation when running
     # run_test "Char mode: grapheme cluster (combining)" "printf 'e\u0301\n' | ./splitby.sh --characters 1" "é"
-fi
-
-
-# Unimplemented features (not yet implemented in Rust version)
-# These tests are placed at the end and only run for bash version
-
-# Simple ranges feature (not implemented in Rust yet)
-# if [[ "$VERSION" == "bash" ]]; then
-#     run_test "Simple ranges flattens range to selections" "echo 'a b c' | ./splitby.sh -w -d ' ' --simple-ranges 1-2" $'a\nb'
-#     run_test "Simple ranges with join" "echo 'a b c' | ./splitby.sh -d ' ' --simple-ranges -j ',' 1-3" "a,b,c"
-#     run_test "Simple ranges with mixed selection" "echo 'a b c d' | ./splitby.sh -w -d ' ' --simple-ranges 1 2-3 4" $'a\nb\nc\nd'
-#     run_test "Simple ranges with join and mixed selection" "echo 'a b c d' | ./splitby.sh -w -d ' ' --simple-ranges -j '|' 1 2-3 4" "a|b|c|d"
-#     run_test "Simple ranges with negative range" "echo 'a b c d' | ./splitby.sh -w -d ' ' --simple-ranges -3--1" $'b\nc\nd'
-#     run_test "Join and simple-ranges with out-of-bounds range" "echo 'x y' | ./splitby.sh -w -d ' ' --simple-ranges -j ',' 3-5" ""
-#     run_test "Count takes precedence over simple ranges" "echo 'a b c' | ./splitby.sh -d ' ' --count --simple-ranges 1-3" "3"
-#     run_test "Invert index with simple ranges" "echo 'a b c d' | ./splitby.sh -d ' ' --whole-string --invert --simple-ranges 2" $'a\nc\nd'
-#     run_test "Invert index with simple ranges and join" "echo 'a b c d' | ./splitby.sh -d ' ' --invert --simple-ranges -j ',' 2" "a,c,d"
-# fi
-
-# Replace range delimiter feature (not implemented in Rust yet)
-# if [[ "$VERSION" == "bash" ]]; then
-#     run_test "Replaces delimiter in range" "echo 'a b c' | ./splitby.sh -d ' ' --replace-range-delimiter ',' 1-3" "a,b,c"
-#     run_test "Replaces delimiter in range with custom symbol" "echo 'a-b-c' | ./splitby.sh -d '-' --replace-range-delimiter ':' 1-3" "a:b:c"
-#     run_test "Replace range delimiter only applies to range" "echo 'a b c d' | ./splitby.sh -w -d ' ' --replace-range-delimiter '|' 1 2-3 4" $'a\nb|c\nd'
-#     run_test "Replace delimiter with skip-empty" "echo 'a  b   c' | ./splitby.sh -d ' ' --skip-empty --replace-range-delimiter ':' 1-3" "a:b:c"
-#     run_test "Simple ranges overrides delimiter replacement" "echo 'a b c' | ./splitby.sh -d ' ' --simple-ranges --replace-range-delimiter ':' -j ',' 1-3" "a,b,c"
-#     run_test "Replace range delimiter on empty result" "echo 'a b' | ./splitby.sh -d ' ' --replace-range-delimiter ':' 5-6" ""
-# fi
 
 # If all tests pass
 
