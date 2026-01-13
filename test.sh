@@ -104,6 +104,25 @@ run_test "Negative to positive range" "echo 'this is a test' | ./splitby.sh -d '
 run_test "Split by space with multiple indexes" "echo 'this is a test' | ./splitby.sh -d ' ' 1 2 3-4" $'this is a test'
 run_test "Split by space whole-string" "echo 'this is a test' | ./splitby.sh -w -d ' ' 1 2 3-4" $'this\nis\na test'
 
+# Comma-separated selections
+run_test "Comma-separated selections: basic" "echo 'apple,banana,cherry,date' | ./splitby.sh -d ',' 1,2,3" "apple,banana,cherry"
+run_test "Comma-separated selections: with ranges" "echo 'apple,banana,cherry,date,elderberry' | ./splitby.sh -d ',' 1-2,4,5" "apple,banana,date,elderberry"
+run_test "Comma-separated selections: leading comma" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' ,1" "apple"
+run_test "Comma-separated selections: trailing comma" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' 1," "apple"
+run_test "Comma-separated selections: mixed with spaces" "echo 'apple,banana,cherry,date' | ./splitby.sh -d ',' 1,2 3 4" "apple,banana,cherry,date"
+run_test "Comma-separated selections: multiple comma strings" "echo 'apple,banana,cherry,date' | ./splitby.sh -d ',' 1,2 3,4" "apple,banana,cherry,date"
+run_test "Comma-separated selections: negative indices" "echo 'apple,banana,cherry,date' | ./splitby.sh -d ',' -3,-1" "banana,date"
+run_test "Comma-separated selections: mixed positive and negative" "echo 'apple,banana,cherry,date' | ./splitby.sh -d ',' 1,-2" "apple,cherry"
+run_test "Comma-separated selections: with join" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' -j '|' 1,2,3" "apple|banana|cherry"
+run_test "Comma-separated selections: whole-string mode" "echo -e 'apple,banana\ncherry,date' | ./splitby.sh -w -d ',' 1,2" $'apple\nbanana\ncherry'
+run_test "Comma-separated selections: byte mode" "echo 'hello' | ./splitby.sh --bytes 1,3,5" "hlo"
+run_test "Comma-separated selections: char mode" "echo 'hello' | ./splitby.sh --characters 1,3,5" "hlo"
+run_test "Comma-separated selections: with invert" "echo 'a,b,c,d' | ./splitby.sh -d ',' --invert 1,3" "b,d"
+run_test "Comma-separated selections: empty parts ignored" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' ,,1,," "apple"
+run_test "Comma-separated selections: with -d flag, comma-only splits to empty (skipped)" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' ',' 1" "apple"
+run_test "Comma-separated selections: with -d flag, letter treated as selection (errors)" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' 'a' 1" "error"
+run_test "Comma-separated selections: with -d flag, mixed letter-number (letter part errors)" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' '1,a' 1" "error"
+
 # Edge cases
 run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d ' ' 2" ""
 run_test "Single delimiter at beginning" "echo ' apple' | ./splitby.sh -d ' ' 2" "apple"

@@ -583,6 +583,8 @@ pub fn process_fields(
     // This allows us to handle placeholders (empty strings for invalid selections)
     // Pre-allocate with known size
     let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
+    // Track first and last field indices for each selection to determine delimiters between selections
+    let mut selection_field_indices: Vec<(Option<usize>, Option<usize>)> = Vec::with_capacity(selections_to_process.len());
 
     // For each set of selections
     for &(raw_start, raw_end) in &selections_to_process {
@@ -598,6 +600,7 @@ pub fn process_fields(
                 // Invalid range - add placeholder if enabled
                 if instructions.placeholder {
                     output_selections.push(Vec::new());
+                    selection_field_indices.push((None, None));
                 }
                 continue;
             }
@@ -616,6 +619,8 @@ pub fn process_fields(
         let mut selection_output: Vec<u8> = Vec::with_capacity(estimated_selection_size);
         let mut selection_has_output = false;
         let mut previous_index: Option<usize> = None;
+        let mut first_field_index: Option<usize> = None;
+        let mut last_field_index: Option<usize> = None;
 
         // Within each range
         for index in process_start..=process_end {
@@ -624,6 +629,13 @@ pub fn process_fields(
             }
 
             selection_has_output = true;
+            let field_index = index as usize;
+            
+            // Track first and last field indices
+            if first_field_index.is_none() {
+                first_field_index = Some(field_index);
+            }
+            last_field_index = Some(field_index);
 
             // Add delimiter/join between fields (never before the first field)
             if let Some(previous_index) = previous_index {
@@ -656,19 +668,21 @@ pub fn process_fields(
                 }
             }
 
-            selection_output.extend_from_slice(fields[index as usize].text);
-            previous_index = Some(index as usize);
+            selection_output.extend_from_slice(fields[field_index].text);
+            previous_index = Some(field_index);
         }
 
         // If selection produced no output and placeholder is enabled, add empty string
         if !selection_has_output && instructions.placeholder {
             output_selections.push(Vec::new());
+            selection_field_indices.push((None, None));
         } else if selection_has_output {
             output_selections.push(selection_output);
+            selection_field_indices.push((first_field_index, last_field_index));
         }
     }
 
-    // Join all selections with the join string (or default delimiter)
+    // Join all selections with the join string (or default delimiter using priority logic)
     // Pre-allocate output buffer with estimated size
     let estimated_output_size = estimate_output_size(record.bytes.len(), output_selections.len());
     let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
@@ -680,12 +694,44 @@ pub fn process_fields(
                     output.extend_from_slice(join.as_bytes());
                 }
                 None => {
-                    // Default: space for per-line mode, newline for whole-string mode
-                    if instructions.input_mode == InputMode::WholeString {
-                        output.push(b'\n');
+                    // Use delimiter priority logic: afterPrevious, beforeNext, space/newline
+                    // For whole-string mode, always use newlines (ignore delimiter priority)
+                    // For per-line mode, use delimiter priority logic
+                    let delimiter_to_use: &[u8] = if instructions.input_mode == InputMode::WholeString {
+                        // Whole-string mode: always use newlines
+                        b"\n"
                     } else {
-                        output.push(b' ');
-                    }
+                        // Per-line mode: use delimiter priority logic
+                        let previous_selection_indices = selection_field_indices[index - 1];
+                        let current_selection_indices = selection_field_indices[index];
+                        
+                        match (previous_selection_indices, current_selection_indices) {
+                            ((_, Some(prev_last)), (Some(curr_first), _)) => {
+                                // Get delimiter after previous selection's last field (afterPrevious)
+                                let delimiter_after_prev = fields[prev_last].delimiter;
+                                // Get delimiter before current selection's first field (beforeNext)
+                                let delimiter_before_curr = if curr_first > 0 {
+                                    fields[curr_first - 1].delimiter
+                                } else {
+                                    b""
+                                };
+                                
+                                // Priority: afterPrevious, beforeNext, space
+                                if !delimiter_after_prev.is_empty() {
+                                    delimiter_after_prev
+                                } else if !delimiter_before_curr.is_empty() {
+                                    delimiter_before_curr
+                                } else {
+                                    b" " // Fallback: space for per-line mode
+                                }
+                            }
+                            _ => {
+                                b" " // Fallback: space for per-line mode
+                            }
+                        }
+                    };
+                    
+                    output.extend_from_slice(delimiter_to_use);
                 }
             }
         }

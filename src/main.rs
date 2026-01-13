@@ -268,21 +268,85 @@ fn main() {
     }
 
     let mut selections: Vec<(i32, i32)> = Vec::new();
-    for string_raw in selection_strings {
-        let (start, end) = match parse_selection(string_raw.as_str()) {
-            Ok(range) => range,
-            Err(_) => {
-                eprintln!("invalid selection: '{string_raw}'");
-                std::process::exit(2);
+    let delimiter_was_set = options.delimiter.is_some();
+    
+    for (index, string_raw) in selection_strings.iter().enumerate() {
+        let is_first = index == 0;
+        let trimmed = string_raw.trim();
+        
+        // For all selections after first -> selections (always parse)
+        // For first selection, check ambiguity only if delimiter wasn't set
+        let should_check_ambiguity = is_first && !delimiter_was_set;
+        
+        // Check if this string contains commas
+        if trimmed.contains(',') {
+            // Split by commas and check each part
+            let parts: Vec<&str> = trimmed.split(',').collect();
+            
+            // For the first selection string, check if it's ambiguous
+            if should_check_ambiguity {
+                // If the whole string is just a comma, it's a delimiter
+                if trimmed == "," {
+                    continue; // Skip this string, it's a delimiter
+                }
+                
+                // Check if any part contains letters (not numeric)
+                // If so, the whole string is a delimiter
+                let has_letter = parts.iter().any(|part| {
+                    let trimmed_part = part.trim();
+                    !trimmed_part.is_empty() && 
+                    trimmed_part.chars().any(|char| char.is_alphabetic() && char != '-')
+                });
+                
+                if has_letter {
+                    continue; // Skip this string, it's a delimiter
+                }
             }
-        };
-
-        // if start == 0 || end == 0 {
-        //     eprintln!("0 is not a valid selection, selections are 1-based");
-        //     std::process::exit(2);
-        // }
-
-        selections.push((start, end));
+            
+            // Parse each comma-separated part as a selection
+            for part in parts {
+                let trimmed_part = part.trim();
+                if trimmed_part.is_empty() {
+                    continue; // Skip empty parts (e.g., ",1" or "1,")
+                }
+                
+                let (start, end) = match parse_selection(trimmed_part) {
+                    Ok(range) => range,
+                    Err(_) => {
+                        eprintln!("invalid selection: '{trimmed_part}'");
+                        std::process::exit(2);
+                    }
+                };
+                
+                selections.push((start, end));
+            }
+        } else {
+            // No commas, parse as single selection
+            // For first selection, check ambiguity
+            if should_check_ambiguity {
+                // If it's just a comma, it's a delimiter
+                if trimmed == "," {
+                    continue; // Skip this string, it's a delimiter
+                }
+                
+                // If it contains letters (not numeric), it's a delimiter
+                if trimmed.chars().any(|char| char.is_alphabetic() && char != '-') {
+                    continue; // Skip this string, it's a delimiter
+                }
+            }
+            
+            let (start, end) = match parse_selection(trimmed) {
+                Ok(range) => range,
+                Err(_) => {
+                    // For first selection, if parsing fails and delimiter wasn't set,
+                    // it might be a delimiter (but we already checked for letters above)
+                    eprintln!("invalid selection: '{trimmed}'");
+                    std::process::exit(2);
+                }
+            };
+            
+            selections.push((start, end));
+        }
     }
 
     // We don't want to compile this inside the workers, so it gets done here
