@@ -17,7 +17,7 @@ pub enum SelectionMode {
 }
 
 pub enum RegexEngine {
-    SingleByte(u8),  // Fast path: single-byte delimiter
+    SingleByte(u8), // Fast path: single-byte delimiter
     Simple(SimpleRegex),
     Fancy(FancyRegex),
 }
@@ -41,8 +41,7 @@ pub struct Instructions {
     pub output: Option<PathBuf>,
     pub count: bool,
     pub join: Option<String>,
-    pub replace_range_delimiter: Option<String>, // might get rid of this not sure yet
-
+    // Method
     pub regex_engine: Option<RegexEngine>,
 }
 

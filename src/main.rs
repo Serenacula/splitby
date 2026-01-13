@@ -41,9 +41,6 @@ struct Options {
     #[arg(short = 'j', long = "join", value_name = "STRING")]
     join: Option<String>,
 
-    #[arg(long = "replace-range-delimiter", value_name = "STRING")]
-    replace_range_delimiter: Option<String>,
-
     #[arg(short = 'e', long = "skip-empty")]
     skip_empty: bool,
 
@@ -288,22 +285,14 @@ fn main() {
         selections.push((start, end));
     }
 
-    // Check for empty delimiter in fields mode
-    if selection_mode == SelectionMode::Fields {
-        if let Some(ref delimiter) = options.delimiter {
-            if delimiter.is_empty() {
-                eprintln!("Delimiter is required in fields mode. Use -d or --delimiter to set one.");
-                std::process::exit(2);
-            }
-        }
-    }
-
     // We don't want to compile this inside the workers, so it gets done here
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
             let delimiter: String = options.delimiter.unwrap_or_else(|| {
-                eprintln!("error: delimiter required in Fields mode");
+                eprintln!(
+                    "Delimiter is required in fields mode. Use -d or --delimiter to set one."
+                );
                 std::process::exit(2)
             });
 
@@ -318,7 +307,7 @@ fn main() {
                     Ok(regex) => Some(RegexEngine::Simple(regex)),
                     Err(_) => {
                         let fancy_regex = FancyRegex::new(&delimiter).unwrap_or_else(|error| {
-                            eprintln!("error: failed to compile regex: {error}");
+                            eprintln!("Regex error: {error}");
                             std::process::exit(2)
                         });
                         Some(RegexEngine::Fancy(fancy_regex))
@@ -343,8 +332,6 @@ fn main() {
         output: options.output,
         count: options.count,
         join: options.join,
-        replace_range_delimiter: options.replace_range_delimiter,
-
         regex_engine: regex_engine,
     });
 
@@ -465,8 +452,6 @@ fn main() {
                 Err(_) => return Ok(()),
             };
 
-            // Split the record into fields
-
             let record_index = record.index;
 
             let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
@@ -476,17 +461,20 @@ fn main() {
                     let engine = instructions
                         .regex_engine
                         .as_ref()
-                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
+                        .ok_or_else(|| "Internal error: missing regex engine".to_string())?;
                     process_fields(&instructions, engine, record)
                 }
             };
 
-            // Count and exit if --count
-
-            // Choose our selections and ranges
-
             match processed_result {
                 Ok(bytes) => {
+                    if instructions.strict_return && bytes.is_empty() {
+                        let _ = result_sender.send(RecordResult::Err {
+                            index: record_index,
+                            error: "strict return error: Empty field".to_string(),
+                        });
+                        return Ok(());
+                    }
                     result_sender
                         .send(RecordResult::Ok {
                             index: record_index,
@@ -520,7 +508,7 @@ fn main() {
         let mut writer: Box<dyn Write> = match &instructions.output {
             Some(path) => {
                 let file = File::create(path)
-                    .map_err(|e| format!("failed to create {}: {}", path.display(), e))?;
+                    .map_err(|error| format!("Failed to create {}: {}", path.display(), error))?;
                 Box::new(io::BufWriter::new(file))
             }
             None => {
@@ -535,7 +523,14 @@ fn main() {
         while let Ok(result) = result_receiver.recv() {
             match result {
                 RecordResult::Err { index, error } => {
-                    return Err(format!("line {index}: {error}"));
+                    let index = index + 1;
+                    match instructions.input_mode {
+                        InputMode::WholeString => return Err(error),
+                        InputMode::PerLine => return Err(format!("line {index}: {error}")),
+                        InputMode::ZeroTerminated => {
+                            return Err(format!("record {index}: error"));
+                        }
+                    }
                 }
                 RecordResult::Ok { index, bytes } => {
                     pending.insert(index, bytes);
@@ -563,8 +558,13 @@ fn main() {
         if !pending.is_empty() {
             let first_missing = next_index;
             return Err(format!(
-                "result stream ended early; missing record {first_missing}"
+                "result stream ended early: missing record {first_missing}"
             ));
+        }
+
+        // Check strict_return: fail if no input was received
+        if next_index == 0 && instructions.strict_return {
+            return Err("strict return check failed: No input received".to_string());
         }
 
         writer.flush().map_err(|error| error.to_string())?;
@@ -585,7 +585,7 @@ fn main() {
 
     // Check for single-core mode via environment variable (useful for macOS testing)
     let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
-        1  // Single-core mode: only 1 worker thread
+        1 // Single-core mode: only 1 worker thread
     } else {
         std::thread::available_parallelism()
             .map(|count| count.get())

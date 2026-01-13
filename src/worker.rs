@@ -61,25 +61,29 @@ fn parse_selection(
 
     // Check our fail states (strict_bounds) and determine the range to process
     let (process_start, process_end) = if strict_bounds {
+        if len == 0 {
+            return Err(format!("Strict bounds error: no valid fields to select"));
+        }
+
         // Check if this is a single index (start == end) for better error message
         let is_single_index = raw_start == raw_end;
 
         if start < 0 || start >= len as i32 {
             if is_single_index {
                 return Err(format!(
-                    "Index ({}) out of bounds. Must be between 1 and {}",
+                    "Strict bounds error: index ({}) out of bounds. Must be between 1 and {}",
                     raw_start, len
                 ));
             } else {
                 return Err(format!(
-                    "Start index ({}) out of bounds. Must be between 1 and {}",
+                    "Strict bounds error: start index ({}) out of bounds. Must be between 1 and {}",
                     raw_start, len
                 ));
             }
         }
         if end < 0 || end >= len as i32 {
             return Err(format!(
-                "End index ({}) out of bounds. Must be between 1 and {}",
+                "Strict bounds error: end index ({}) out of bounds. Must be between 1 and {}",
                 raw_end, len
             ));
         }
@@ -141,15 +145,18 @@ fn invert_selections(
         // Handle out-of-bounds (when strict_bounds is false)
         // When strict_bounds is true, errors should have been caught earlier, but handle defensively
         if strict_bounds {
+            if fields_len == 0 {
+                return Err(format!("Strict bounds error: no valid fields to select"));
+            }
             if start < 0 || start >= fields_len as i32 {
                 return Err(format!(
-                    "Start index ({}) out of bounds. Must be between 1 and {}",
+                    "Strict bounds error: start index ({}) out of bounds. Must be between 1 and {}",
                     raw_start, fields_len
                 ));
             }
             if end < 0 || end >= fields_len as i32 {
                 return Err(format!(
-                    "End index ({}) out of bounds. Must be between 1 and {}",
+                    "Strict bounds error: end index ({}) out of bounds. Must be between 1 and {}",
                     raw_end, fields_len
                 ));
             }
@@ -220,9 +227,6 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
 
     // Handle empty input
     if byte_length == 0 {
-        if instructions.strict_return {
-            return Err("strict return check failed: Input is empty".to_string());
-        }
         return Ok(Vec::new());
     }
 
@@ -299,11 +303,6 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
         output.extend_from_slice(selection);
     }
 
-    // Check strict_return: ensure output is not empty (unless count mode is used)
-    if instructions.strict_return && !instructions.count && output.is_empty() {
-        return Err("strict return check failed: No valid selections were output".to_string());
-    }
-
     Ok(output)
 }
 
@@ -328,9 +327,6 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
 
     // Handle empty input
     if grapheme_count == 0 {
-        if instructions.strict_return {
-            return Err("strict return check failed: Input is empty".to_string());
-        }
         return Ok(Vec::new());
     }
 
@@ -375,10 +371,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
                 let end_usize = process_end as usize;
 
                 // Collect selected graphemes into a string
-                let selected_graphemes: String = graphemes[start_usize..=end_usize]
-                    .iter()
-                    .copied()
-                    .collect();
+                let selected_graphemes: String =
+                    graphemes[start_usize..=end_usize].iter().copied().collect();
 
                 output_selections.push(selected_graphemes.into_bytes());
             }
@@ -413,15 +407,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
         output.extend_from_slice(selection);
     }
 
-    // Check strict_return: ensure output is not empty (unless count mode is used)
-    if instructions.strict_return && !instructions.count && output.is_empty() {
-        return Err("strict return check failed: No valid selections were output".to_string());
-    }
-
     Ok(output)
 }
-
-
 
 pub fn process_fields(
     instructions: &Instructions,
@@ -518,9 +505,7 @@ pub fn process_fields(
 
     // Filter out empty fields if --skip-empty is enabled
     if instructions.skip_empty {
-        fields = fields.into_iter()
-            .filter(|f| !f.text.is_empty())
-            .collect();
+        fields = fields.into_iter().filter(|f| !f.text.is_empty()).collect();
     }
 
     // Handle --count flag: return field count instead of processing selections
@@ -531,11 +516,7 @@ pub fn process_fields(
     }
 
     // Handle edge case: all fields empty (after filtering if skip_empty is enabled)
-    // Note: strict_return check is skipped when count is enabled (already returned above)
-    if fields.is_empty() {
-        if instructions.strict_return {
-            return Err("strict return check failed: No valid fields available".to_string());
-        }
+    if fields.is_empty() || fields.iter().all(|f| f.text.is_empty()) {
         return Ok(Vec::new());
     }
 
@@ -682,11 +663,6 @@ pub fn process_fields(
             }
         }
         output.extend_from_slice(selection);
-    }
-
-    // Check strict_return: ensure output is not empty (unless count mode is used)
-    if instructions.strict_return && !instructions.count && output.is_empty() {
-        return Err("strict return check failed: No valid selections were output".to_string());
     }
 
     Ok(output)
