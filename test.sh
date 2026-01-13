@@ -352,6 +352,35 @@ if [[ "$VERSION" == "rust" ]]; then
     run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --bytes 10" "error"
 fi
 
+# Char mode tests (Rust version only - bash doesn't support char mode)
+if [[ "$VERSION" == "rust" ]]; then
+    echo
+    echo "=== Char Mode Tests (Rust only) ==="
+    run_test "Char mode: single character" "echo 'hello' | ./splitby.sh --characters 1" "h"
+    run_test "Char mode: character range" "echo 'hello' | ./splitby.sh --characters 1-3" "hel"
+    run_test "Char mode: negative index" "echo 'hello' | ./splitby.sh --characters -2" "l"
+    run_test "Char mode: negative range" "echo 'hello' | ./splitby.sh --characters -3--1" "llo"
+    run_test "Char mode: multiple selections" "echo 'hello' | ./splitby.sh --characters 1 3 5" "h l o"
+    run_test "Char mode: full range" "echo 'hello' | ./splitby.sh --characters 1-5" "hello"
+    run_test "Char mode: no selections (output all)" "echo 'hello' | ./splitby.sh --characters" "hello"
+    run_test "Char mode: empty input" "echo '' | ./splitby.sh --characters" ""
+    run_test "Char mode: --count" "echo 'hello' | ./splitby.sh --count --characters" "5"
+    run_test "Char mode: --count with empty" "echo '' | ./splitby.sh --count --characters" "0"
+    run_test "Char mode: --count with graphemes" "echo 'café' | ./splitby.sh --count --characters" "4"
+    run_test "Char mode: --join" "echo 'hello' | ./splitby.sh --join ',' --characters 1 3 5" "h,l,o"
+    run_test "Char mode: --invert" "echo 'hello' | ./splitby.sh --invert --characters 2 4" "h l o"
+    run_test "Char mode: --invert range" "echo 'hello' | ./splitby.sh --invert --characters 2-4" "ho"
+    run_test "Char mode: --strict-bounds valid" "echo 'hello' | ./splitby.sh --strict-bounds --characters 1-3" "hel"
+    run_test "Char mode: --strict-bounds invalid" "echo 'hello' | ./splitby.sh --strict-bounds --characters 10" "error"
+    run_test "Char mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder --characters 10" " "
+    run_test "Char mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder --characters 1 10 3" "h   l"
+    run_test "Char mode: whole-string mode" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --characters 1-5" "hello"
+    run_test "Char mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --characters 1 2" "h\ne"
+    run_test "Char mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --characters 10" "error"
+    run_test "Char mode: grapheme cluster (café)" "echo 'café' | ./splitby.sh --characters 1-4" "café"
+    run_test "Char mode: grapheme cluster (combining)" "printf 'e\u0301\n' | ./splitby.sh --characters 1" "é"
+fi
+
 
 # Unimplemented features (not yet implemented in Rust version)
 # These tests are placed at the end and only run for bash version
