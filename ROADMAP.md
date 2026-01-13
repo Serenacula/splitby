@@ -46,7 +46,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Multiple threads (N-1, where N = CPU cores)
     - Each worker receives records and processes them
     - Routes to appropriate processor based on selection mode:
-        - `process_bytes()` - Not implemented
+        - `process_bytes()` - ✅ **Fully implemented** (extracts byte ranges directly)
         - `process_chars()` - Not implemented
         - `process_fields()` - ✅ **Fully implemented** (handles both simple and fancy regex)
     - Sends results back through a channel
@@ -116,6 +116,27 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Handles edge cases (empty fields, out-of-bounds indices)
     - Proper error propagation and reporting
 
+8. **Byte Processing** (`worker.rs::process_bytes`)
+    - ✅ Complete implementation with all core features:
+        - Direct byte range extraction (no UTF-8 conversion needed)
+        - Index resolution with overflow protection
+        - Bounds checking and range validation (shared with fields mode via `parse_selection()`)
+        - `--invert` flag: Computes complement of byte selections
+        - `--count` flag: Returns byte count
+        - `--strict-return` validation: Ensures non-empty output
+        - `--placeholder` flag: Outputs empty strings for invalid selections
+        - `--join` flag: Custom join string between selections
+    - Handles edge cases (empty input, out-of-bounds indices, no selections)
+    - Proper error propagation and reporting
+
+9. **Selection Parsing** (`worker.rs::parse_selection`)
+    - ✅ Shared function for common selection validation logic:
+        - Zero index check
+        - Index resolution
+        - Strict range order validation
+        - Strict bounds checking and one-sided clamping
+        - Used by both `process_bytes()` and `process_fields()` for consistency
+
 #### 🚧 Partially Implemented
 
 1. **`process_fields()`** (`worker.rs`)
@@ -146,13 +167,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
 
 #### ❌ Not Implemented
 
-1. **`process_bytes()`** (`worker.rs`)
-
-    - Stub exists
-    - Should extract byte ranges from raw `Vec<u8>`
-    - No UTF-8 validation needed
-
-2. **`process_chars()`** (`worker.rs`)
+1. **`process_chars()`** (`worker.rs`)
 
     - Stub exists
     - Should extract character ranges
@@ -417,41 +432,30 @@ if instructions.strict_return && output.is_empty() {
 
 **Status**: ✅ Implemented - Fancy regex support is now integrated into `process_fields()`. The function automatically switches between Simple and Fancy regex engines based on compilation success. Fancy regex handles complex patterns (lookahead, backreferences, etc.) with proper error handling.
 
-#### 2.2 Implement `process_bytes()`
+#### 2.2 Implement `process_bytes()` ✅ COMPLETED
 
 **Location**: `worker.rs::process_bytes()`
 
-**Implementation**:
+**Status**: ✅ Implemented - Byte mode is fully functional with all core features:
+- Direct byte range extraction (no UTF-8 conversion needed)
+- Uses shared `parse_selection()` function for consistent validation logic
+- Supports all flags: `--count`, `--invert`, `--strict-*`, `--placeholder`, `--join`
+- Handles edge cases: empty input, no selections, out-of-bounds indices
+- Proper error messages and error propagation
 
--   No UTF-8 conversion needed (work with raw bytes)
--   Resolve selections to byte ranges
--   Extract byte slices directly from `record.bytes`
--   Handle bounds checking (strict mode)
--   Join bytes with delimiter (if provided)
+**Implementation Details**:
+- Works directly with `record.bytes` (no string conversion)
+- Uses `parse_selection()` for index resolution, bounds checking, and clamping
+- Extracts byte slices: `bytes[start..=end]`
+- Joins selections with `--join` string or default separator (space/newline based on input mode)
 
-**Example**:
-
-```rust
-pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
-    let bytes = &record.bytes;
-    let mut output = Vec::new();
-
-    for &(raw_start, raw_end) in &instructions.selections {
-        let start = resolve_index(raw_start, bytes.len());
-        let end = resolve_index(raw_end, bytes.len());
-
-        // Bounds checking...
-        // Extract bytes[start..=end]
-    }
-
-    Ok(output)
-}
-```
-
-**Test Cases**:
+**Test Cases** (all passing):
 
 -   `echo 'hello' | splitby --bytes 1-3` → `"hel"`
 -   `echo 'hello' | splitby --bytes -2` → `"lo"`
+-   `echo 'hello' | splitby --bytes --count` → `"5"`
+-   `echo 'hello' | splitby --bytes --invert 2-4` → `"ho"`
+-   `echo 'hello' | splitby --bytes --join ',' 1 3 5` → `"h,l,o"`
 
 #### 2.3 Implement `process_chars()`
 
@@ -748,13 +752,15 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 
 1. ✅ Complete `process_fields()` - Phase 1 (All core features: skip-empty, count, invert, strict-return)
 2. ✅ Implement `process_fancy_regex()` - Phase 2.1 (Integrated into process_fields)
-3. ✅ Fix whole-string mode join behavior - Phase 5.0 (Fixed: now uses newlines)
-4. ✅ File output - Phase 4 (Implemented: --output flag now works)
-5. ✅ Fix no selections behavior - Phase 5.0 (Fixed: now outputs all fields)
+3. ✅ Implement `process_bytes()` - Phase 2.2 (Completed with all flags and edge cases)
+4. ✅ Refactor selection parsing - Shared `parse_selection()` function for consistency
+5. ✅ Fix whole-string mode join behavior - Phase 5.0 (Fixed: now uses newlines)
+6. ✅ File output - Phase 4 (Implemented: --output flag now works)
+7. ✅ Fix no selections behavior - Phase 5.0 (Fixed: now outputs all fields)
 
-**Medium Priority** (Feature completeness): 6. ⏳ Byte/char modes - Phase 2.2, 2.3 7. ✅ Fix behavior differences to match bash - Phase 5.0 (All fixed) 8. ✅ Error handling - Phase 5.1
+**Medium Priority** (Feature completeness): 6. ✅ Byte mode - Phase 2.2 (Completed) 7. ⏳ Char mode - Phase 2.3 8. ✅ Fix behavior differences to match bash - Phase 5.0 (All fixed) 9. ✅ Error handling - Phase 5.1
 
-**Low Priority** (Polish): 9. ⏳ Tests - Phase 5.2 10. ⏳ Performance Optimization - Phase 5.3 (Detailed optimization strategies documented) 11. ✅ Large Input Support - Phase 5.4 12. ✅ Documentation - Phase 6
+**Low Priority** (Polish): 10. ⏳ Tests - Phase 5.2 11. ⏳ Performance Optimization - Phase 5.3 (Detailed optimization strategies documented) 12. ✅ Large Input Support - Phase 5.4 13. ✅ Documentation - Phase 6
 
 ### Testing Strategy
 
@@ -852,16 +858,18 @@ These features remain available in the bash version for backward compatibility. 
 
 4. **UTF-8 Handling**: The code supports both strict UTF-8 validation (`strict_utf8`) and lossy conversion. This is important for processing binary data or malformed text.
 
-5. **Selection Parsing**: The selection parser handles special keywords (`start`, `first`, `end`, `last`) and negative indices. This logic is already complete in `main.rs`.
+5. **Selection Parsing**: The selection parser handles special keywords (`start`, `first`, `end`, `last`) and negative indices. This logic is already complete in `main.rs`. The common selection validation logic (bounds checking, clamping, range order validation) has been extracted into a shared `parse_selection()` function used by both `process_bytes()` and `process_fields()` for consistency.
 
 ---
 
 ## Summary
 
-**Current Status**: The core field processing functionality is complete. All major flags for field processing are implemented (skip-empty, invert, count, strict-return, placeholder). The architecture is solid with parallel processing support.
+**Current Status**: The core field and byte processing functionality is complete. All major flags for both modes are implemented (skip-empty, invert, count, strict-return, placeholder). Selection parsing has been refactored into a shared `parse_selection()` function for consistency. The architecture is solid with parallel processing support.
 
 **Remaining Work** (see [Implementation Priority](#implementation-priority) for details):
 
--   Additional selection modes (bytes/chars) - Phase 2.2, 2.3
+-   Additional selection modes:
+    - ✅ Byte mode - Phase 2.2 (Completed with all flags and edge cases)
+    - ⏳ Char mode - Phase 2.3
 
 **Note**: The `--simple-ranges` and `--replace-range-delimiter` features were deprecated during the Rust migration and are not planned for implementation.

@@ -326,6 +326,33 @@ run_test "Invalid index format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 
 run_test "Invalid range format" "echo 'this is a test' | ./splitby.sh -d '\\s+' 1-2a" "error"
 
 
+# Byte mode tests (Rust version only - bash doesn't support byte mode)
+if [[ "$VERSION" == "rust" ]]; then
+    echo
+    echo "=== Byte Mode Tests (Rust only) ==="
+    run_test "Byte mode: single byte" "echo 'hello' | ./splitby.sh --bytes 1" "h"
+    run_test "Byte mode: byte range" "echo 'hello' | ./splitby.sh --bytes 1-3" "hel"
+    run_test "Byte mode: negative index" "echo 'hello' | ./splitby.sh --bytes -2" "lo"
+    run_test "Byte mode: negative range" "echo 'hello' | ./splitby.sh --bytes -3--1" "llo"
+    run_test "Byte mode: multiple selections" "echo 'hello' | ./splitby.sh --bytes 1 3 5" "h l o"
+    run_test "Byte mode: full range" "echo 'hello' | ./splitby.sh --bytes 1-5" "hello"
+    run_test "Byte mode: no selections (output all)" "echo 'hello' | ./splitby.sh --bytes" "hello"
+    run_test "Byte mode: empty input" "echo '' | ./splitby.sh --bytes" ""
+    run_test "Byte mode: --count" "echo 'hello' | ./splitby.sh --count --bytes" "5"
+    run_test "Byte mode: --count with empty" "echo '' | ./splitby.sh --count --bytes" "0"
+    run_test "Byte mode: --join" "echo 'hello' | ./splitby.sh --join ',' --bytes 1 3 5" "h,l,o"
+    run_test "Byte mode: --invert" "echo 'hello' | ./splitby.sh --invert --bytes 2 4" "h l o"
+    run_test "Byte mode: --invert range" "echo 'hello' | ./splitby.sh --invert --bytes 2-4" "ho"
+    run_test "Byte mode: --strict-bounds valid" "echo 'hello' | ./splitby.sh --strict-bounds --bytes 1-3" "hel"
+    run_test "Byte mode: --strict-bounds invalid" "echo 'hello' | ./splitby.sh --strict-bounds --bytes 10" "error"
+    run_test "Byte mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder --bytes 10" ""
+    run_test "Byte mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder --bytes 1 10 3" "h l"
+    run_test "Byte mode: whole-string mode" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1-5" "hello"
+    run_test "Byte mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1 2" "h\ne"
+    run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --bytes 10" "error"
+fi
+
+
 # Unimplemented features (not yet implemented in Rust version)
 # These tests are placed at the end and only run for bash version
 
