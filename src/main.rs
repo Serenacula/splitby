@@ -380,6 +380,20 @@ fn main() {
                         return Ok(()); // EOF
                     }
 
+                    // Check if this is just a trailing newline before removing it
+                    // (bytes_read == 1 means we only read the newline character)
+                    if bytes_read == 1 && buffer == [b'\n'] {
+                        // Peek ahead without consuming to check if we're at EOF
+                        let peek = reader.fill_buf().map_err(|error| format!("{error}"))?;
+                        if peek.is_empty() {
+                            // Trailing newline at EOF - skip it
+                            buffer.clear();
+                            continue;
+                        }
+                        // Empty line in the middle - process it normally below
+                    }
+
+                    // Remove newline (and carriage return if present)
                     if buffer.last() == Some(&b'\n') {
                         buffer.pop();
                         if buffer.last() == Some(&b'\r') {
