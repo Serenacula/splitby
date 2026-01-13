@@ -164,7 +164,7 @@ run_test "Invert single index whole-string" "echo 'a b c d' | ./splitby.sh -d ' 
 run_test "Invert range selection" "echo 'a b c d' | ./splitby.sh -d ' ' --invert 2-3" $'a d'
 run_test "Invert range with join" "echo 'a b c d' | ./splitby.sh -d ' ' --invert -j ',' 2-3" "a,d"
 run_test "Invert whole set (empty result)" "echo 'a b' | ./splitby.sh -d ' ' --invert 1-2" ""
-run_test "Invert whole set with placeholder" "echo 'a b' | ./splitby.sh -d ' ' --invert --placeholder 1-2" ""
+run_test "Invert whole set with placeholder" "echo 'a b' | ./splitby.sh -d ' ' --invert --placeholder="?" 1-2" ""
 run_test "Invert with count" "echo 'a b c' | ./splitby.sh -d ' ' --count --invert 2" "3"
 
 
@@ -246,11 +246,12 @@ echo "=== Byte Mode Tests ==="
     run_test "Byte mode: --invert range" "echo 'hello' | ./splitby.sh --invert --bytes 2-4" "ho"
     run_test "Byte mode: --strict-bounds valid" "echo 'hello' | ./splitby.sh --strict-bounds --bytes 1-3" "hel"
     run_test "Byte mode: --strict-bounds invalid" "echo 'hello' | ./splitby.sh --strict-bounds --bytes 10" "error"
-    run_test "Byte mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder --bytes 10" ""
-    run_test "Byte mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder --bytes 1 10 3 | hexdump -C | head -1 | sed 's/^[^ ]*  //; s/  .*$//'" "68 00 6c 0a"
+    run_test "Byte mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder=? --bytes 10" "?"
+    run_test "Byte mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder=0x00 --bytes 1 10 3 | hexdump -C | head -1 | sed 's/^[^ ]*  //; s/  .*$//'" "68 00 6c 0a"
     run_test "Byte mode: whole-string mode" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1-5" "hello"
     run_test "Byte mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --bytes 1 2" "he"
-run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --bytes 10" ""
+run_test "Byte mode: --strict-return empty output 0 placeholder" "echo 'hello' | ./splitby.sh --strict-return --placeholder=0x00 --bytes 10" ""
+run_test "Byte mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --bytes 10" "error"
 
 # Char mode tests
 echo
@@ -271,11 +272,11 @@ echo "=== Char Mode Tests ==="
     run_test "Char mode: --invert range" "echo 'hello' | ./splitby.sh --invert --characters 2-4" "ho"
     run_test "Char mode: --strict-bounds valid" "echo 'hello' | ./splitby.sh --strict-bounds --characters 1-3" "hel"
     run_test "Char mode: --strict-bounds invalid" "echo 'hello' | ./splitby.sh --strict-bounds --characters 10" "error"
-    run_test "Char mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder --characters 10" " "
-    run_test "Char mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder --characters 1 10 3" "h l"
+    run_test "Char mode: --placeholder out-of-bounds" "echo 'hello' | ./splitby.sh --placeholder=' ' --characters 10" " "
+    run_test "Char mode: --placeholder multiple" "echo 'hello' | ./splitby.sh --placeholder=' ' --characters 1 10 3" "h l"
     run_test "Char mode: whole-string mode" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --characters 1-5" "hello"
     run_test "Char mode: whole-string mode with newline join" "echo -e 'hello\nworld' | ./splitby.sh --whole-string --characters 1 2" "he"
-    run_test "Char mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder --characters 10" " "
+    run_test "Char mode: --strict-return empty output" "echo 'hello' | ./splitby.sh --strict-return --placeholder=' ' --characters 10" " "
     run_test "Char mode: grapheme cluster (café)" "echo 'café' | ./splitby.sh --characters 1-4" "café"
     # Test broken because bash was interfering with it, needs manual confirmation when running
     # run_test "Char mode: grapheme cluster (combining)" "printf 'e\u0301\n' | ./splitby.sh --characters 1" "é"

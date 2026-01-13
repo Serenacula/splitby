@@ -89,8 +89,14 @@ struct Options {
     #[arg(long = "count")]
     count: bool,
 
-    #[arg(long = "placeholder", value_name = "VALUE", num_args = 0..=1)]
-    placeholder: Option<String>,
+    #[arg(
+        long = "placeholder",
+        value_name = "STRING|HEX",
+        num_args = 1,
+        allow_hyphen_values = true,
+        action = clap::ArgAction::Append,
+    )]
+    placeholder: Vec<String>,
 
     #[arg(long = "trim-newline")]
     trim_newline: bool,
@@ -427,25 +433,27 @@ fn main() {
     };
 
     // Parse placeholder value (hex for byte mode, string for text modes)
-    let placeholder_value: Option<Vec<u8>> = if let Some(placeholder_str) = &options.placeholder {
-        // Check if it's a hex value (starts with 0x)
-        if placeholder_str.starts_with("0x") || placeholder_str.starts_with("0X") {
-            // Parse hex value (single byte for byte mode)
-            let hex_str = &placeholder_str[2..];
-            match u8::from_str_radix(hex_str, 16) {
-                Ok(byte_value) => Some(vec![byte_value]),
-                Err(_) => {
-                    eprintln!("invalid hex value for placeholder: {}", placeholder_str);
-                    std::process::exit(2);
+    // Take the last value if multiple are provided (last flag wins)
+    let placeholder_value: Option<Vec<u8>> =
+        if let Some(placeholder_str) = options.placeholder.last() {
+            // Check if it's a hex value (starts with 0x)
+            if placeholder_str.starts_with("0x") || placeholder_str.starts_with("0X") {
+                // Parse hex value (single byte for byte mode)
+                let hex_str = &placeholder_str[2..];
+                match u8::from_str_radix(hex_str, 16) {
+                    Ok(byte_value) => Some(vec![byte_value]),
+                    Err(_) => {
+                        eprintln!("invalid hex value for placeholder: {}", placeholder_str);
+                        std::process::exit(2);
+                    }
                 }
+            } else {
+                // String value (for text modes)
+                Some(placeholder_str.as_bytes().to_vec())
             }
         } else {
-            // String value (for text modes)
-            Some(placeholder_str.as_bytes().to_vec())
-        }
-    } else {
-        None
-    };
+            None
+        };
 
     let instructions = Arc::new(Instructions {
         input_mode: input_mode,
