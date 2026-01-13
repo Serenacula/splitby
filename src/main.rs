@@ -288,6 +288,16 @@ fn main() {
         selections.push((start, end));
     }
 
+    // Check for empty delimiter in fields mode
+    if selection_mode == SelectionMode::Fields {
+        if let Some(ref delimiter) = options.delimiter {
+            if delimiter.is_empty() {
+                eprintln!("Delimiter is required in fields mode. Use -d or --delimiter to set one.");
+                std::process::exit(2);
+            }
+        }
+    }
+
     // We don't want to compile this inside the workers, so it gets done here
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
