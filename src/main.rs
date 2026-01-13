@@ -432,21 +432,6 @@ fn main() {
         }
     }
 
-    // fn split_fields(
-    //     record: Record,
-    //     selection_mode: SelectionMode,
-    //     regex_engine: Option<RegexEngine>,
-    // ) -> Result<Vec<u8>, String> {
-    //     fn split_by_byte(record: Record) -> Vec<u8> {
-    //         return record.text.as_bytes().to_vec();
-    //     }
-
-    //     match selection_mode {
-    //         SelectionMode::Bytes => Ok(record.text.as_bytes().to_vec()),
-    //         SelectionMode::Chars => Ok(record.text.chars()),
-    //     }
-    // }
-
     fn process_records(
         instructions: Arc<Instructions>,
         record_receiver: channel::Receiver<Record>,
