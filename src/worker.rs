@@ -273,9 +273,9 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
                 output_selections.push(selection_bytes);
             }
             None => {
-                // Invalid range - add placeholder if enabled
+                // Invalid range - add placeholder if enabled (null byte for byte mode)
                 if instructions.placeholder {
-                    output_selections.push(Vec::new());
+                    output_selections.push(vec![0u8]);
                 }
             }
         }
@@ -379,19 +379,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     let mut output: Vec<u8> = Vec::new();
     for (index, selection) in output_selections.iter().enumerate() {
         if index > 0 {
-            // Add join delimiter between selections
-            match &instructions.join {
-                Some(join) => {
-                    output.extend_from_slice(join.as_bytes());
-                }
-                None => {
-                    // Default: space for per-line mode, newline for whole-string mode
-                    if instructions.input_mode == InputMode::WholeString {
-                        output.push(b'\n');
-                    } else {
-                        output.push(b' ');
-                    }
-                }
+            if let Some(join) = &instructions.join {
+                output.extend_from_slice(join.as_bytes());
             }
         }
         output.extend_from_slice(selection);
