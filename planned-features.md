@@ -52,7 +52,8 @@ On reflection, entirely on accident this is essentially a more powerful version 
     -   @auto: follows existing logic, try after-previous, then try before-next, then space
     -   @after-previous: delimiter from after previous field
     -   @before-next: delimiter from before next field
-    -   @empty: inserts an empty byte
+    -   @empty-byte: inserts an empty byte
+    -   @none: equivalent to ""
 -   Add --join-ranges, which only applies within ranges
 -   Add --join-selections, which only applies between discrete selections
 -   Add --join-records, which applies between each record

@@ -47,7 +47,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Each worker receives records and processes them
     - Routes to appropriate processor based on selection mode:
         - `process_bytes()` - ✅ **Fully implemented** (extracts byte ranges directly)
-        - `process_chars()` - Not implemented
+        - `process_chars()` - ✅ **Fully implemented** (grapheme-based character extraction)
         - `process_fields()` - ✅ **Fully implemented** (handles both simple and fancy regex)
     - Sends results back through a channel
 
@@ -102,6 +102,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
         - `RecordResult`: Output with index or error
 
 7. **Field Processing** (`worker.rs::process_fields`)
+
     - ✅ Complete implementation with all core features:
         - UTF-8 validation and normalization
         - Regex-based field extraction (both simple and fancy regex engines)
@@ -117,6 +118,7 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Proper error propagation and reporting
 
 8. **Byte Processing** (`worker.rs::process_bytes`)
+
     - ✅ Complete implementation with all core features:
         - Direct byte range extraction (no UTF-8 conversion needed)
         - Index resolution with overflow protection
@@ -129,54 +131,38 @@ The Rust implementation uses a multi-threaded pipeline architecture:
     - Handles edge cases (empty input, out-of-bounds indices, no selections)
     - Proper error propagation and reporting
 
-9. **Selection Parsing** (`worker.rs::parse_selection`)
+9. **Char Processing** (`worker.rs::process_chars`)
+
+    - ✅ Complete implementation with all core features:
+        - Grapheme-based character extraction using `unicode-segmentation` crate
+        - UTF-8 validation and normalization (strict vs lossy)
+        - Index resolution with overflow protection
+        - Bounds checking and range validation (shared with other modes via `parse_selection()`)
+        - `--invert` flag: Computes complement of character selections
+        - `--count` flag: Returns grapheme count
+        - `--strict-return` validation: Ensures non-empty output
+        - `--placeholder` flag: Outputs space character for invalid selections
+        - `--join` flag: Custom join string between selections
+    - Handles edge cases (empty input, no selections, out-of-bounds indices)
+    - Proper error propagation and reporting
+
+10. **Selection Parsing** (`worker.rs::parse_selection`)
     - ✅ Shared function for common selection validation logic:
         - Zero index check
         - Index resolution
         - Strict range order validation
         - Strict bounds checking and one-sided clamping
-        - Used by both `process_bytes()` and `process_fields()` for consistency
+        - Used by all three processing modes (`process_bytes()`, `process_fields()`, `process_chars()`) for consistency
 
 #### 🚧 Partially Implemented
 
 1. **`process_fields()`** (`worker.rs`)
 
-    - **Status**: Core functionality complete, some behavior differences remain (see [Phase 5.0](#50-fix-known-bugs-and-behavior-differences))
-    - **What works:**
-        - UTF-8 validation/normalization (strict vs lossy)
-        - Finding delimiters using regex (both Simple and Fancy regex engines)
-        - Building field list with delimiter positions
-        - Index resolution (positive/negative) with overflow protection
-        - Bounds checking (strict mode) with improved error messages
-        - Range order validation (checked before bounds, matching bash version)
-        - Field extraction and intelligent delimiter joining
-        - **Join/delimiter behavior**: Implemented according to new design:
-            - Delimiters are contextual data (delimiter after each field)
-            - Default behavior: preserves delimiters intelligently (uses delimiter after A, or before B, or falls back to space)
-            - `--join` override: when provided, always uses the join string and ignores delimiter preservation
-        - ✅ `--skip-empty` flag: Filters out empty fields before processing
-        - ✅ `--invert` flag: Computes complement of selections (most complex feature)
-        - ✅ `--count` flag: Returns field count instead of processing selections
-        - ✅ `--strict-return` validation: Checks for empty output and empty fields
-        - ✅ `--placeholder` flag: Outputs empty strings for invalid selections (maintains consistent output format)
-    - **What needs fixing:**
-        - Whole-string mode join behavior (should use newlines) - See Phase 5.0
-        - No selections behavior (should output all fields) - See Phase 5.0
-        - Empty delimiter handling (should match bash) - See Phase 5.0
-        - Newline counting in whole-string mode (should match bash) - See Phase 5.0
+    - **Status**: ✅ Complete - All core features implemented and all behavior differences fixed (see [Phase 5.0](#50-fix-known-bugs-and-behavior-differences))
 
 #### ❌ Not Implemented
 
-1. **`process_chars()`** (`worker.rs`)
-
-    - Stub exists
-    - Should extract character ranges
-    - Needs UTF-8 validation
-
-3. **File Output** (`main.rs`) ✅ COMPLETED
-
-    - `--output` flag implemented
-    - Writes to file or stdout based on flag
+1. **Core Feature Refinements** (Phase 6) - See [Phase 6: Core Feature Refinement](#phase-6-core-feature-refinement) for details
 
 ### Code Flow Example
 
@@ -274,9 +260,10 @@ struct Field<'a> {
 
 ### Current Limitations
 
-1. **Byte/char modes**: `-b` and `-c` flags don't work (stubs exist)
-2. **File output**: `-o` flag implemented
-3. **Behavior differences**: Some behaviors differ from bash version (see [Behavior Differences](#behavior-differences-from-bash-version) section)
+1. **Core Feature Refinements**: See [Phase 6](#phase-6-core-feature-refinement) for planned enhancements (comma-separated selections, placeholder with value, join scope flags, etc.)
+2. **Stretch Features**: See [Phase 7](#phase-7-stretch-features) for additional features (zero-indexing, list mode, etc.)
+3. **Flag Syntax**: Does not support `--delimiter=' '` syntax (clap limitation) - See [Behavior Differences](#behavior-differences-from-bash-version)
+4. **Flag Ordering**: Some flags must appear before selections due to clap parsing - See [Behavior Differences](#behavior-differences-from-bash-version)
 
 ---
 
@@ -294,302 +281,42 @@ struct Field<'a> {
 
 ### Phase 1: Complete `process_fields()` ✅ COMPLETED
 
-**Goal**: Finish the core field processing function to match bash version behavior.
+**Status**: All core features implemented: `--skip-empty`, `--count`, `--invert`, `--strict-return`, `--placeholder`. All edge cases handled (empty fields, invalid UTF-8, integer overflow protection, out-of-bounds selections).
 
-**Status**: All core features implemented. The function now handles all major flags and edge cases.
+### Phase 2: Implement Remaining Processors ✅ COMPLETED
 
-#### 1.1 Implement `--skip-empty` flag ✅ COMPLETED
+**Status**: All three processing modes fully implemented:
 
-**Location**: `worker.rs::process_fields()`
+-   **2.1** `process_fancy_regex()` - Integrated into `process_fields()`, handles complex regex patterns
+-   **2.2** `process_bytes()` - Byte mode with all flags (`--count`, `--invert`, `--strict-*`, `--placeholder`, `--join`)
+-   **2.3** `process_chars()` - Grapheme-based character mode using `unicode-segmentation` crate, all flags supported
 
-**Status**: ✅ Implemented - Filters empty fields after extraction, before processing selections.
+### Phase 3: Add Missing CLI Features ✅ COMPLETED
 
-**Implementation**:
+**Status**: `--placeholder` flag implemented. Outputs empty strings/spaces for invalid selections when `strict_bounds` is false.
 
--   After building `fields` vector, filter out empty fields if `instructions.skip_empty == true`
--   Track original indices to maintain correct field numbering
--   Update selection resolution to account for filtered fields
--   Handle edge case: all fields empty → return empty or error based on `strict_return`
+**Note**: The `--simple-ranges` and `--replace-range-delimiter` flags were deprecated during the migration to Rust and are not planned for implementation.
 
-**Example**:
+### Phase 4: File Output ✅ COMPLETED
 
-```rust
-let mut fields: Vec<Field> = Vec::new();
-// ... build fields ...
-
-if instructions.skip_empty {
-    fields = fields.into_iter()
-        .filter(|f| !f.text.is_empty())
-        .collect();
-}
-```
-
-**Test Cases** (from `test.sh`):
-
--   `echo ',orange' | splitby --skip-empty -d ',' 1` → `"orange"`
--   `echo 'apple,,orange' | splitby --skip-empty -d ',' 2` → `"orange"`
--   `echo ',' | splitby --skip-empty -d ','` → `""`
-
-#### 1.2 Implement `--count` flag ✅ COMPLETED
-
-**Location**: `worker.rs::process_fields()`
-
-**Status**: ✅ Implemented - Returns field count as string, respects `--skip-empty`, takes precedence over selections.
-
-**Implementation**:
-
--   Early return after building fields
--   If `skip_empty`, filter before counting
--   Convert count to string, return as `Vec<u8>`
--   Should work in all input modes (per-line counts each line separately)
-
-**Example**:
-
-```rust
-if instructions.count {
-    let count = if instructions.skip_empty {
-        fields.iter().filter(|f| !f.text.is_empty()).count()
-    } else {
-        fields.len()
-    };
-    return Ok(count.to_string().into_bytes());
-}
-```
-
-**Test Cases**:
-
--   `echo 'this is a test' | splitby -d ' ' --count` → `"4"`
--   `echo 'boo,,hoo' | splitby --skip-empty -d ',' --count` → `"2"`
-
-#### 1.3 Implement `--invert` flag ✅ COMPLETED
-
-**Location**: `worker.rs::process_fields()`
-
-**Status**: ✅ Implemented - Full complement computation with range merging and gap detection. Most complex feature, now complete.
-
-**Implementation**:
-
--   After resolving all selections to (start, end) pairs, compute complement
--   Algorithm (from bash version):
-    1. Canonicalize ranges (merge overlaps)
-    2. Sort by start
-    3. Compute gaps between selections
-    4. Handle edge cases (all selected, nothing selected)
--   Replace `instructions.selections` with inverted ranges before processing
-
-**Complexity**: This is the most complex feature. Reference the bash version's Perl code (lines 462-513).
-
-**Test Cases**:
-
--   `echo 'a b c d' | splitby -d ' ' --invert 2` → `"a c d"`
--   `echo 'a b c d' | splitby -d ' ' --invert 2-3` → `"a d"`
--   `echo 'a b' | splitby -d ' ' --invert 1-2` → `""`
-
-#### 1.4 Implement `--strict-return` validation ✅ COMPLETED
-
-**Location**: `worker.rs::process_fields()`
-
-**Status**: ✅ Implemented - Validates both empty fields and empty output. Does not apply when `--count` is used. Error handling in main.rs fixed.
-
-**Implementation**:
-
--   After building output, check if it's empty
--   If empty and `instructions.strict_return == true`, return error
--   Should not apply when `--count` is used
-
-**Example**:
-
-```rust
-if instructions.strict_return && output.is_empty() {
-    return Err("strict return check failed: No valid selections were output".to_string());
-}
-```
-
-**Test Cases**:
-
--   `echo ',boo' | splitby --strict-return -d ',' 1` → error
--   `echo ',,' | splitby --skip-empty --strict-return -d ',' 1` → error
-
-#### 1.5 Handle Edge Cases ✅ COMPLETED
-
-**Status**: Core edge case handling implemented.
-
-**Implemented**:
-
--   ✅ All fields empty (handled with `--strict-return` validation)
--   ✅ Empty output (handled with `--strict-return` validation)
--   ✅ Invalid UTF-8 (handled with `strict_utf8` flag)
--   ✅ Integer overflow protection (for negative indices with large inputs)
--   ✅ Out-of-bounds selections (when `strict_bounds == false`, clamps to valid range)
-
-**Note**: Some behavior differences from bash version remain (see [Phase 5.0](#50-fix-known-bugs-and-behavior-differences)).
-
-### Phase 2: Implement Remaining Processors
-
-#### 2.1 Complete `process_fancy_regex()` ✅ COMPLETED
-
-**Location**: `worker.rs::process_fields()` (integrated)
-
-**Status**: ✅ Implemented - Fancy regex support is now integrated into `process_fields()`. The function automatically switches between Simple and Fancy regex engines based on compilation success. Fancy regex handles complex patterns (lookahead, backreferences, etc.) with proper error handling.
-
-#### 2.2 Implement `process_bytes()` ✅ COMPLETED
-
-**Location**: `worker.rs::process_bytes()`
-
-**Status**: ✅ Implemented - Byte mode is fully functional with all core features:
-- Direct byte range extraction (no UTF-8 conversion needed)
-- Uses shared `parse_selection()` function for consistent validation logic
-- Supports all flags: `--count`, `--invert`, `--strict-*`, `--placeholder`, `--join`
-- Handles edge cases: empty input, no selections, out-of-bounds indices
-- Proper error messages and error propagation
-
-**Implementation Details**:
-- Works directly with `record.bytes` (no string conversion)
-- Uses `parse_selection()` for index resolution, bounds checking, and clamping
-- Extracts byte slices: `bytes[start..=end]`
-- Joins selections with `--join` string or default separator (space/newline based on input mode)
-
-**Test Cases** (all passing):
-
--   `echo 'hello' | splitby --bytes 1-3` → `"hel"`
--   `echo 'hello' | splitby --bytes -2` → `"lo"`
--   `echo 'hello' | splitby --bytes --count` → `"5"`
--   `echo 'hello' | splitby --bytes --invert 2-4` → `"ho"`
--   `echo 'hello' | splitby --bytes --join ',' 1 3 5` → `"h,l,o"`
-
-#### 2.3 Implement `process_chars()`
-
-**Location**: `worker.rs::process_chars()`
-
-**Implementation**:
-
--   Convert bytes to UTF-8 string (with validation)
--   Use `.char_indices()` to get character positions
--   Resolve selections to character ranges
--   Extract character slices
--   Convert back to bytes for output
-
-**Example**:
-
-```rust
-pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
-    let text = std::str::from_utf8(&record.bytes)
-        .map_err(|_| "input is not valid UTF-8".to_string())?;
-
-    let chars: Vec<char> = text.chars().collect();
-    // Process similar to process_bytes but with chars
-}
-```
-
-**Test Cases**:
-
--   `echo 'café' | splitby --chars 1-3` → `"caf"` (not bytes!)
--   `echo 'hello' | splitby --chars -1` → `"o"`
-
-### Phase 3: Add Missing CLI Features
-
-#### 3.1 Add `--placeholder` flag ✅ COMPLETED
-
-**Location**: `main.rs::Options` struct, `types.rs::Instructions`, `worker.rs::process_fields()`
-
-**Status**: ✅ Implemented - The placeholder flag is fully functional:
-
--   Added `placeholder: bool` field to `Instructions` struct
--   Added `--placeholder` flag to CLI parser
--   Implemented in `process_fields()` to output empty strings for invalid selections when `strict_bounds` is false
--   Matches bash version behavior: invalid selections become empty strings, maintaining consistent output format
--   Works correctly with `--join` flag (e.g., `boo::hoo` when selection 4 is invalid)
-
-**Note**: The `--simple-ranges` and `--replace-range-delimiter` flags were deprecated during the migration to Rust and are not planned for implementation. These features remain available in the bash version for backward compatibility.
-
-### Phase 4: File Output
-
-#### 4.1 Implement `--output` flag ✅ COMPLETED
-
-**Location**: `main.rs::get_results()` lines 513-523
-
-**Status**: ✅ Implemented - The `--output` flag is now fully functional.
-
-**Implementation**:
-
--   Check `instructions.output`
--   If `Some(path)`, open file for writing using `File::create()`
--   Use `BufWriter` for performance
--   Handle errors (permissions, disk full, etc.) with descriptive error messages
--   Falls back to stdout if `None`
-
-**Example**:
-
-```rust
-let mut writer: Box<dyn Write> = match &instructions.output {
-    Some(path) => {
-        let file = File::create(path)
-            .map_err(|e| format!("failed to create {}: {}", path.display(), e))?;
-        Box::new(io::BufWriter::new(file))
-    }
-    None => {
-        let stdout = io::stdout();
-        Box::new(io::BufWriter::new(stdout.lock()))
-    }
-};
-```
-
-**Test Cases**:
-
--   `echo 'apple,banana,cherry' | splitby -d ',' -o output.txt 1 2` → writes to file
--   `echo 'test' | splitby -d ',' -o /nonexistent/file.txt 1` → error with descriptive message
+**Status**: `--output` flag implemented. Writes to file or stdout with proper error handling.
 
 ### Phase 5: Error Handling & Polish
 
-#### 5.0 Fix Known Bugs and Behavior Differences
+#### 5.0 Fix Known Bugs and Behavior Differences ✅ COMPLETED
 
-**Priority Fixes**:
+**Status**: All priority bugs fixed:
 
-1. **Whole-String Mode Join Behavior** (High Priority) ✅ FIXED
+1. ✅ Whole-string mode join behavior (now uses newlines)
+2. ✅ No selections behavior (now outputs all fields)
+3. ✅ Empty delimiter handling (now errors in fields mode)
+4. ✅ Newline counting in whole-string mode (trailing newlines not counted)
 
-    - **Issue**: In whole-string mode, selections are joined with spaces instead of newlines
-    - **Location**: `worker.rs::process_fields()` lines 370-375
-    - **Fix**: Changed default join behavior to use newline (`\n`) when `input_mode == InputMode::WholeString` and no `--join` is provided
-    - **Status**: ✅ Fixed - Now matches bash behavior
-
-2. **No Selections Provided** (Medium Priority) ✅ FIXED
-
-    - **Issue**: When no selections are provided, Rust outputs nothing instead of all fields
-    - **Location**: `worker.rs::process_fields()` lines 221-252
-    - **Fix**: When selections list is empty, output all fields (joined with spaces for per-line mode, newlines for whole-string mode)
-    - **Status**: ✅ Fixed - Now matches bash behavior
-
-3. **Empty Delimiter** (Medium Priority) ✅ FIXED
-
-    - **Issue**: Rust allows empty delimiter and outputs input, bash errors
-    - **Location**: `main.rs` lines 291-297
-    - **Fix**: Empty delimiter now errors (matching bash behavior)
-    - **Status**: ✅ Fixed - Empty delimiter now errors in fields mode
-
-4. **Newline Counting in Whole-String Mode** (Medium Priority) ✅ FIXED
-
-    - **Issue**: Rust counts trailing newlines as separate fields, bash doesn't
-    - **Location**: `worker.rs::process_fields()` lines 186-195
-    - **Fix**: Remove trailing empty fields created by trailing delimiters in whole-string mode
-    - **Status**: ✅ Fixed - Now matches bash behavior
-
-5. **Flag Syntax Equals Support** (Low Priority)
-    - **Issue**: Does not support `--delimiter=' '` syntax (clap limitation)
-    - **Location**: `main.rs::Options` struct
-    - **Fix**: Potentially work around clap limitation or accept as design limitation
-    - **Status**: Low priority, documented as design limitation
+**Remaining**: Flag syntax equals support (low priority, clap limitation)
 
 #### 5.1 Improve Error Messages ✅ MOSTLY COMPLETE
 
-**Goal**: Match bash version error messages exactly.
-
-**Status**: ✅ Mostly complete - strict bounds and strict range order error messages have been updated to match bash format. Error messages now use "line" instead of "record" for consistency.
-
-**Remaining work**:
-
--   Review remaining error cases in bash version
--   Update any remaining error strings to match
--   Add context (line index, selection value, etc.) where needed
+**Status**: Error messages updated to match bash format, use "line" instead of "record". Minor review of remaining error cases may be needed.
 
 #### 5.2 Add Comprehensive Tests
 
@@ -713,54 +440,221 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 -   Compare against `cut` and bash version
 -   Profile with `cargo bench` and `perf` to validate optimizations
 
-#### 5.4 Large Input Support
+#### 5.4 Large Input Support ✅ COMPLETED
 
-**Status**: Currently limited to `i32::MAX` fields (2,147,483,647) for negative index resolution.
+**Status**: Error handling implemented for inputs exceeding `i32::MAX` fields (2,147,483,647) when using negative indices. Future enhancement to support larger inputs is low priority (could use `i64` or `usize`).
 
-**Current Implementation**:
+### Phase 6: Core Feature Refinement
 
--   `resolve_index()` now returns an error for inputs with more than `i32::MAX` fields when using negative indices
--   Provides a clear error message explaining the limitation
+**Goal**: Enhance `splitby` to be a more powerful drop-in replacement for `cut`, adding expected features and improving usability.
 
-**Future Enhancement** (Low Priority):
+#### 6.1 Input Mode Enhancements
 
--   Support for inputs larger than `i32::MAX` fields
--   Options:
-    1. Use `i64` for index resolution (increases memory usage but supports up to 9,223,372,036,854,775,807 fields)
-    2. Use `usize` directly (platform-dependent, but matches system pointer size)
-    3. Add a `--large-input` flag that switches to `i64` or `usize` internally
--   Consider memory implications: larger index types increase memory usage for field tracking
--   This is a low-priority feature as most real-world use cases won't approach this limit
+1. **Automatic Delimiter Detection** (Medium Priority)
 
-### Phase 6: Documentation
+    - **Location**: `main.rs` argument parsing
+    - **Implementation**:
+        - Make `-d` flag optional
+        - **Priority order**:
+            1. If `-d` flag already exists, it takes priority. First argument is treated as a selection (errors if invalid, like normal)
+            2. Try to parse first argument as a normal selection (numeric, range, keywords like `start`, `end`, etc.)
+            3. Only if parsing as selection fails, check if first argument is a valid regex pattern
+            4. If it's a valid regex, use it as the delimiter and treat remaining arguments as selections
+        - This ensures selections always take priority over delimiter detection
+    - **Example**: `splitby , 2 3 5` → `,` fails to parse as selection, detected as regex delimiter, selects fields 2, 3, 5
+    - **Example**: `splitby \s+ 1 2` → `\s+` fails to parse as selection, detected as regex delimiter, selects fields 1, 2
+    - **Example**: `splitby -d ',' . 2 3` → `-d` flag takes priority, `.` is treated as selection and errors (normal behavior)
+    - **Example**: `splitby 1 2 3` → `1` parses as selection, no delimiter auto-detection needed
 
-#### 6.1 Update README
+2. **Trailing Newline Control** (Medium Priority)
+
+    - **Location**: `main.rs::get_results()`
+    - **Implementation**:
+        - Add `--no-trailing-newline` or `-n` flag
+        - When enabled, don't print trailing newline after last record
+        - Should work in all input modes (per-line, whole-string, zero-terminated)
+        - Useful for zero-terminated mode and general use cases
+
+3. **Cut-Style Delimiter Syntax** (Low Priority)
+
+    - **Location**: `main.rs::Options` struct
+    - **Implementation**:
+        - Support `-d','` and `-d,` syntax (cut-style)
+        - Currently requires `-d ','` or `--delimiter ','`
+        - May require custom parser or clap workaround
+    - **Status**: Low priority, documented as design limitation
+
+4. **I/O Error Exit Codes** (Medium Priority)
+
+    - **Location**: `main.rs::read_input()`
+    - **Implementation**:
+        - If `--input` file can't be read, exit with code 2 (I/O error)
+        - Currently exits with code 1 (generic error)
+        - Match standard Unix exit code conventions
+
+#### 6.2 Selection Mode Enhancements
+
+1. **Comma-Separated Selections** (Medium Priority)
+
+    - **Location**: `main.rs` selection parsing
+    - **Implementation**:
+        - Support `1,3,5` syntax in addition to `1 3 5`
+        - Parse comma-separated values and convert to selection list
+        - Should work with ranges: `1-3,5,7-9`
+    - **Example**: `splitby -d ',' 1,3,5` or `splitby -d ',' 1-3,5,7-9`
+
+2. **Skip Empty Lines** (Medium Priority)
+
+    - **Location**: `main.rs::read_input()`
+    - **Implementation**:
+        - Add `--skip-empty-lines` flag (different from `--skip-empty` which skips empty fields)
+        - Filter out empty lines before processing
+        - Should work in per-line mode
+    - **Note**: Different from `--skip-empty` which filters empty fields after splitting
+
+3. **Byte-Based Field Parsing** (Low Priority)
+
+    - **Location**: New mode or flag
+    - **Implementation**:
+        - Add `--delimiter-bytes` flag or separate mode
+        - Parse fields using byte positions instead of UTF-8 characters
+        - Useful for binary data or non-UTF-8 text
+    - **Consideration**: May conflict with existing field mode, needs design decision
+
+4. **Explicit Field Mode Flag** (Low Priority)
+
+    - **Location**: `main.rs::Options` struct
+    - **Implementation**:
+        - Add `--f/--field` flag to explicitly enable field mode
+        - Currently field mode is default when delimiter is provided
+        - Improves clarity and matches cut's `-f` flag
+
+#### 6.3 Delimiter Mode Enhancements
+
+1. **Delimiter Before Items** (Low Priority)
+
+    - **Location**: `worker.rs::process_fields()`
+    - **Implementation**:
+        - Add option to select delimiter BEFORE each item rather than after
+        - Useful for regex patterns where delimiter precedes field
+        - May require new flag like `--delimiter-before` or `--delimiter-position`
+    - **Note**: Not relevant for `cut`, but useful for regex-based splitting
+
+2. **Placeholder with Value** (Medium Priority)
+
+    - **Location**: `main.rs::Options`, `types.rs::Instructions`, `worker.rs`
+    - **Implementation**:
+        - Change `--placeholder` to accept optional value: `--placeholder "N/A"` or `--placeholder=0x00`
+        - Support string values for text modes
+        - Support hex values for byte mode: `--placeholder=0x00` or `--placeholder=0xFF`
+        - Default to current behavior (empty string/space) if no value provided
+    - **Example**: `splitby --placeholder "N/A" -d ',' 1 10` → outputs "N/A" for invalid selection 10
+
+3. **Field Separation Flags for --join** (Medium Priority)
+
+    - **Location**: `main.rs::Options`, `worker.rs::process_fields()`
+    - **Implementation**:
+        - Add special flags for `--join`:
+            - `@auto`: Follows existing logic (try after-previous, then before-next, then space)
+            - `@after-previous`: Use delimiter from after previous field
+            - `@before-next`: Use delimiter from before next field
+            - `@empty`: Insert empty byte/string
+    - **Example**: `splitby --join @after-previous -d ',' 1 3`
+
+4. **Join Scope Flags** (Low Priority)
+
+    - **Location**: `main.rs::Options`, `worker.rs::process_fields()`
+    - **Implementation**:
+        - `--join-ranges`: Only apply join within ranges (e.g., `1-3` uses join, but not between `1-3` and `5`)
+        - `--join-selections`: Only apply join between discrete selections (not within ranges)
+        - `--join-records`: Apply join between each record (in addition to existing behavior)
+    - **Note**: May conflict with current `--join` behavior, needs design decision
+
+### Phase 7: Stretch Features
+
+**Goal**: Additional features that enhance usability but are not critical for core functionality.
+
+#### 7.1 Zero-Indexing Mode
+
+-   **Location**: `main.rs::Options`, `worker.rs::parse_selection()`
+-   **Implementation**:
+    -   Add `--zero-indexed` or `-0` flag
+    -   When enabled, selections use 0-based indexing instead of 1-based
+    -   Affects all selection modes (fields, bytes, chars)
+    -   May require careful handling of negative indices (should they be 0-based or 1-based?)
+-   **Priority**: Low - Most users expect 1-based indexing (Unix convention)
+
+#### 7.2 List Mode
+
+-   **Location**: New mode in `main.rs`
+-   **Implementation**:
+    -   Add `--list` flag
+    -   Outputs each field/item with its index number
+    -   Format: `1: value1\n2: value2\n3: value3`
+    -   Useful for exploring data structure
+-   **Example**: `echo 'a,b,c' | splitby --list -d ','` → `1: a\n2: b\n3: c`
+
+#### 7.3 Enhanced Special Keywords
+
+-   **Location**: `main.rs` selection parsing
+-   **Implementation**:
+    -   Already supports `start`, `end`, `first`, `last` keywords
+    -   Consider adding aliases or additional keywords if needed
+    -   Document existing support clearly
+-   **Status**: Mostly complete, may need documentation improvements
+
+### Phase 8: Documentation
+
+#### 8.1 Update README
 
 -   Document Rust version features
 -   Add installation instructions
 -   Add performance comparisons
+-   Add common use cases (see Phase 8.3)
 
-#### 6.2 Code Documentation
+#### 8.2 Code Documentation
 
 -   Add doc comments to all public functions
 -   Document complex algorithms (invert, etc.)
 -   Add examples in doc comments
 
+#### 8.3 Documentation Website
+
+-   **Location**: New documentation site (separate from README)
+-   **Implementation**:
+    -   Build a proper website documenting the current app
+    -   Explain each of the 'mode' selections (fields, bytes, chars)
+    -   Include good explanations and examples for various features
+    -   Beautiful front page
+    -   **Use cases page** with examples:
+        -   `echo $PATH | splitby -w -d ":"` - Split PATH variable
+        -   Stripping headers from CSV
+        -   Grabbing particular pieces of information from output
+        -   Getting specific columns from a file
+        -   Wordcount
+        -   Auto-fill columns of CSV or TSV when items are missing
+    -   Comparison with `cut` highlighting what `splitby` does better
+
 ### Implementation Priority
 
-**High Priority** (Blocking basic functionality):
+**Completed** ✅:
 
-1. ✅ Complete `process_fields()` - Phase 1 (All core features: skip-empty, count, invert, strict-return)
-2. ✅ Implement `process_fancy_regex()` - Phase 2.1 (Integrated into process_fields)
-3. ✅ Implement `process_bytes()` - Phase 2.2 (Completed with all flags and edge cases)
-4. ✅ Refactor selection parsing - Shared `parse_selection()` function for consistency
-5. ✅ Fix whole-string mode join behavior - Phase 5.0 (Fixed: now uses newlines)
-6. ✅ File output - Phase 4 (Implemented: --output flag now works)
-7. ✅ Fix no selections behavior - Phase 5.0 (Fixed: now outputs all fields)
+-   All core processing modes (fields, bytes, chars)
+-   All core flags (skip-empty, count, invert, strict-return, placeholder, join)
+-   File output, error handling, bug fixes
+-   Selection parsing refactoring
 
-**Medium Priority** (Feature completeness): 6. ✅ Byte mode - Phase 2.2 (Completed) 7. ⏳ Char mode - Phase 2.3 8. ✅ Fix behavior differences to match bash - Phase 5.0 (All fixed) 9. ✅ Error handling - Phase 5.1
+**Medium Priority** (Feature completeness):
 
-**Low Priority** (Polish): 10. ⏳ Tests - Phase 5.2 11. ⏳ Performance Optimization - Phase 5.3 (Detailed optimization strategies documented) 12. ✅ Large Input Support - Phase 5.4 13. ✅ Documentation - Phase 6
+-   Core Feature Refinement (Phase 6): automatic delimiter detection, trailing newline control, I/O error codes, comma-separated selections, skip empty lines, placeholder with value, field separation flags
+
+**Low Priority** (Polish and enhancements):
+
+-   Tests (Phase 5.2): Port test.sh to Rust unit tests
+-   Performance Optimization (Phase 5.3): 9 strategies documented
+-   Documentation (Phase 8): README updates and website
+-   Stretch Features (Phase 7): Zero-indexing, --list, enhanced keywords
+-   Additional Core Refinements (Phase 6): Cut-style delimiter syntax, byte-based field parsing, explicit field mode flag, delimiter before items, join scope flags
 
 ### Testing Strategy
 
@@ -777,23 +671,9 @@ This section documents intentional design decisions and known bugs where the Rus
 
 **Note**: The bash version is canonical for these behaviors. The Rust version should be updated to match bash behavior.
 
-1. **No Selections Provided** ✅ FIXED
-
-    - **Bash**: When no selections are provided, outputs all fields (joined appropriately)
-    - **Rust**: When no selections are provided, outputs all fields (joined with spaces for per-line mode, newlines for whole-string mode)
-    - **Status**: ✅ **FIXED** - Now matches bash behavior. See `worker.rs::process_fields()` lines 221-252.
-
-2. **Empty Delimiter** ✅ FIXED
-
-    - **Bash**: Errors when delimiter is empty string
-    - **Rust**: Errors when delimiter is empty string
-    - **Status**: ✅ **FIXED** - Now matches bash behavior. Empty delimiter errors in fields mode. See `main.rs` lines 291-297.
-
-3. **Newline Counting in Whole-String Mode** ✅ FIXED
-
-    - **Bash**: Trailing newlines are not counted as separate fields
-    - **Rust**: Trailing newlines are not counted as separate fields
-    - **Status**: ✅ **FIXED** - Now matches bash behavior. See `worker.rs::process_fields()` lines 186-195.
+1. **No Selections Provided** ✅ FIXED - Now matches bash behavior
+2. **Empty Delimiter** ✅ FIXED - Now errors in fields mode
+3. **Newline Counting in Whole-String Mode** ✅ FIXED - Trailing newlines not counted
 
 #### Design Decisions (Intentional Differences)
 
@@ -816,24 +696,9 @@ This section documents intentional design decisions and known bugs where the Rus
 
 #### Known Bugs (To Be Fixed)
 
-**Note**: These bugs are tracked in [Phase 5.0](#50-fix-known-bugs-and-behavior-differences) above. This section provides additional context.
-
 1. **Whole-String Mode Join Behavior** ✅ FIXED
-
-    - **Bash**: In whole-string mode, selections are joined with newlines (`\n`) by default
-    - **Rust**: In whole-string mode, selections are joined with newlines (`\n`) by default
-    - **Status**: ✅ **FIXED** - Now matches bash behavior. See `worker.rs::process_fields()` lines 370-375.
-
-2. **Join Within Ranges**
-
-    - **Bash**: `--join` only applies between selections, not within ranges
-    - **Rust**: `--join` currently applies everywhere, including within ranges
-    - **Status**: **NOT A BUG** - Rust version is correct (join should apply everywhere). No changes needed.
-
-3. **Flag Syntax Equals Support**
-    - **Bash**: Supports `--delimiter=' '` syntax
-    - **Rust**: Does not support equals syntax
-    - **Status**: **Design Limitation** (Low Priority) - This is a limitation of clap that could potentially be worked around, but it's low priority.
+2. **Join Within Ranges** - NOT A BUG (Rust behavior is correct)
+3. **Flag Syntax Equals Support** - Design limitation (low priority, clap limitation)
 
 #### Deprecated Features
 
@@ -846,30 +711,28 @@ These features remain available in the bash version for backward compatibility. 
 
 ### Key Implementation Notes
 
-1. **Index Resolution**: The `resolve_index()` function converts 1-based user indices to 0-based internal indices, handling negative indices correctly. Currently limited to inputs with at most `i32::MAX` fields (2,147,483,647) when using negative indices, with a clear error message for larger inputs. See Phase 5.4 for future enhancement plans.
+1. **Index Resolution**: `resolve_index()` converts 1-based to 0-based indices, handles negatives. Limited to `i32::MAX` fields for negative indices (error handling implemented).
 
-2. **Field Building and Delimiter Handling**: The current approach captures both field text and delimiter (delimiter after each field). This enables the intelligent delimiter preservation behavior:
+2. **Field Building and Delimiter Handling**: Captures field text and delimiter (after each field). Default preserves delimiters intelligently; `--join` overrides this behavior.
 
-    - Delimiters are contextual data
-    - Default behavior: preserves delimiters when possible (uses delimiter after previous field, or before current field, or falls back to space)
-    - `--join` override: when provided, always uses the join string and ignores delimiter preservation
+3. **Parallel Processing**: Multi-threaded architecture with `BTreeMap` in `get_results()` to maintain output order.
 
-3. **Parallel Processing**: The architecture supports parallel processing, but correctness depends on maintaining record order. The `BTreeMap` in `get_results()` ensures output order matches input order.
+4. **UTF-8 Handling**: Supports both strict validation (`strict_utf8`) and lossy conversion for binary/malformed data.
 
-4. **UTF-8 Handling**: The code supports both strict UTF-8 validation (`strict_utf8`) and lossy conversion. This is important for processing binary data or malformed text.
-
-5. **Selection Parsing**: The selection parser handles special keywords (`start`, `first`, `end`, `last`) and negative indices. This logic is already complete in `main.rs`. The common selection validation logic (bounds checking, clamping, range order validation) has been extracted into a shared `parse_selection()` function used by both `process_bytes()` and `process_fields()` for consistency.
+5. **Selection Parsing**: Handles special keywords (`start`, `first`, `end`, `last`) and negative indices. Shared `parse_selection()` function used by all processing modes for consistent validation.
 
 ---
 
 ## Summary
 
-**Current Status**: The core field and byte processing functionality is complete. All major flags for both modes are implemented (skip-empty, invert, count, strict-return, placeholder). Selection parsing has been refactored into a shared `parse_selection()` function for consistency. The architecture is solid with parallel processing support.
+**Current Status**: All core functionality complete. All three selection modes (fields, bytes, chars) implemented with all flags. All known bugs fixed. Architecture supports parallel processing with ordered output.
 
-**Remaining Work** (see [Implementation Priority](#implementation-priority) for details):
+**Completed**: All selection modes, all core flags, file output, error handling, bug fixes, selection parsing refactoring.
 
--   Additional selection modes:
-    - ✅ Byte mode - Phase 2.2 (Completed with all flags and edge cases)
-    - ⏳ Char mode - Phase 2.3
+**Remaining Work**: See [Implementation Priority](#implementation-priority) for details:
 
-**Note**: The `--simple-ranges` and `--replace-range-delimiter` features were deprecated during the Rust migration and are not planned for implementation.
+-   Core Feature Refinement (Phase 6): Input/selection/delimiter mode enhancements
+-   Stretch Features (Phase 7): Zero-indexing, list mode
+-   Testing & Documentation (Phases 5.2, 8): Unit tests, performance optimization, documentation website
+
+**Note**: `--simple-ranges` and `--replace-range-delimiter` were deprecated and are not planned for implementation.
