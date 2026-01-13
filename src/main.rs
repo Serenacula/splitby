@@ -77,6 +77,12 @@ struct Options {
     #[arg(long = "no-strict-range-order")]
     no_strict_range_order: bool,
 
+    #[arg(long = "strict-utf8")]
+    strict_utf8: bool,
+
+    #[arg(long = "no-strict-ut8")]
+    no_strict_utf8: bool,
+
     #[arg(short = 'i', long = "input", value_name = "FILE")]
     input: Option<PathBuf>,
 
@@ -85,6 +91,9 @@ struct Options {
 
     #[arg(long = "count")]
     count: bool,
+
+    #[arg(long = "placeholder")]
+    placeholder: bool,
 
     #[arg(
         short = 'f',
@@ -124,6 +133,7 @@ fn main() {
     let mut strict_return = false;
     let mut strict_bounds = false;
     let mut strict_range_order = true;
+    let mut strict_utf8 = false;
     let mut field_mode = false;
     let mut byte_mode = false;
     let mut char_mode = false;
@@ -149,15 +159,20 @@ fn main() {
             "--strict-range-order" => strict_range_order = true,
             "--no-strict-range-order" => strict_range_order = false,
 
+            "--strict-utf8" => strict_utf8 = true,
+            "--no-strict-utf8" => strict_utf8 = false,
+
             "-s" | "--strict" => {
                 strict_return = true;
                 strict_bounds = true;
                 strict_range_order = true;
+                strict_utf8 = true;
             }
             "-S" | "--no-strict" => {
                 strict_return = false;
                 strict_bounds = false;
                 strict_range_order = false;
+                strict_utf8 = false
             }
 
             _ => {}
@@ -165,11 +180,11 @@ fn main() {
     }
 
     // Set the join string default, if no join is provided
-    let join = match (&options.join, input_mode == InputMode::WholeString) {
-        (Some(join_string), _) => join_string.clone(),
-        (None, true) => "\n".to_string(), // whole-string default
-        (None, false) => " ".to_string(), // per-line default
-    };
+    // let join = match (&options.join, input_mode == InputMode::WholeString) {
+    //     (Some(join_string), _) => join_string.clone(),
+    //     (None, true) => "\n".to_string(), // whole-string default
+    //     (None, false) => " ".to_string(), // per-line default
+    // };
 
     // SELECTIONS
 
@@ -257,13 +272,20 @@ fn main() {
 
     let mut selections: Vec<(i32, i32)> = Vec::new();
     for string_raw in selection_strings {
-        let parse_result = parse_selection(string_raw.as_str());
-        if parse_result.is_err() {
-            eprintln!("invalid selection: '{string_raw}'");
-            std::process::exit(2);
-        }
+        let (start, end) = match parse_selection(string_raw.as_str()) {
+            Ok(range) => range,
+            Err(_) => {
+                eprintln!("invalid selection: '{string_raw}'");
+                std::process::exit(2);
+            }
+        };
 
-        selections.push(parse_result.unwrap());
+        // if start == 0 || end == 0 {
+        //     eprintln!("0 is not a valid selection, selections are 1-based");
+        //     std::process::exit(2);
+        // }
+
+        selections.push((start, end));
     }
 
     // We don't want to compile this inside the workers, so it gets done here
@@ -296,12 +318,14 @@ fn main() {
         selections: selections,
         invert: options.invert,
         skip_empty: skip_empty,
+        placeholder: options.placeholder,
         strict_return: strict_return,
         strict_bounds: strict_bounds,
         strict_range_order: strict_range_order,
+        strict_utf8: strict_utf8,
         output: options.output,
         count: options.count,
-        join: join,
+        join: options.join,
         replace_range_delimiter: options.replace_range_delimiter,
 
         regex_engine: regex_engine,
@@ -410,7 +434,6 @@ fn main() {
     //     match selection_mode {
     //         SelectionMode::Bytes => Ok(record.text.as_bytes().to_vec()),
     //         SelectionMode::Chars => Ok(record.text.chars()),
-    //         SelectionMode::Fields => Err("Invalid selection mode"),
     //     }
     // }
 
@@ -419,8 +442,6 @@ fn main() {
         record_receiver: channel::Receiver<Record>,
         result_sender: channel::Sender<RecordResult>,
     ) -> Result<(), String> {
-        let mut record: Record;
-
         loop {
             // Get the record
             let record = match record_receiver.recv() {
@@ -430,24 +451,41 @@ fn main() {
 
             // Split the record into fields
 
+            let record_index = record.index;
+
             let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
                 SelectionMode::Bytes => process_bytes(&instructions, record),
                 SelectionMode::Chars => process_chars(&instructions, record),
-                SelectionMode::Fields => match instructions.regex_engine.as_ref().unwrap() {
-                    RegexEngine::Simple(engine) => {
-                        process_simple_regex(&instructions, engine, record)
-                    }
-                    RegexEngine::Fancy(engine) => {
-                        process_fancy_regex(&instructions, engine, record)
-                    }
-                },
+                SelectionMode::Fields => {
+                    let engine = instructions
+                        .regex_engine
+                        .as_ref()
+                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
+                    process_fields(&instructions, engine, record)
+                }
             };
 
             // Count and exit if --count
 
             // Choose our selections and ranges
 
-            // etc
+            match processed_result {
+                Ok(bytes) => {
+                    result_sender
+                        .send(RecordResult::Ok {
+                            index: record_index,
+                            bytes,
+                        })
+                        .map_err(|error| error.to_string())?;
+                }
+                Err(error) => {
+                    let _ = result_sender.send(RecordResult::Err {
+                        index: record_index,
+                        error,
+                    });
+                    return Ok(());
+                }
+            }
         }
     }
 
@@ -472,7 +510,7 @@ fn main() {
         while let Ok(result) = result_receiver.recv() {
             match result {
                 RecordResult::Err { index, error } => {
-                    return Err(format!("record {index}: {error}"));
+                    return Err(format!("line {index}: {error}"));
                 }
                 RecordResult::Ok { index, bytes } => {
                     pending.insert(index, bytes);
@@ -535,5 +573,8 @@ fn main() {
     }
     drop(result_sender);
 
-    get_results(instructions, result_receiver);
+    if let Err(error) = get_results(instructions, result_receiver) {
+        eprintln!("{}", error);
+        std::process::exit(1);
+    }
 }

@@ -39,7 +39,7 @@ Selections: 1 4 6-10  -3--1  etc.  Negative counts from end.
     -   Delimiter modes
         -   Mode: Cut, delimiters are kept between selections, which is how original cut works
         -   Mode: Classic, delimiters are dropped between selections, kept within ranges, which is how mine worked
-        -   Mode: Simple ranges, dropped
+        -   Mode: Simple ranges, DROPPED
         -   Flag: Join, changes the delimiter used for connecting, --output-delimiter as synonym for compatibility
 -   Flags
     -   Input flags
@@ -47,7 +47,7 @@ Selections: 1 4 6-10  -3--1  etc.  Negative counts from end.
     -   Delimiter mode flags
         -   Cut mode: delimiters are kept between selections, which is how original cut works
         -   Classic mode: delimiters are dropped between selections, which is how mine worked
-        -   Simple Ranges: dropped! Since it can already be achieved alternatively
+        -   Simple Ranges: DROPPED! Since it can already be achieved alternatively
         -   Join: changes the delimiter used for connecting fields
 -   Cut comparison cheatsheet
     -   Differences in syntax!
