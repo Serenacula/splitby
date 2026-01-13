@@ -465,14 +465,15 @@ struct Field<'a> {
     - **Example**: `splitby 1 2 3` → `1` parses as selection, no delimiter auto-detection needed
     - **Status**: ✅ Implemented with helper functions `can_parse_as_selection()` and `is_valid_regex()` for clean, maintainable code
 
-2. **Trailing Newline Control** (Medium Priority)
+2. **Trailing Newline Control** ✅ COMPLETED
 
     - **Location**: `main.rs::get_results()`
     - **Implementation**:
-        - Add `--no-trailing-newline` or `-n` flag
+        - Add `--trim-newline` flag
         - When enabled, don't print trailing newline after last record
         - Should work in all input modes (per-line, whole-string, zero-terminated)
         - Useful for zero-terminated mode and general use cases
+    - **Status**: ✅ Implemented using buffering approach - tracks maximum index seen and trims terminator from final result when channel closes
 
 3. **Cut-Style Delimiter Syntax** (Low Priority)
 
@@ -483,13 +484,14 @@ struct Field<'a> {
         - May require custom parser or clap workaround
     - **Status**: Low priority, documented as design limitation
 
-4. **I/O Error Exit Codes** (Medium Priority)
+4. **I/O Error Exit Codes** ✅ COMPLETED
 
     - **Location**: `main.rs::read_input()`
     - **Implementation**:
         - If `--input` file can't be read, exit with code 2 (I/O error)
         - Currently exits with code 1 (generic error)
         - Match standard Unix exit code conventions
+    - **Status**: ✅ Implemented - I/O errors (file open/create failures) now exit with code 2, other errors exit with code 1
 
 5. **Code Point Input Mode** (Low Priority)
 
@@ -535,14 +537,6 @@ struct Field<'a> {
         - Parse fields using byte positions instead of UTF-8 characters
         - Useful for binary data or non-UTF-8 text
     - **Consideration**: May conflict with existing field mode, needs design decision
-
-4. **Explicit Field Mode Flag** (Low Priority)
-
-    - **Location**: `main.rs::Options` struct
-    - **Implementation**:
-        - Add `--f/--field` flag to explicitly enable field mode
-        - Currently field mode is default when delimiter is provided
-        - Improves clarity and matches cut's `-f` flag
 
 #### 6.3 Delimiter Mode Enhancements
 
@@ -663,12 +657,12 @@ struct Field<'a> {
 -   Automatic delimiter detection (optional `-d` flag)
 -   Comma-separated selections (`1,2,3` syntax)
 -   Delimiter priority logic between selections (afterPrevious, beforeNext, space)
+-   Trailing newline control (`--trim-newline` flag)
+-   I/O error exit codes (code 2 for I/O errors, code 1 for other errors)
 
 **Medium Priority** (Feature completeness):
 
 -   Core Feature Refinement (Phase 6):
-    -   trailing newline control
-    -   I/O error codes
     -   skip empty lines / only delimited (`-s/--only-delimited`)
     -   placeholder with value
     -   field separation flags
@@ -752,9 +746,9 @@ These features remain available in the bash version for backward compatibility. 
 
 ## Summary
 
-**Current Status**: All core functionality complete. All three selection modes (fields, bytes, chars) implemented with all flags. All known bugs fixed. Architecture supports parallel processing with ordered output. Initial performance optimizations completed. Automatic delimiter detection and comma-separated selections implemented.
+**Current Status**: All core functionality complete. All three selection modes (fields, bytes, chars) implemented with all flags. All known bugs fixed. Architecture supports parallel processing with ordered output. Initial performance optimizations completed. Automatic delimiter detection, comma-separated selections, trailing newline control, and I/O error codes implemented.
 
-**Completed**: All selection modes, all core flags, file output, error handling, bug fixes, selection parsing refactoring, UTF-8 conversion optimization, performance profiling and analysis, automatic delimiter detection, comma-separated selections, delimiter priority logic between selections.
+**Completed**: All selection modes, all core flags, file output, error handling, bug fixes, selection parsing refactoring, UTF-8 conversion optimization, performance profiling and analysis, automatic delimiter detection, comma-separated selections, delimiter priority logic between selections, trailing newline control (`--trim-newline`), I/O error exit codes.
 
 **Remaining Work**: See [Implementation Priority](#implementation-priority) for details:
 
