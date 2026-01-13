@@ -316,7 +316,6 @@ dependencies = [
  "clap",
  "crossbeam",
  "fancy-regex",
- "memchr",
  "regex",
  "serde",
  "serde_json",

@@ -320,12 +320,15 @@ struct Field<'a> {
 
 #### 5.2 Add Comprehensive Tests
 
+**Status**: Test script (`test.sh`) simplified to only test Rust version. Bash version support removed.
+
 **Implementation**:
 
--   Port test cases from `test.sh` to Rust tests
+-   Port test cases from `test.sh` to Rust unit/integration tests
 -   Use `assert_cmd` crate for integration tests
 -   Test all edge cases
 -   Test parallel processing correctness
+-   Note: One test (grapheme cluster combining) currently commented out and requires manual verification
 
 #### 5.3 Performance Optimization
 
@@ -335,18 +338,7 @@ struct Field<'a> {
 
 **Optimization Strategies** (in priority order):
 
-1. **Fast Path for Single-Character Delimiters** (Highest Impact - Expected 2-3x speedup)
-
-    - **Location**: `worker.rs::process_fields()`
-    - **Implementation**:
-        - Detect single-byte delimiters before regex matching
-        - Use `memchr` crate for fast byte scanning instead of regex
-        - Bypass UTF-8 conversion for simple cases
-        - Extract fields directly as byte slices
-    - **Expected Impact**: 2-3x faster for common use case (comma, tab, space delimiters)
-    - **Dependencies**: Add `memchr` crate to `Cargo.toml`
-
-2. **Pre-allocate Vectors with Capacity** (Expected 10-20% speedup)
+1. **Pre-allocate Vectors with Capacity** (Expected 10-20% speedup)
 
     - **Location**: `worker.rs::process_fields()`
     - **Implementation**:
@@ -355,17 +347,7 @@ struct Field<'a> {
         - Pre-allocate output buffer with estimated size
     - **Expected Impact**: Reduces reallocations, 10-20% faster
 
-3. **Avoid UTF-8 Conversion When Unnecessary** (Expected 5-10% speedup)
-
-    - **Location**: `worker.rs::process_fields()`
-    - **Implementation**:
-        - Only convert to UTF-8 if:
-            - `strict_utf8` is true, OR
-            - Delimiter contains non-ASCII (needs regex)
-        - Work directly with bytes for simple ASCII delimiters
-    - **Expected Impact**: 5-10% faster for ASCII-only input
-
-4. **Single-Pass Processing for Simple Cases** (Expected 10-15% speedup)
+2. **Single-Pass Processing for Simple Cases** (Expected 10-15% speedup)
 
     - **Location**: `worker.rs::process_fields()`
     - **Implementation**:
@@ -374,7 +356,7 @@ struct Field<'a> {
         - Avoid building full `fields` Vec for simple selections
     - **Expected Impact**: 10-15% faster for common simple use cases
 
-5. **Use SmallVec for Small Collections** (Expected 5-10% speedup)
+3. **Use SmallVec for Small Collections** (Expected 5-10% speedup)
 
     - **Location**: `worker.rs::process_fields()`
     - **Implementation**:
@@ -383,7 +365,7 @@ struct Field<'a> {
     - **Dependencies**: Add `smallvec` crate to `Cargo.toml`
     - **Expected Impact**: 5-10% faster, reduces allocations
 
-6. **Avoid Intermediate Vec Allocations**
+4. **Avoid Intermediate Vec Allocations**
 
     - **Location**: `worker.rs::process_fields()`
     - **Implementation**:
@@ -391,7 +373,7 @@ struct Field<'a> {
         - Track position in output, avoid collecting then joining
     - **Expected Impact**: Reduces memory allocations and copies
 
-7. **Profile-Guided Optimizations**
+5. **Profile-Guided Optimizations**
 
     - **Location**: Throughout `worker.rs`
     - **Implementation**:
@@ -400,7 +382,7 @@ struct Field<'a> {
         - Profile with `cargo bench` and `perf` to identify bottlenecks
     - **Expected Impact**: 5-10% faster through better inlining
 
-8. **Compile with Aggressive Optimizations**
+6. **Compile with Aggressive Optimizations**
 
     - **Location**: `Cargo.toml`
     - **Implementation**:
@@ -413,26 +395,27 @@ struct Field<'a> {
         ```
     - **Expected Impact**: 5-15% faster through better code generation
 
-9. **Consider SIMD for Delimiter Matching** (Advanced, Low Priority)
+7. **Consider SIMD for Delimiter Matching** (Advanced, Low Priority)
 
     - **Location**: `worker.rs::process_fields()`
     - **Implementation**:
         - Use SIMD-accelerated byte scanning for very large inputs
-        - Leverage `memchr` or `aho-corasick` crates
+        - Leverage `aho-corasick` or similar crates
     - **Expected Impact**: Significant speedup for very large inputs (>1MB)
+    - **Note**: Fast path for single-byte delimiters was tested but removed as it showed no performance benefit over the optimized regex engine.
     - **Priority**: Low - only if needed after other optimizations
 
 **Implementation Priority**:
 
-1. **High Priority**: Fast path for single-byte delimiters (#1) - Highest impact
-2. **High Priority**: Pre-allocate vectors (#2) - Easy win
-3. **Medium Priority**: Avoid UTF-8 conversion (#3) - Good ROI
-4. **Medium Priority**: Single-pass processing (#4) - Good for common cases
-5. **Low Priority**: SmallVec (#5), Intermediate Vec elimination (#6)
-6. **Low Priority**: Profile-guided (#7), Compiler flags (#8)
-7. **Very Low Priority**: SIMD (#9) - Only if needed
+1. **High Priority**: Pre-allocate vectors (#1) - Easy win, good ROI
+2. **Medium Priority**: Single-pass processing (#2) - Good for common cases
+3. **Low Priority**: SmallVec (#3), Intermediate Vec elimination (#4)
+4. **Low Priority**: Profile-guided (#5), Compiler flags (#6)
+5. **Very Low Priority**: SIMD (#7) - Only if needed after other optimizations
 
-**Expected Combined Impact**: 2-4x faster, potentially matching or beating `cut` performance.
+**Note**: Fast path for single-byte delimiters (using `memchr`) was implemented and benchmarked, but showed no measurable performance improvement over the regex engine for typical workloads. The regex crate is highly optimized for simple literal patterns, making specialized fast paths unnecessary.
+
+**Expected Combined Impact**: 1.5-2x faster with priority optimizations, potentially matching `cut` performance.
 
 **Testing**:
 
@@ -674,8 +657,8 @@ struct Field<'a> {
 
 1. **Unit Tests**: Test individual functions (`resolve_index`, field building, etc.)
 2. **Integration Tests**: Test full command execution with various inputs
-3. **Compatibility Tests**: Run `test.sh` against Rust version (may need adaptation)
-4. **Performance Tests**: Use `benchmark.sh` to compare with bash version
+3. **Integration Test Script**: `test.sh` tests Rust version only (bash support removed)
+4. **Performance Tests**: Use `benchmark.sh` to compare with bash version and `cut`
 
 ### Behavior Differences from Bash Version
 
@@ -721,7 +704,7 @@ The following features from the bash version were deprecated during the migratio
 -   `--simple-ranges`: Flattens ranges to individual selections
 -   `--replace-range-delimiter`: Replaces delimiters within ranges
 
-These features remain available in the bash version for backward compatibility. Tests for these features are placed at the end of `test.sh` and only run for the bash version.
+These features remain available in the bash version for backward compatibility. Tests for these features have been removed from `test.sh` as the test script now only supports the Rust version.
 
 ### Key Implementation Notes
 
