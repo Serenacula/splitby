@@ -183,6 +183,19 @@ pub fn process_fields(
         delimiter: b"",
     });
 
+    // In whole-string mode, remove trailing empty fields created by trailing delimiters
+    // (matching bash behavior: trailing newlines don't create additional fields)
+    if instructions.input_mode == InputMode::WholeString {
+        // Remove trailing empty fields
+        while let Some(last_field) = fields.last() {
+            if last_field.text.is_empty() {
+                fields.pop();
+            } else {
+                break;
+            }
+        }
+    }
+
     // Filter out empty fields if --skip-empty is enabled
     if instructions.skip_empty {
         fields = fields.into_iter()
