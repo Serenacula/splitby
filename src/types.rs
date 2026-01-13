@@ -40,6 +40,7 @@ pub struct Instructions {
     pub output: Option<PathBuf>,
     pub count: bool,
     pub join: Option<String>,
+    pub trim_newline: bool,
     // Method
     pub regex_engine: Option<RegexEngine>,
 }

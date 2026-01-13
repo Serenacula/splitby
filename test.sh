@@ -143,7 +143,11 @@ run_test "Delimiter appears multiple times with range" "echo 'apple,,orange' | .
 run_test "Can join selections" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ','" "boo,hoo,foo"
 run_test "Doesn't join in ranges" "echo 'boo hoo foo' | ./splitby.sh -d ' ' -j ',' 1 2-3" "boo,hoo,foo"
 
-
+# Trim newline feature
+run_test "Trim newline: per-line mode" "echo -e 'a\nb\nc' | ./splitby.sh --trim-newline -d ' ' 1" $'a\nb\nc'
+run_test "Trim newline: single line" "echo 'a' | ./splitby.sh --trim-newline -d ' ' 1" "a"
+run_test "Trim newline: whole-string mode" "echo -e 'a\nb' | ./splitby.sh --trim-newline -w -d '\n' 1" "a"
+run_test "Trim newline: without flag (has newline)" "echo -e 'a\nb\nc' | ./splitby.sh -d ' ' 1" $'a\nb\nc\n'
 
 # Count feature
 run_test "Using --count to count fields" "echo 'this is a test' | ./splitby.sh -d ' ' --count" "4"

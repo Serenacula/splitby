@@ -92,6 +92,9 @@ struct Options {
     #[arg(long = "placeholder")]
     placeholder: bool,
 
+    #[arg(long = "trim-newline")]
+    trim_newline: bool,
+
     #[arg(
         short = 'f',
         long = "fields",
@@ -438,6 +441,7 @@ fn main() {
         output: options.output,
         count: options.count,
         join: options.join,
+        trim_newline: options.trim_newline,
         regex_engine: regex_engine,
     });
 
@@ -625,6 +629,7 @@ fn main() {
 
         let mut next_index: usize = 0;
         let mut pending: BTreeMap<usize, Vec<u8>> = BTreeMap::new();
+        let mut max_index_seen: Option<usize> = None;
 
         while let Ok(result) = result_receiver.recv() {
             match result {
@@ -640,23 +645,60 @@ fn main() {
                 }
                 RecordResult::Ok { index, bytes } => {
                     pending.insert(index, bytes);
+                    max_index_seen = Some(max_index_seen.map_or(index, |max| max.max(index)));
                 }
             }
 
-            // Flush anything now in order
-            while let Some(bytes) = pending.remove(&next_index) {
-                writer
-                    .write_all(&bytes)
-                    .map_err(|error| error.to_string())?;
+            // Flush anything now in order (but buffer the last one if trim_newline is set)
+            while let Some(&pending_index) = pending.keys().next() {
+                if pending_index == next_index {
+                    let is_last_result =
+                        instructions.trim_newline && max_index_seen == Some(pending_index);
 
-                if let Some(terminator_byte) = record_terminator {
+                    // If this is the last result and trim_newline is set, don't print it yet
+                    // We'll print it after the channel closes
+                    if is_last_result {
+                        break;
+                    }
+
+                    if let Some(bytes) = pending.remove(&next_index) {
+                        writer
+                            .write_all(&bytes)
+                            .map_err(|error| error.to_string())?;
+
+                        if let Some(terminator_byte) = record_terminator {
+                            writer
+                                .write_all(&[terminator_byte])
+                                .map_err(|error| error.to_string())?;
+                        }
+
+                        next_index += 1;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Channel closed: flush remaining results
+        // The last result (if trim_newline is set) won't get a terminator
+        while let Some(bytes) = pending.remove(&next_index) {
+            writer
+                .write_all(&bytes)
+                .map_err(|error| error.to_string())?;
+
+            // Only add terminator if this is not the last result or trim_newline is false
+            let is_last_result = instructions.trim_newline && max_index_seen == Some(next_index);
+
+            if let Some(terminator_byte) = record_terminator {
+                if !is_last_result {
                     writer
                         .write_all(&[terminator_byte])
                         .map_err(|error| error.to_string())?;
                 }
-
-                next_index += 1;
             }
+
+            next_index += 1;
         }
 
         // Channel closed: all senders dropped.
@@ -668,22 +710,20 @@ fn main() {
             ));
         }
 
-        if next_index == 0 && instructions.count {
-            writer.write_all(b"0").map_err(|error| error.to_string())?;
-        }
-
-        // Check strict_return: fail if no input was received
-        if next_index == 0 && instructions.strict_return {
-            return Err("strict return check failed: no input received".to_string());
-        }
-
-        // Check strict_bounds: fail if no input was received and selections are provided
-        if next_index == 0 && instructions.strict_bounds && !instructions.selections.is_empty() {
-            let (raw_start, _) = instructions.selections[0];
-            return Err(format!(
-                "index ({}) out of bounds, must be between 1 and {}",
-                raw_start, 0
-            ));
+        if next_index == 0 {
+            if instructions.count {
+                writer.write_all(b"0").map_err(|error| error.to_string())?;
+            }
+            if instructions.strict_return {
+                return Err("strict return check failed: no input received".to_string());
+            }
+            if instructions.strict_bounds && !instructions.selections.is_empty() {
+                let (raw_start, _) = instructions.selections[0];
+                return Err(format!(
+                    "index ({}) out of bounds, must be between 1 and {}",
+                    raw_start, 0
+                ));
+            }
         }
 
         writer.flush().map_err(|error| error.to_string())?;
