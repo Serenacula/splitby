@@ -123,6 +123,14 @@ run_test "Comma-separated selections: with -d flag, comma-only splits to empty (
 run_test "Comma-separated selections: with -d flag, letter treated as selection (errors)" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' 'a' 1" "error"
 run_test "Comma-separated selections: with -d flag, mixed letter-number (letter part errors)" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' '1,a' 1" "error"
 
+# Optional delimiter (automatic detection)
+run_test "Optional delimiter: comma as first argument" "echo 'apple,banana,cherry' | ./splitby.sh , 1" "apple"
+run_test "Optional delimiter: comma with multiple selections" "echo 'apple,banana,cherry' | ./splitby.sh , 1 3" "apple,cherry"
+run_test "Optional delimiter: regex pattern as first argument" "echo 'this is a test' | ./splitby.sh '\\s+' 1 2" "this is"
+run_test "Optional delimiter: -d flag takes priority" "echo 'apple,banana,cherry' | ./splitby.sh -d ',' . 1" "error"
+run_test "Optional delimiter: selection takes priority over delimiter" "echo 'apple,banana,cherry' | ./splitby.sh 1 2" "error"
+run_test "Optional delimiter: single letter as delimiter" "echo 'apple,banana,cherry' | ./splitby.sh a 2" "pple,b"
+
 # Edge cases
 run_test "Single field with out-of-range index" "echo 'apple' | ./splitby.sh -d ' ' 2" ""
 run_test "Single delimiter at beginning" "echo ' apple' | ./splitby.sh -d ' ' 2" "apple"

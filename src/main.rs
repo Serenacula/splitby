@@ -202,11 +202,6 @@ fn main() {
         SelectionMode::Fields
     };
 
-    if selection_mode == SelectionMode::Fields && options.delimiter.is_none() {
-        eprintln!("Delimiter required: you can provide one with the -d <REGEX> flag");
-        std::process::exit(2);
-    }
-
     // Merge all raw selection sources and parse
     let mut selection_strings: Vec<String> = Vec::new();
     match selection_mode {
@@ -216,7 +211,7 @@ fn main() {
     }
     selection_strings.extend(options.selection_list.iter().cloned());
 
-    // PARSING SELECTIONS
+    // PARSING SELECTIONS - defined early so we can reuse it for auto-detection
 
     fn parse_selection(string_raw: &str) -> Result<(i32, i32), String> {
         fn parse_number(string: &str) -> Result<i32, String> {
@@ -267,49 +262,97 @@ fn main() {
         Ok((start.unwrap(), end.unwrap()))
     }
 
+    // Helper: check if string can be parsed as selection(s), including comma-separated
+    fn can_parse_as_selection(string: &str) -> bool {
+        if string == "," {
+            return false; // Just a comma is a delimiter, not a selection
+        }
+        if string.contains(',') {
+            // Check if any comma-separated part is a valid selection
+            string.split(',').any(|part| {
+                let trimmed = part.trim();
+                !trimmed.is_empty() && parse_selection(trimmed).is_ok()
+            })
+        } else {
+            parse_selection(string).is_ok()
+        }
+    }
+
+    // Helper: check if string is a valid regex
+    fn is_valid_regex(pattern: &str) -> bool {
+        SimpleRegex::new(pattern).is_ok() || FancyRegex::new(pattern).is_ok()
+    }
+
+    // Automatic delimiter detection (only if -d flag not set and in fields mode)
+    // Priority: selections take precedence. If not a selection and valid regex, use as delimiter
+    let mut detected_delimiter: Option<String> = None;
+    if selection_mode == SelectionMode::Fields
+        && options.delimiter.is_none()
+        && !selection_strings.is_empty()
+    {
+        let first_arg = selection_strings[0].trim();
+        if !can_parse_as_selection(first_arg) && is_valid_regex(first_arg) {
+            detected_delimiter = Some(first_arg.to_string());
+            selection_strings.remove(0);
+        }
+    }
+
+    // Check if delimiter is required (after auto-detection)
+    if selection_mode == SelectionMode::Fields
+        && options.delimiter.is_none()
+        && detected_delimiter.is_none()
+    {
+        eprintln!(
+            "Delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
+        );
+        std::process::exit(2);
+    }
+
     let mut selections: Vec<(i32, i32)> = Vec::new();
     let delimiter_was_set = options.delimiter.is_some();
-    
+
     for (index, string_raw) in selection_strings.iter().enumerate() {
         let is_first = index == 0;
         let trimmed = string_raw.trim();
-        
+
         // For all selections after first -> selections (always parse)
         // For first selection, check ambiguity only if delimiter wasn't set
         let should_check_ambiguity = is_first && !delimiter_was_set;
-        
+
         // Check if this string contains commas
         if trimmed.contains(',') {
             // Split by commas and check each part
             let parts: Vec<&str> = trimmed.split(',').collect();
-            
+
             // For the first selection string, check if it's ambiguous
             if should_check_ambiguity {
                 // If the whole string is just a comma, it's a delimiter
                 if trimmed == "," {
                     continue; // Skip this string, it's a delimiter
                 }
-                
+
                 // Check if any part contains letters (not numeric)
                 // If so, the whole string is a delimiter
                 let has_letter = parts.iter().any(|part| {
                     let trimmed_part = part.trim();
-                    !trimmed_part.is_empty() && 
-                    trimmed_part.chars().any(|char| char.is_alphabetic() && char != '-')
+                    !trimmed_part.is_empty()
+                        && trimmed_part
+                            .chars()
+                            .any(|char| char.is_alphabetic() && char != '-')
                 });
-                
+
                 if has_letter {
                     continue; // Skip this string, it's a delimiter
                 }
             }
-            
+
             // Parse each comma-separated part as a selection
             for part in parts {
                 let trimmed_part = part.trim();
                 if trimmed_part.is_empty() {
                     continue; // Skip empty parts (e.g., ",1" or "1,")
                 }
-                
+
                 let (start, end) = match parse_selection(trimmed_part) {
                     Ok(range) => range,
                     Err(_) => {
@@ -317,7 +360,7 @@ fn main() {
                         std::process::exit(2);
                     }
                 };
-                
+
                 selections.push((start, end));
             }
         } else {
@@ -328,13 +371,16 @@ fn main() {
                 if trimmed == "," {
                     continue; // Skip this string, it's a delimiter
                 }
-                
+
                 // If it contains letters (not numeric), it's a delimiter
-                if trimmed.chars().any(|char| char.is_alphabetic() && char != '-') {
+                if trimmed
+                    .chars()
+                    .any(|char| char.is_alphabetic() && char != '-')
+                {
                     continue; // Skip this string, it's a delimiter
                 }
             }
-            
+
             let (start, end) = match parse_selection(trimmed) {
                 Ok(range) => range,
                 Err(_) => {
@@ -344,7 +390,7 @@ fn main() {
                     std::process::exit(2);
                 }
             };
-            
+
             selections.push((start, end));
         }
     }
@@ -353,12 +399,17 @@ fn main() {
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            let delimiter: String = options.delimiter.unwrap_or_else(|| {
-                eprintln!(
-                    "Delimiter is required in fields mode. Use -d or --delimiter to set one."
-                );
-                std::process::exit(2)
-            });
+            // Use -d flag if set, otherwise use detected delimiter
+            let delimiter: String = options
+                .delimiter
+                .clone()
+                .or(detected_delimiter)
+                .unwrap_or_else(|| {
+                    eprintln!(
+                        "Delimiter is required in fields mode. Use -d or --delimiter to set one."
+                    );
+                    std::process::exit(2)
+                });
 
             if delimiter.is_empty() {
                 eprintln!("Empty string is not a valid delimiter.");

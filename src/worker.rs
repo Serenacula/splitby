@@ -584,7 +584,8 @@ pub fn process_fields(
     // Pre-allocate with known size
     let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
     // Track first and last field indices for each selection to determine delimiters between selections
-    let mut selection_field_indices: Vec<(Option<usize>, Option<usize>)> = Vec::with_capacity(selections_to_process.len());
+    let mut selection_field_indices: Vec<(Option<usize>, Option<usize>)> =
+        Vec::with_capacity(selections_to_process.len());
 
     // For each set of selections
     for &(raw_start, raw_end) in &selections_to_process {
@@ -630,7 +631,7 @@ pub fn process_fields(
 
             selection_has_output = true;
             let field_index = index as usize;
-            
+
             // Track first and last field indices
             if first_field_index.is_none() {
                 first_field_index = Some(field_index);
@@ -697,40 +698,41 @@ pub fn process_fields(
                     // Use delimiter priority logic: afterPrevious, beforeNext, space/newline
                     // For whole-string mode, always use newlines (ignore delimiter priority)
                     // For per-line mode, use delimiter priority logic
-                    let delimiter_to_use: &[u8] = if instructions.input_mode == InputMode::WholeString {
-                        // Whole-string mode: always use newlines
-                        b"\n"
-                    } else {
-                        // Per-line mode: use delimiter priority logic
-                        let previous_selection_indices = selection_field_indices[index - 1];
-                        let current_selection_indices = selection_field_indices[index];
-                        
-                        match (previous_selection_indices, current_selection_indices) {
-                            ((_, Some(prev_last)), (Some(curr_first), _)) => {
-                                // Get delimiter after previous selection's last field (afterPrevious)
-                                let delimiter_after_prev = fields[prev_last].delimiter;
-                                // Get delimiter before current selection's first field (beforeNext)
-                                let delimiter_before_curr = if curr_first > 0 {
-                                    fields[curr_first - 1].delimiter
-                                } else {
-                                    b""
-                                };
-                                
-                                // Priority: afterPrevious, beforeNext, space
-                                if !delimiter_after_prev.is_empty() {
-                                    delimiter_after_prev
-                                } else if !delimiter_before_curr.is_empty() {
-                                    delimiter_before_curr
-                                } else {
+                    let delimiter_to_use: &[u8] =
+                        if instructions.input_mode == InputMode::WholeString {
+                            // Whole-string mode: always use newlines
+                            b"\n"
+                        } else {
+                            // Per-line mode: use delimiter priority logic
+                            let previous_selection_indices = selection_field_indices[index - 1];
+                            let current_selection_indices = selection_field_indices[index];
+
+                            match (previous_selection_indices, current_selection_indices) {
+                                ((_, Some(prev_last)), (Some(curr_first), _)) => {
+                                    // Get delimiter after previous selection's last field (afterPrevious)
+                                    let delimiter_after_prev = fields[prev_last].delimiter;
+                                    // Get delimiter before current selection's first field (beforeNext)
+                                    let delimiter_before_curr = if curr_first > 0 {
+                                        fields[curr_first - 1].delimiter
+                                    } else {
+                                        b""
+                                    };
+
+                                    // Priority: afterPrevious, beforeNext, space
+                                    if !delimiter_after_prev.is_empty() {
+                                        delimiter_after_prev
+                                    } else if !delimiter_before_curr.is_empty() {
+                                        delimiter_before_curr
+                                    } else {
+                                        b" " // Fallback: space for per-line mode
+                                    }
+                                }
+                                _ => {
                                     b" " // Fallback: space for per-line mode
                                 }
                             }
-                            _ => {
-                                b" " // Fallback: space for per-line mode
-                            }
-                        }
-                    };
-                    
+                        };
+
                     output.extend_from_slice(delimiter_to_use);
                 }
             }
