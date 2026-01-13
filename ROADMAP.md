@@ -538,6 +538,14 @@ struct Field<'a> {
         - Useful for binary data or non-UTF-8 text
     - **Consideration**: May conflict with existing field mode, needs design decision
 
+4. **Explicit Field Mode Flag** (Low Priority)
+
+    - **Location**: `main.rs::Options` struct
+    - **Implementation**:
+        - Add `--f/--field` flag to explicitly enable field mode
+        - Currently field mode is default when delimiter is provided
+        - Improves clarity and matches cut's `-f` flag
+
 #### 6.3 Delimiter Mode Enhancements
 
 1. **Delimiter Before Items** (Low Priority)

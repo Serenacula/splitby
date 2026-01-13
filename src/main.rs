@@ -50,10 +50,10 @@ struct Options {
     #[arg(long = "invert")]
     invert: bool,
 
-    #[arg(short = 's', long = "strict")]
+    #[arg(long = "strict")]
     strict: bool,
 
-    #[arg(short = 'S', long = "no-strict")]
+    #[arg(long = "no-strict")]
     no_strict: bool,
 
     #[arg(long = "strict-bounds")]
@@ -162,13 +162,13 @@ fn main() {
             "--strict-utf8" => strict_utf8 = true,
             "--no-strict-utf8" => strict_utf8 = false,
 
-            "-s" | "--strict" => {
+            "--strict" => {
                 strict_return = true;
                 strict_bounds = true;
                 strict_range_order = true;
                 strict_utf8 = true;
             }
-            "-S" | "--no-strict" => {
+            "--no-strict" => {
                 strict_return = false;
                 strict_bounds = false;
                 strict_range_order = false;
