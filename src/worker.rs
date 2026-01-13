@@ -284,21 +284,11 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     // Join all selections with the join string (or default delimiter)
     let mut output: Vec<u8> = Vec::new();
     for (index, selection) in output_selections.iter().enumerate() {
-        if index > 0 {
-            // Add join delimiter between selections
-            match &instructions.join {
-                Some(join) => {
-                    output.extend_from_slice(join.as_bytes());
-                }
-                None => {
-                    // Default: space for per-line mode, newline for whole-string mode
-                    if instructions.input_mode == InputMode::WholeString {
-                        output.push(b'\n');
-                    } else {
-                        output.push(b' ');
-                    }
-                }
+        if index > 0 && instructions.join.is_some() {
+            if let Some(join) = &instructions.join {
+                output.extend_from_slice(join.as_bytes());
             }
+            // Add join delimiter between selections
         }
         output.extend_from_slice(selection);
     }

@@ -296,6 +296,11 @@ fn main() {
                 std::process::exit(2)
             });
 
+            if delimiter.is_empty() {
+                eprintln!("Empty string is not a valid delimiter.");
+                std::process::exit(2)
+            }
+
             // Fast path: check if delimiter is a single byte
             if delimiter.as_bytes().len() == 1 {
                 Some(RegexEngine::SingleByte(delimiter.as_bytes()[0]))
@@ -562,9 +567,22 @@ fn main() {
             ));
         }
 
+        if next_index == 0 && instructions.count {
+            writer.write_all(b"0").map_err(|error| error.to_string())?;
+        }
+
         // Check strict_return: fail if no input was received
         if next_index == 0 && instructions.strict_return {
             return Err("strict return check failed: No input received".to_string());
+        }
+
+        // Check strict_bounds: fail if no input was received and selections are provided
+        if next_index == 0 && instructions.strict_bounds && !instructions.selections.is_empty() {
+            let (raw_start, _) = instructions.selections[0];
+            return Err(format!(
+                "Index ({}) out of bounds. Must be between 1 and {}",
+                raw_start, 0
+            ));
         }
 
         writer.flush().map_err(|error| error.to_string())?;
