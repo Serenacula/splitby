@@ -218,6 +218,32 @@ pub fn process_fields(
         instructions.selections.clone()
     };
 
+    // If no selections provided, output all fields (matching bash behavior)
+    if selections_to_process.is_empty() {
+        let mut output: Vec<u8> = Vec::new();
+        for (index, field) in fields.iter().enumerate() {
+            if index > 0 {
+                // Add delimiter/join between fields
+                match &instructions.join {
+                    Some(join) => {
+                        output.extend_from_slice(join.as_bytes());
+                    }
+                    None => {
+                        // Default: space for per-line mode, newline for whole-string mode
+                        // When no selections are provided, bash uses spaces (not original delimiters)
+                        if instructions.input_mode == InputMode::WholeString {
+                            output.push(b'\n');
+                        } else {
+                            output.push(b' ');
+                        }
+                    }
+                }
+            }
+            output.extend_from_slice(field.text);
+        }
+        return Ok(output);
+    }
+
     // Process the extracted fields
     // We process selections and build output_selections, then join them
     // This allows us to handle placeholders (empty strings for invalid selections)
@@ -368,8 +394,11 @@ pub fn process_fields(
                 }
                 None => {
                     // Default: space for per-line mode, newline for whole-string mode
-                    // For now, use space (this matches the bash version's per-line default)
-                    output.push(b' ');
+                    if instructions.input_mode == InputMode::WholeString {
+                        output.push(b'\n');
+                    } else {
+                        output.push(b' ');
+                    }
                 }
             }
         }

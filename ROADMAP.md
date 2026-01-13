@@ -533,19 +533,19 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 
 **Priority Fixes**:
 
-1. **Whole-String Mode Join Behavior** (High Priority)
+1. **Whole-String Mode Join Behavior** (High Priority) ✅ FIXED
 
     - **Issue**: In whole-string mode, selections are joined with spaces instead of newlines
-    - **Location**: `worker.rs::process_fields()` lines 370-372
-    - **Fix**: Change default join behavior to use newline (`\n`) when `input_mode == InputMode::WholeString` and no `--join` is provided
-    - **Status**: Not yet fixed
+    - **Location**: `worker.rs::process_fields()` lines 370-375
+    - **Fix**: Changed default join behavior to use newline (`\n`) when `input_mode == InputMode::WholeString` and no `--join` is provided
+    - **Status**: ✅ Fixed - Now matches bash behavior
 
-2. **No Selections Provided** (Medium Priority)
+2. **No Selections Provided** (Medium Priority) ✅ FIXED
 
     - **Issue**: When no selections are provided, Rust outputs nothing instead of all fields
-    - **Location**: `worker.rs::process_fields()`, `main.rs` (selection parsing)
-    - **Fix**: When selections list is empty, output all fields (joined appropriately)
-    - **Status**: Not yet fixed
+    - **Location**: `worker.rs::process_fields()` lines 221-252
+    - **Fix**: When selections list is empty, output all fields (joined with spaces for per-line mode, newlines for whole-string mode)
+    - **Status**: ✅ Fixed - Now matches bash behavior
 
 3. **Empty Delimiter** (Medium Priority)
 
@@ -636,11 +636,11 @@ let mut writer: Box<dyn Write> = match &instructions.output {
 
 1. ✅ Complete `process_fields()` - Phase 1 (All core features: skip-empty, count, invert, strict-return)
 2. ✅ Implement `process_fancy_regex()` - Phase 2.1 (Integrated into process_fields)
-3. ⏳ Fix whole-string mode join behavior - Phase 5.0 (Bug: should use newlines, not spaces)
+3. ✅ Fix whole-string mode join behavior - Phase 5.0 (Fixed: now uses newlines)
 4. ⏳ File output - Phase 4 (Flag parsed but not implemented)
-5. ⏳ Fix no selections behavior - Phase 5.0 (Should output all fields like bash)
+5. ✅ Fix no selections behavior - Phase 5.0 (Fixed: now outputs all fields)
 
-**Medium Priority** (Feature completeness): 6. ⏳ Byte/char modes - Phase 2.2, 2.3 7. ⏳ Fix behavior differences to match bash - Phase 5.0 (No selections, empty delimiter, newline counting) 8. ✅ Error handling - Phase 5.1
+**Medium Priority** (Feature completeness): 6. ⏳ Byte/char modes - Phase 2.2, 2.3 7. ⏳ Fix behavior differences to match bash - Phase 5.0 (Empty delimiter, newline counting) 8. ✅ Error handling - Phase 5.1
 
 **Low Priority** (Polish): 9. ✅ Tests - Phase 5.2 10. ✅ Performance - Phase 5.3 11. ✅ Large Input Support - Phase 5.4 12. ✅ Documentation - Phase 6
 
@@ -659,11 +659,11 @@ This section documents intentional design decisions and known bugs where the Rus
 
 **Note**: The bash version is canonical for these behaviors. The Rust version should be updated to match bash behavior.
 
-1. **No Selections Provided**
+1. **No Selections Provided** ✅ FIXED
 
     - **Bash**: When no selections are provided, outputs all fields (joined appropriately)
-    - **Rust**: When no selections are provided, outputs nothing (empty string)
-    - **Status**: **TO FIX** - Bash version is canonical. Rust version should be changed to match bash behavior.
+    - **Rust**: When no selections are provided, outputs all fields (joined with spaces for per-line mode, newlines for whole-string mode)
+    - **Status**: ✅ **FIXED** - Now matches bash behavior. See `worker.rs::process_fields()` lines 221-252.
 
 2. **Empty Delimiter**
 
@@ -700,11 +700,11 @@ This section documents intentional design decisions and known bugs where the Rus
 
 **Note**: These bugs are tracked in [Phase 5.0](#50-fix-known-bugs-and-behavior-differences) above. This section provides additional context.
 
-1. **Whole-String Mode Join Behavior**
+1. **Whole-String Mode Join Behavior** ✅ FIXED
 
     - **Bash**: In whole-string mode, selections are joined with newlines (`\n`) by default
-    - **Rust**: In whole-string mode, selections are joined with spaces (` `) by default
-    - **Status**: **BUG** - Bash version is preferred. This needs to be fixed to match bash behavior. See `worker.rs::process_fields()` line 370-372.
+    - **Rust**: In whole-string mode, selections are joined with newlines (`\n`) by default
+    - **Status**: ✅ **FIXED** - Now matches bash behavior. See `worker.rs::process_fields()` lines 370-375.
 
 2. **Join Within Ranges**
 
