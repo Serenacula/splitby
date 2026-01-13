@@ -306,16 +306,23 @@ fn main() {
                 eprintln!("error: delimiter required in Fields mode");
                 std::process::exit(2)
             });
-            let simple_regex = SimpleRegex::new(&delimiter);
 
-            match simple_regex {
-                Ok(regex) => Some(RegexEngine::Simple(regex)),
-                Err(_) => {
-                    let fancy_regex = FancyRegex::new(&delimiter).unwrap_or_else(|error| {
-                        eprintln!("error: failed to compile regex: {error}");
-                        std::process::exit(2)
-                    });
-                    Some(RegexEngine::Fancy(fancy_regex))
+            // Fast path: check if delimiter is a single byte
+            if delimiter.as_bytes().len() == 1 {
+                Some(RegexEngine::SingleByte(delimiter.as_bytes()[0]))
+            } else {
+                // Fall back to regex compilation for multi-byte delimiters
+                let simple_regex = SimpleRegex::new(&delimiter);
+
+                match simple_regex {
+                    Ok(regex) => Some(RegexEngine::Simple(regex)),
+                    Err(_) => {
+                        let fancy_regex = FancyRegex::new(&delimiter).unwrap_or_else(|error| {
+                            eprintln!("error: failed to compile regex: {error}");
+                            std::process::exit(2)
+                        });
+                        Some(RegexEngine::Fancy(fancy_regex))
+                    }
                 }
             }
         }

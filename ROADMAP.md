@@ -492,6 +492,16 @@ struct Field<'a> {
         - Currently exits with code 1 (generic error)
         - Match standard Unix exit code conventions
 
+5. **Code Point Input Mode** (Low Priority)
+
+    - **Location**: `main.rs::read_input()`, new `InputMode` variant
+    - **Implementation**:
+        - Add new input mode for processing Unicode code points
+        - Different from character mode (graphemes) - processes individual Unicode code points
+        - Useful for low-level Unicode manipulation and analysis
+        - May require new selection mode or flag to distinguish from grapheme-based character mode
+    - **Note**: Low priority - grapheme-based character mode covers most use cases. Code point mode is for specialized Unicode work.
+
 #### 6.2 Selection Mode Enhancements
 
 1. **Comma-Separated Selections** (Medium Priority)
@@ -503,14 +513,17 @@ struct Field<'a> {
         - Should work with ranges: `1-3,5,7-9`
     - **Example**: `splitby -d ',' 1,3,5` or `splitby -d ',' 1-3,5,7-9`
 
-2. **Skip Empty Lines** (Medium Priority)
+2. **Skip Empty Lines / Only Delimited** (Medium Priority)
 
     - **Location**: `main.rs::read_input()`
     - **Implementation**:
-        - Add `--skip-empty-lines` flag (different from `--skip-empty` which skips empty fields)
-        - Filter out empty lines before processing
+        - Add `-s/--only-delimited` flag (cut compatibility) and `--skip-empty-lines` flag
+        - Filter out lines that don't contain the delimiter (for `-s/--only-delimited`)
+        - Filter out empty lines before processing (for `--skip-empty-lines`)
         - Should work in per-line mode
+        - `-s/--only-delimited` matches cut's behavior: suppress lines without delimiter
     - **Note**: Different from `--skip-empty` which filters empty fields after splitting
+    - **Example**: `splitby -d ',' -s -f 1` → only outputs lines containing comma delimiter
 
 3. **Byte-Based Field Parsing** (Low Priority)
 
@@ -558,7 +571,8 @@ struct Field<'a> {
             - `@auto`: Follows existing logic (try after-previous, then before-next, then space)
             - `@after-previous`: Use delimiter from after previous field
             - `@before-next`: Use delimiter from before next field
-            - `@empty`: Insert empty byte/string
+            - `@empty-byte`: Insert empty byte/string
+            - `@none`: No delimiter, equivalent to `""`
     - **Example**: `splitby --join @after-previous -d ',' 1 3`
 
 4. **Join Scope Flags** (Low Priority)
@@ -646,7 +660,7 @@ struct Field<'a> {
 
 **Medium Priority** (Feature completeness):
 
--   Core Feature Refinement (Phase 6): automatic delimiter detection, trailing newline control, I/O error codes, comma-separated selections, skip empty lines, placeholder with value, field separation flags
+-   Core Feature Refinement (Phase 6): automatic delimiter detection, trailing newline control, I/O error codes, comma-separated selections, skip empty lines / only delimited (`-s/--only-delimited`), placeholder with value, field separation flags
 
 **Low Priority** (Polish and enhancements):
 
@@ -654,7 +668,7 @@ struct Field<'a> {
 -   Performance Optimization (Phase 5.3): 9 strategies documented
 -   Documentation (Phase 8): README updates and website
 -   Stretch Features (Phase 7): Zero-indexing, --list, enhanced keywords
--   Additional Core Refinements (Phase 6): Cut-style delimiter syntax, byte-based field parsing, explicit field mode flag, delimiter before items, join scope flags
+-   Additional Core Refinements (Phase 6): Cut-style delimiter syntax, byte-based field parsing, explicit field mode flag, delimiter before items, join scope flags, code point input mode
 
 ### Testing Strategy
 

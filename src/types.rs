@@ -17,6 +17,7 @@ pub enum SelectionMode {
 }
 
 pub enum RegexEngine {
+    SingleByte(u8),  // Fast path: single-byte delimiter
     Simple(SimpleRegex),
     Fancy(FancyRegex),
 }

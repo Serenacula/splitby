@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use crate::types::*;
+use memchr;
 use unicode_segmentation::UnicodeSegmentation;
 
 fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
@@ -431,8 +432,31 @@ pub fn process_fields(
     // Extract fields from text using the appropriate regex engine
     let mut fields: Vec<Field> = Vec::new();
     let mut cursor = 0usize;
+    let mut needs_final_field = true;
 
     match engine {
+        RegexEngine::SingleByte(byte) => {
+            // Fast path: use memchr for single-byte delimiter
+            // Work directly with bytes, no UTF-8 conversion needed
+            let bytes = &record.bytes;
+            let mut cursor_bytes = 0usize;
+
+            // Use memchr to find all occurrences of the delimiter byte
+            for delimiter_pos in memchr::memchr_iter(*byte, bytes) {
+                fields.push(Field {
+                    text: &bytes[cursor_bytes..delimiter_pos],
+                    delimiter: &bytes[delimiter_pos..delimiter_pos + 1],
+                });
+                cursor_bytes = delimiter_pos + 1;
+            }
+
+            // Add final field
+            fields.push(Field {
+                text: &bytes[cursor_bytes..],
+                delimiter: b"",
+            });
+            needs_final_field = false;
+        }
         RegexEngine::Simple(engine) => {
             // Find all the delimiters using simple regex
             for delimiter in engine.find_iter(&text) {
@@ -463,11 +487,13 @@ pub fn process_fields(
         }
     }
 
-    // Add the final field after the last delimiter
-    fields.push(Field {
-        text: text[cursor..text.len()].as_bytes(),
-        delimiter: b"",
-    });
+    // Add the final field after the last delimiter (only for regex paths)
+    if needs_final_field {
+        fields.push(Field {
+            text: text[cursor..text.len()].as_bytes(),
+            delimiter: b"",
+        });
+    }
 
     // In whole-string mode, remove trailing empty fields created by trailing delimiters
     // (matching bash behavior: trailing newlines don't create additional fields)

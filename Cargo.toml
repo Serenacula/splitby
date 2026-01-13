@@ -7,6 +7,7 @@ edition = "2024"
 clap = { version = "4.5.50", features = ["derive"]}
 crossbeam = "0.8.4"
 fancy-regex = "0.16.2"
+memchr = "2.7"
 regex = "1.12.2"
 serde = { version = "1.0.228", features = ["derive"]}
 serde_json = "1.0.145"
