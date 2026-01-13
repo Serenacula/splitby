@@ -239,8 +239,12 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     };
 
     // If no selections provided, output all bytes (matching bash behavior)
+    // BUT: if we inverted and got empty selections, output nothing (all fields were selected)
     if selections_to_process.is_empty() {
-        return Ok(bytes.to_vec());
+        if instructions.invert {
+            return Ok(Vec::new()); // Inverted to nothing
+        }
+        return Ok(bytes.to_vec()); // No selections provided, output all
     }
 
     // Process the selections
@@ -343,8 +347,12 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     };
 
     // If no selections provided, output all graphemes (matching bash behavior)
+    // BUT: if we inverted and got empty selections, output nothing (all fields were selected)
     if selections_to_process.is_empty() {
-        return Ok(text.as_bytes().to_vec());
+        if instructions.invert {
+            return Ok(Vec::new()); // Inverted to nothing
+        }
+        return Ok(text.as_bytes().to_vec()); // No selections provided, output all
     }
 
     // Process the selections
@@ -544,7 +552,12 @@ pub fn process_fields(
     };
 
     // If no selections provided, output all fields (matching bash behavior)
+    // BUT: if we inverted and got empty selections, output nothing (all fields were selected)
     if selections_to_process.is_empty() {
+        if instructions.invert {
+            return Ok(Vec::new()); // Inverted to nothing
+        }
+        // No selections provided, output all fields
         let mut output: Vec<u8> = Vec::new();
         for (index, field) in fields.iter().enumerate() {
             if index > 0 {
