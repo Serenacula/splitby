@@ -15,19 +15,19 @@
 
 ### Medium (50-200 lines of code)
 
-2. **Only Delimited (`-s/--only-delimited`)**
+2. **Field Separation Flags for `--join`** ⚠️ HIGH PRIORITY
+
+    - Extend existing join logic with special flags (`@auto`, `@after-previous`, `@before-next`, `@empty-byte`, `@none`, `@aligned`)
+    - Modify `process_fields()` join selection
+    - **Priority**: High
+    - **Estimated**: ~80 lines
+
+3. **Only Delimited (`-s/--only-delimited`)**
 
     - Add flag, check if line contains delimiter before processing
     - Requires delimiter matching logic in `read_input()`
     - **Priority**: Medium
     - **Estimated**: ~60 lines
-
-3. **Field Separation Flags for `--join`**
-
-    - Extend existing join logic with special flags (`@auto`, `@after-previous`, etc.)
-    - Modify `process_fields()` join selection
-    - **Priority**: Medium
-    - **Estimated**: ~80 lines
 
 4. **Zero-Indexing Mode**
 
@@ -108,11 +108,14 @@
 
 ## Summary by Priority
 
-### Medium Priority (3 features)
+### High Priority (1 feature)
 
-1. Skip Empty Lines
-2. Only Delimited (`-s/--only-delimited`)
-3. Field Separation Flags for `--join`
+1. Field Separation Flags for `--join`
+
+### Medium Priority (2 features)
+
+2. Skip Empty Lines
+3. Only Delimited (`-s/--only-delimited`)
 
 ### Low Priority (10 features)
 
