@@ -12,6 +12,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# local caches
+.npm-cache/
+.cache/
+
 
 # environment variables
 .env
