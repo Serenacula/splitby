@@ -3,6 +3,4 @@
 # Added by cargo
 
 /target
-new-docs.md
-planned-features.md
-ROADMAP.md
+/planning-docs
