@@ -1,0 +1,21 @@
+---
+title: Whole string (-w, --whole-string)
+description: Treat the entire input as a single record.
+---
+
+## Syntax
+
+```sh
+splitby -w [selection...]
+```
+
+## What it does
+
+Processes the full input as one record, which is useful when your delimiter is a newline or when you want cross-line selections.
+
+## Examples
+
+```sh
+printf "a\nb\nc\n" | splitby -w -d "\n" 2
+# b
+```

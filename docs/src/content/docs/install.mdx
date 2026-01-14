@@ -1,0 +1,32 @@
+---
+title: Install
+description: Install splitby from a release or build it locally.
+---
+
+## Download a prebuilt binary
+
+1. Visit the [GitHub Releases page](https://github.com/Serenacula/splitby/releases).
+2. Download the asset for your platform.
+3. Make it executable and move it into your `PATH`:
+
+```sh
+chmod +x ./splitby
+sudo mv ./splitby /usr/local/bin/splitby
+```
+
+## Build from source
+
+If you have Rust installed:
+
+```sh
+git clone https://github.com/Serenacula/splitby.git
+cd splitby
+cargo build --release
+./target/release/splitby --version
+```
+
+## Verify the install
+
+```sh
+splitby --version
+```

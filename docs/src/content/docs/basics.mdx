@@ -1,0 +1,80 @@
+---
+title: Basics
+description: Learn delimiters, selections, and common patterns.
+---
+
+## The simple idea
+
+splitby splits text into fields and returns just the pieces you ask for.
+
+```sh
+echo "apple,banana,cherry" | splitby , 2
+# banana
+```
+
+## Delimiters
+
+Delimiters are regular expressions. You can pass one explicitly:
+
+```sh
+echo "a   b   c" | splitby -d "\\s+" 2
+# b
+```
+
+Or, in field mode, you can put the delimiter first and splitby will detect it:
+
+```sh
+echo "a,b,c" | splitby , 1 3
+# a c
+```
+
+If the first argument looks like a selection (such as `1` or `2-4`), splitby treats it as a selection and expects `-d` for the delimiter.
+
+## Selections
+
+Selections are one-based indexes:
+
+```sh
+echo "a b c d" | splitby -d " " 1
+# a
+```
+
+Ranges work too:
+
+```sh
+echo "a b c d" | splitby -d " " 2-3
+# b c
+```
+
+Negative indexes count from the end:
+
+```sh
+echo "a b c d" | splitby -d " " -1
+# d
+```
+
+## Multiple selections
+
+You can list selections with spaces:
+
+```sh
+echo "a b c d" | splitby -d " " 1 3-4
+# a c d
+```
+
+Or with commas inside a single argument:
+
+```sh
+echo "a b c d" | splitby -d " " 1,3-4
+# a c d
+```
+
+## What joins selections
+
+In field mode, splitby tries to keep natural separators between selections:
+
+- first choice: the delimiter after the previous field
+- second choice: the delimiter before the next field
+- fallback: a single space
+
+Use `--join` to override this behavior.

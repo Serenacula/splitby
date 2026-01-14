@@ -1,0 +1,22 @@
+---
+title: Strict range order (--strict-range-order)
+description: Error if a range starts after it ends.
+---
+
+## Syntax
+
+```sh
+splitby --strict-range-order [selection...]
+splitby --no-strict-range-order [selection...]
+```
+
+## What it does
+
+When enabled, ranges like `3-1` are errors instead of silently ignored.
+
+## Examples
+
+```sh
+echo "a b" | splitby -d " " --strict-range-order 2-1
+# end index (1) is less than start index (2) in selection 2-1
+```

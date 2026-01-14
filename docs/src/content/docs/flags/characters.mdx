@@ -1,0 +1,21 @@
+---
+title: Characters (-c, --characters)
+description: Select visible characters (grapheme clusters).
+---
+
+## Syntax
+
+```sh
+splitby -c [selection...]
+```
+
+## What it does
+
+Selects by grapheme clusters (user-perceived characters), not bytes.
+
+## Examples
+
+```sh
+echo "café" | splitby -c 1-3
+# caf
+```

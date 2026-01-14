@@ -1,0 +1,21 @@
+---
+title: Fields (-f, --fields)
+description: Explicitly select fields by delimiter.
+---
+
+## Syntax
+
+```sh
+splitby --fields [selection...]
+```
+
+## What it does
+
+Forces field mode even when other selection modes are available. This is the default if no other selection mode is specified.
+
+## Examples
+
+```sh
+echo "a,b,c" | splitby -f -d "," 2
+# b
+```

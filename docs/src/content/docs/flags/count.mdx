@@ -1,0 +1,34 @@
+---
+title: Count (--count)
+description: Output the number of fields, characters, or bytes.
+---
+
+## Syntax
+
+```sh
+splitby --count
+```
+
+## What it does
+
+Returns the count of items in the current selection mode:
+
+- fields in field mode
+- grapheme clusters in character mode
+- bytes in byte mode
+
+## Examples
+
+```sh
+echo "a,b,c" | splitby -d "," --count
+# 3
+```
+
+```sh
+echo "café" | splitby -c --count
+# 4
+```
+
+## Gotchas
+
+- Selection-altering flags like `--invert` and `--placeholder` are ignored for counts.

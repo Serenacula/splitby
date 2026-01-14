@@ -1,0 +1,22 @@
+---
+title: Strict return (--strict-return)
+description: Error when selections produce no output.
+---
+
+## Syntax
+
+```sh
+splitby --strict-return [selection...]
+splitby --no-strict-return [selection...]
+```
+
+## What it does
+
+If selections yield no output, splitby emits an error instead of printing nothing.
+
+## Examples
+
+```sh
+echo ",a" | splitby -d "," --strict-return 1
+# strict return check failed: no valid fields available
+```

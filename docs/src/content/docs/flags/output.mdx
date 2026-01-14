@@ -1,0 +1,20 @@
+---
+title: Output file (-o, --output)
+description: Write output to a file instead of stdout.
+---
+
+## Syntax
+
+```sh
+splitby --output <FILE> [selection...]
+```
+
+## What it does
+
+Writes output to the provided file path.
+
+## Examples
+
+```sh
+splitby -i ./data.csv -d "," 1 -o ./names.txt
+```

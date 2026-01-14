@@ -1,0 +1,21 @@
+---
+title: Bytes (-b, --bytes)
+description: Select byte offsets instead of fields.
+---
+
+## Syntax
+
+```sh
+splitby -b [selection...]
+```
+
+## What it does
+
+Selects raw bytes by position. This is useful for binary or fixed-width data.
+
+## Examples
+
+```sh
+printf "abcdef" | splitby -b 2-4
+# bcd
+```

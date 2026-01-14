@@ -1,0 +1,21 @@
+---
+title: Invert (--invert)
+description: Select everything except the specified fields.
+---
+
+## Syntax
+
+```sh
+splitby --invert [selection...]
+```
+
+## What it does
+
+Inverts your selections, returning everything you did not ask for.
+
+## Examples
+
+```sh
+echo "a b c d" | splitby -d " " --invert 2
+# a c d
+```

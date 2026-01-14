@@ -1,0 +1,22 @@
+---
+title: Strict bounds (--strict-bounds)
+description: Error if a selection goes out of range.
+---
+
+## Syntax
+
+```sh
+splitby --strict-bounds [selection...]
+splitby --no-strict-bounds [selection...]
+```
+
+## What it does
+
+When enabled, out-of-range selections become errors instead of silently clamping or skipping.
+
+## Examples
+
+```sh
+echo "a b" | splitby -d " " --strict-bounds 5
+# strict bounds error: index (5) out of bounds. must be between 1 and 2
+```

@@ -1,0 +1,22 @@
+---
+title: Zero terminated (-z, --zero-terminated)
+description: Use NUL as the record separator.
+---
+
+## Syntax
+
+```sh
+splitby -z [selection...]
+```
+
+## What it does
+
+Reads and writes NUL-delimited records. This is handy for `find -print0` or `xargs -0` style pipelines.
+
+## Examples
+
+```sh
+printf "first,second\0third,fourth\0" | splitby -z -d "," 1
+# first
+# third
+```

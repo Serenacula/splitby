@@ -1,0 +1,41 @@
+---
+title: Delimiter (-d, --delimiter)
+description: Choose how fields are separated in field mode.
+---
+
+## Syntax
+
+```sh
+splitby -d "<REGEX>" [selection...]
+```
+
+In field mode, you can also provide the delimiter as the first argument:
+
+```sh
+splitby "<REGEX>" [selection...]
+```
+
+## What it does
+
+Splits each record into fields using a regular expression. The delimiter is required for field mode unless it can be auto-detected from the first argument.
+
+## Examples
+
+Split on commas:
+
+```sh
+echo "a,b,c" | splitby -d "," 2
+# b
+```
+
+Split on whitespace:
+
+```sh
+echo "a   b   c" | splitby -d "\\s+" 3
+# c
+```
+
+## Gotchas
+
+- Shells often eat backslashes. Use single quotes or double-escape (`'\\s+'`).
+- If the first argument is a valid selection, splitby treats it as a selection and expects `-d`.

@@ -1,0 +1,22 @@
+---
+title: Per-line (--per-line)
+description: Process each line as a separate record.
+---
+
+## Syntax
+
+```sh
+splitby --per-line [selection...]
+```
+
+## What it does
+
+This is the default mode. Each input line is processed independently.
+
+## Examples
+
+```sh
+printf "a,b\nc,d\n" | splitby -d "," --per-line 2
+# b
+# d
+```

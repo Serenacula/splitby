@@ -1,0 +1,34 @@
+---
+title: Placeholder (--placeholder)
+description: Insert a value when a selection is invalid.
+---
+
+## Syntax
+
+```sh
+splitby --placeholder="<VALUE>" [selection...]
+```
+
+The value can be a string or hex bytes like `0x00`.
+
+## What it does
+
+Normally, invalid selections are skipped. With `--placeholder`, splitby inserts the provided value instead.
+
+## Examples
+
+```sh
+echo "a,b" | splitby -d "," --placeholder="N/A" 1 4 2
+# a,N/A,b
+```
+
+Using a hex byte:
+
+```sh
+echo "a,b" | splitby -d "," --placeholder=0x00 1 4 2
+```
+
+## Gotchas
+
+- An explicit empty placeholder is allowed: `--placeholder=`.
+- If multiple `--placeholder` flags are provided, the last value wins.

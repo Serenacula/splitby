@@ -1,0 +1,24 @@
+---
+title: Strict UTF-8 (--strict-utf8)
+description: Treat invalid UTF-8 as an error in character mode.
+---
+
+## Syntax
+
+```sh
+splitby --strict-utf8 [selection...]
+```
+
+## What it does
+
+In character mode, `--strict-utf8` requires valid UTF-8 input. If input is invalid, splitby returns an error instead of replacing invalid bytes.
+
+## Examples
+
+```sh
+printf "a\xff" | splitby -c --strict-utf8 1
+```
+
+## Gotchas
+
+- The disable flag is currently `--no-strict-ut8` (missing the second `f`).

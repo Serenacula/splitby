@@ -1,0 +1,84 @@
+/* Theme tokens for easy adjustments */
+:root {
+    --font-system: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial,
+        sans-serif;
+
+    --color-ink: #14111a;
+    --color-ink-muted: #3c334b;
+    --color-surface: #ffffff;
+    --color-surface-soft: #f7f4fb;
+
+    --color-accent: #6f3cc9;
+    --color-accent-soft: #f3ecff;
+    --color-accent-strong: #4f24a5;
+
+    --color-highlight: #f6d36b;
+
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    --sl-color-accent: var(--color-accent);
+    --sl-color-accent-low: var(--color-accent-soft);
+    --sl-color-accent-high: var(--color-accent-strong);
+    --sl-color-text: var(--color-ink);
+    --sl-color-text-accent: var(--color-accent);
+    --sl-color-bg: var(--color-surface);
+}
+
+:root[data-theme="dark"] {
+    --color-ink: #efe9ff;
+    --color-ink-muted: #c8b9e6;
+    --color-surface: #0f0b16;
+    --color-surface-soft: #1a1227;
+
+    --color-accent: #b08cff;
+    --color-accent-soft: #24163d;
+    --color-accent-strong: #d2b7ff;
+
+    --color-highlight: #f3c95c;
+
+    --sl-color-accent: var(--color-accent);
+    --sl-color-accent-low: var(--color-accent-soft);
+    --sl-color-accent-high: var(--color-accent-strong);
+    --sl-color-text: var(--color-ink);
+    --sl-color-text-accent: var(--color-accent);
+    --sl-color-bg: var(--color-surface);
+}
+
+body {
+    font-family: var(--font-system);
+    color: var(--color-ink);
+}
+
+a {
+    color: var(--color-accent);
+}
+
+:is(h1, h2, h3, h4, h5, h6) {
+    letter-spacing: -0.01em;
+}
+
+.sl-markdown-content a:hover {
+    color: var(--color-accent-strong);
+}
+
+.sl-badge {
+    border-radius: var(--radius-md);
+}
+
+.sl-hero {
+    border-radius: var(--radius-lg);
+    background: linear-gradient(
+        135deg,
+        var(--color-surface-soft),
+        transparent 65%
+    );
+}
+
+.sl-markdown-content code {
+    border-radius: 6px;
+}
+
+.sl-markdown-content blockquote {
+    border-left-color: var(--color-accent);
+}

@@ -1,0 +1,26 @@
+---
+title: Join (-j, --join)
+description: Override how selections are joined together.
+---
+
+## Syntax
+
+```sh
+splitby --join "<STRING>" [selection...]
+```
+
+## What it does
+
+By default, splitby tries to preserve the original delimiter between selections in field mode. `--join` replaces that behavior with your custom string.
+
+## Examples
+
+```sh
+echo "a,b,c" | splitby -d "," --join " | " 1 3
+# a | c
+```
+
+## Gotchas
+
+- `--join` affects separators between selections, not within ranges.
+- In whole-string mode, the default separator is a newline. `--join` replaces it.

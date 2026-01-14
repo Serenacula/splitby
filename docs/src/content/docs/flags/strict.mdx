@@ -1,0 +1,28 @@
+---
+title: Strict (--strict, --no-strict)
+description: Toggle all strict behaviors at once.
+---
+
+## Syntax
+
+```sh
+splitby --strict [selection...]
+splitby --no-strict [selection...]
+```
+
+## What it does
+
+`--strict` enables all strict checks:
+
+- `--strict-bounds`
+- `--strict-return`
+- `--strict-range-order`
+- `--strict-utf8`
+
+`--no-strict` disables them all.
+
+## Examples
+
+```sh
+echo "a b" | splitby -d " " --strict 3
+```

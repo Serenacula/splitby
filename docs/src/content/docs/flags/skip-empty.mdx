@@ -1,0 +1,34 @@
+---
+title: Skip empty (-e, -E)
+description: Control whether empty fields count as fields.
+---
+
+## Syntax
+
+```sh
+splitby --skip-empty [selection...]
+splitby --no-skip-empty [selection...]
+```
+
+Short forms:
+
+```sh
+splitby -e [selection...]
+splitby -E [selection...]
+```
+
+## What it does
+
+When enabled, empty fields are ignored during indexing and counting. This is useful when the delimiter can appear multiple times in a row.
+
+## Examples
+
+```sh
+echo "a,,b" | splitby -d "," -e 2
+# b
+```
+
+```sh
+echo "a,,b" | splitby -d "," -E 2
+# (empty)
+```
