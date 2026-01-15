@@ -790,6 +790,8 @@ fn main() {
     }
     drop(result_sender);
 
+    let results_status = get_results(instructions, result_receiver);
+
     // Check if read_input thread encountered an I/O error
     if let Err(error) = reader_handle.join().unwrap() {
         eprintln!("{}", error);
@@ -802,7 +804,7 @@ fn main() {
         std::process::exit(exit_code);
     }
 
-    if let Err(error) = get_results(instructions, result_receiver) {
+    if let Err(error) = results_status {
         eprintln!("{}", error);
         // Exit with code 2 for I/O errors, code 1 for other errors
         let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
