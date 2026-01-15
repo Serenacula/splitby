@@ -474,14 +474,15 @@ fn main() {
         regex_engine: regex_engine,
     });
 
-    let (record_sender, record_receiver) = channel::bounded::<Record>(1024);
+    let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
     let (result_sender, result_receiver) = channel::bounded::<RecordResult>(1024);
 
     fn read_input(
         input_mode: &InputMode,
         input_path: &Option<PathBuf>,
-        record_sender: channel::Sender<Record>,
+        record_sender: channel::Sender<Vec<Record>>,
     ) -> Result<(), String> {
+        const BATCH_BYTE_QUOTA: usize = 256 * 1024;
         let mut reader: Box<dyn BufRead> = match input_path.as_ref() {
             Some(path) => {
                 let file = File::open(path)
@@ -494,6 +495,23 @@ fn main() {
             }
         };
         let mut index: usize = 0;
+        let mut batch: Vec<Record> = Vec::new();
+        let mut batch_bytes: usize = 0;
+
+        let flush_batch = |record_sender: &channel::Sender<Vec<Record>>,
+                           batch: &mut Vec<Record>,
+                           batch_bytes: &mut usize|
+         -> Result<(), String> {
+            if batch.is_empty() {
+                return Ok(());
+            }
+            let pending_batch = std::mem::take(batch);
+            *batch_bytes = 0;
+            record_sender
+                .send(pending_batch)
+                .map_err(|error| format!("{error}"))?;
+            Ok(())
+        };
 
         match input_mode {
             InputMode::PerLine => {
@@ -503,6 +521,7 @@ fn main() {
                         .read_until(b'\n', &mut buffer)
                         .map_err(|error| format!("{error}"))?;
                     if bytes_read == 0 {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
                         return Ok(()); // EOF
                     }
 
@@ -527,12 +546,16 @@ fn main() {
                         }
                     }
 
-                    record_sender
-                        .send(Record {
-                            index: index,
-                            bytes: std::mem::take(&mut buffer),
-                        })
-                        .map_err(|error| format!("{error}"))?;
+                    let record_bytes = std::mem::take(&mut buffer);
+                    batch_bytes = batch_bytes.saturating_add(record_bytes.len());
+                    batch.push(Record {
+                        index: index,
+                        bytes: record_bytes,
+                    });
+
+                    if batch_bytes >= BATCH_BYTE_QUOTA {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
+                    }
 
                     index += 1;
                 }
@@ -544,6 +567,7 @@ fn main() {
                         .read_until(b'\0', &mut buffer)
                         .map_err(|error| format!("error while reading: {error}"))?;
                     if bytes_read == 0 {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
                         return Ok(());
                     }
 
@@ -551,12 +575,16 @@ fn main() {
                         buffer.pop();
                     }
 
-                    record_sender
-                        .send(Record {
-                            index: index,
-                            bytes: std::mem::take(&mut buffer),
-                        })
-                        .map_err(|error| format!("{error}"))?;
+                    let record_bytes = std::mem::take(&mut buffer);
+                    batch_bytes = batch_bytes.saturating_add(record_bytes.len());
+                    batch.push(Record {
+                        index: index,
+                        bytes: record_bytes,
+                    });
+
+                    if batch_bytes >= BATCH_BYTE_QUOTA {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
+                    }
 
                     index += 1;
                 }
@@ -567,12 +595,11 @@ fn main() {
                     .read_to_end(&mut buffer)
                     .map_err(|error| format!("{error}"))?;
 
-                record_sender
-                    .send(Record {
-                        index: index,
-                        bytes: buffer,
-                    })
-                    .map_err(|error| format!("{error}"))?;
+                batch.push(Record {
+                    index: index,
+                    bytes: buffer,
+                });
+                flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
 
                 Ok(())
             }
@@ -581,52 +608,54 @@ fn main() {
 
     fn process_records(
         instructions: Arc<Instructions>,
-        record_receiver: channel::Receiver<Record>,
+        record_receiver: channel::Receiver<Vec<Record>>,
         result_sender: channel::Sender<RecordResult>,
     ) -> Result<(), String> {
         loop {
-            // Get the record
-            let record = match record_receiver.recv() {
-                Ok(record) => record,
+            // Get the batch
+            let record_batch = match record_receiver.recv() {
+                Ok(record_batch) => record_batch,
                 Err(_) => return Ok(()),
             };
 
-            let record_index = record.index;
+            for record in record_batch {
+                let record_index = record.index;
 
-            let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
-                SelectionMode::Bytes => process_bytes(&instructions, record),
-                SelectionMode::Chars => process_chars(&instructions, record),
-                SelectionMode::Fields => {
-                    let engine = instructions
-                        .regex_engine
-                        .as_ref()
-                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
-                    process_fields(&instructions, engine, record)
-                }
-            };
+                let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
+                    SelectionMode::Bytes => process_bytes(&instructions, record),
+                    SelectionMode::Chars => process_chars(&instructions, record),
+                    SelectionMode::Fields => {
+                        let engine = instructions
+                            .regex_engine
+                            .as_ref()
+                            .ok_or_else(|| "internal error: missing regex engine".to_string())?;
+                        process_fields(&instructions, engine, record)
+                    }
+                };
 
-            match processed_result {
-                Ok(bytes) => {
-                    if instructions.strict_return && bytes.is_empty() {
+                match processed_result {
+                    Ok(bytes) => {
+                        if instructions.strict_return && bytes.is_empty() {
+                            let _ = result_sender.send(RecordResult::Err {
+                                index: record_index,
+                                error: "strict return error: empty field".to_string(),
+                            });
+                            return Ok(());
+                        }
+                        result_sender
+                            .send(RecordResult::Ok {
+                                index: record_index,
+                                bytes,
+                            })
+                            .map_err(|error| error.to_string())?;
+                    }
+                    Err(error) => {
                         let _ = result_sender.send(RecordResult::Err {
                             index: record_index,
-                            error: "strict return error: empty field".to_string(),
+                            error,
                         });
                         return Ok(());
                     }
-                    result_sender
-                        .send(RecordResult::Ok {
-                            index: record_index,
-                            bytes,
-                        })
-                        .map_err(|error| error.to_string())?;
-                }
-                Err(error) => {
-                    let _ = result_sender.send(RecordResult::Err {
-                        index: record_index,
-                        error,
-                    });
-                    return Ok(());
                 }
             }
         }
