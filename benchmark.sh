@@ -9,7 +9,7 @@
 #   ./benchmark.sh both 10000 20 3         # New API: test both versions
 #   ./benchmark.sh both 10000 20 3 true    # New API: single-core mode (fair comparison with cut)
 #
-# Defaults: VERSION=rust, LINES=10000, FIELDS=20, ITERATIONS=3, SINGLE_CORE=false
+# Defaults: VERSION=rust, LINE_COUNT=10000, FIELD_COUNT=20, ITERATIONS=3, SINGLE_CORE=false
 
 set -euo pipefail
 
@@ -17,15 +17,15 @@ set -euo pipefail
 if [[ "${1:-}" =~ ^[0-9]+$ ]] || [[ -z "${1:-}" ]]; then
     # Old API: first arg is LINES (or empty), default to rust
     VERSION="rust"
-    LINES=${1:-10000}
-    FIELDS=${2:-20}
+    LINE_COUNT=${1:-10000}
+    FIELD_COUNT=${2:-20}
     ITER=${3:-3}
     SINGLE_CORE=${4:-false}
 else
     # New API: first arg is version
     VERSION="$1"
-    LINES=${2:-10000}
-    FIELDS=${3:-20}
+    LINE_COUNT=${2:-10000}
+    FIELD_COUNT=${3:-20}
     ITER=${4:-3}
     SINGLE_CORE=${5:-false}
 fi
@@ -101,16 +101,16 @@ fi
 printf "Using timer: %s\n\n" "$TIME_CMD"
 
 # ---------------------------------------------------------------------
-printf "Generating %'d lines × %d fields … " "$LINES" "$FIELDS"
+printf "Generating %'d lines × %d fields … " "$LINE_COUNT" "$FIELD_COUNT"
 TMP_DATA=$(mktemp)
 trap 'rm -f "$TMP_DATA"' EXIT
 
-awk -v lines="$LINES" -v fields="$FIELDS" '
+awk -v line_count="$LINE_COUNT" -v field_count="$FIELD_COUNT" '
 BEGIN {
   srand(42);
-  for (i=1; i<=lines; i++) {
-    for (f=1; f<=fields; f++) {
-      printf "%d%s", rand()*1000, (f==fields ? ORS : ",");
+  for (i=1; i<=line_count; i++) {
+    for (field_index=1; field_index<=field_count; field_index++) {
+      printf "%d%s", rand()*1000, (field_index==field_count ? ORS : ",");
     }
   }
 }' > "$TMP_DATA"
