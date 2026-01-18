@@ -705,9 +705,24 @@ fn main() {
             }
         };
 
+        const OUTPUT_FLUSH_THRESHOLD: usize = 64 * 1024;
         let mut next_index: usize = 0;
         let mut pending: BTreeMap<usize, Vec<u8>> = BTreeMap::new();
         let mut max_index_seen: Option<usize> = None;
+        let mut output_buffer: Vec<u8> = Vec::with_capacity(OUTPUT_FLUSH_THRESHOLD * 2);
+
+        let flush_output = |writer: &mut Box<dyn Write>,
+                            output_buffer: &mut Vec<u8>|
+         -> Result<(), String> {
+            if output_buffer.is_empty() {
+                return Ok(());
+            }
+            writer
+                .write_all(output_buffer)
+                .map_err(|error| error.to_string())?;
+            output_buffer.clear();
+            Ok(())
+        };
 
         while let Ok(result) = result_receiver.recv() {
             match result {
@@ -740,14 +755,14 @@ fn main() {
                     }
 
                     if let Some(bytes) = pending.remove(&next_index) {
-                        writer
-                            .write_all(&bytes)
-                            .map_err(|error| error.to_string())?;
+                        output_buffer.extend_from_slice(&bytes);
 
                         if let Some(terminator_byte) = record_terminator {
-                            writer
-                                .write_all(&[terminator_byte])
-                                .map_err(|error| error.to_string())?;
+                            output_buffer.push(terminator_byte);
+                        }
+
+                        if output_buffer.len() >= OUTPUT_FLUSH_THRESHOLD {
+                            flush_output(&mut writer, &mut output_buffer)?;
                         }
 
                         next_index += 1;
@@ -761,18 +776,14 @@ fn main() {
         // Channel closed: flush remaining results
         // The last result (if trim_newline is set) won't get a terminator
         while let Some(bytes) = pending.remove(&next_index) {
-            writer
-                .write_all(&bytes)
-                .map_err(|error| error.to_string())?;
+            output_buffer.extend_from_slice(&bytes);
 
             // Only add terminator if this is not the last result or trim_newline is false
             let is_last_result = instructions.trim_newline && max_index_seen == Some(next_index);
 
             if let Some(terminator_byte) = record_terminator {
                 if !is_last_result {
-                    writer
-                        .write_all(&[terminator_byte])
-                        .map_err(|error| error.to_string())?;
+                    output_buffer.push(terminator_byte);
                 }
             }
 
@@ -804,6 +815,7 @@ fn main() {
             }
         }
 
+        flush_output(&mut writer, &mut output_buffer)?;
         writer.flush().map_err(|error| error.to_string())?;
         Ok(())
     }
