@@ -131,7 +131,19 @@ struct Options {
 }
 
 fn main() {
+    use std::time::Instant;
+
+    let profile_enabled = std::env::var("SPLITBY_PROFILE").is_ok();
+    let profile_start_time = Instant::now();
+    let profile_log = |label: &str| {
+        if profile_enabled {
+            eprintln!("profile:{label}: {:?}", profile_start_time.elapsed());
+        }
+    };
+
     let options = Options::parse();
+
+    profile_log("parsed_options");
 
     // Sorting out our last-flag-wins, since clap doesn't do this automatically
     let mut input_mode: InputMode = InputMode::PerLine;
@@ -186,6 +198,7 @@ fn main() {
     }
 
     // SELECTIONS
+    profile_log("selection_start");
 
     // First, work out the mode we're in
     let uses_fields = field_mode || !options.field_list.is_empty();
@@ -279,6 +292,7 @@ fn main() {
             parse_selection(string).is_ok()
         }
     }
+    profile_log("selection_regex_start");
 
     // Helper: check if string is a valid regex
     fn is_valid_regex(pattern: &str) -> bool {
@@ -298,6 +312,8 @@ fn main() {
             selection_strings.remove(0);
         }
     }
+
+    profile_log("selection_regex_end");
 
     // Check if delimiter is required (after auto-detection)
     if selection_mode == SelectionMode::Fields
@@ -397,6 +413,8 @@ fn main() {
         }
     }
 
+    profile_log("regex_compile_start");
+
     // We don't want to compile this inside the workers, so it gets done here
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
@@ -431,6 +449,8 @@ fn main() {
             }
         }
     };
+
+    profile_log("regex_compile_end");
 
     // Parse placeholder value (hex for byte mode, string for text modes)
     // Take the last value if multiple are provided (last flag wins)
@@ -788,14 +808,26 @@ fn main() {
         Ok(())
     }
 
+    profile_log("worker_threads_start");
+
     let reader_instructions = Arc::clone(&instructions);
     let reader_sender = record_sender.clone();
+    let reader_profile_enabled = profile_enabled;
     let reader_handle = std::thread::spawn(move || {
-        read_input(
+        let read_start_time = if reader_profile_enabled {
+            Some(Instant::now())
+        } else {
+            None
+        };
+        let read_result = read_input(
             &reader_instructions.input_mode,
             &reader_instructions.input,
             reader_sender,
-        )
+        );
+        if let Some(start_time) = read_start_time {
+            eprintln!("profile:read_input: {:?}", start_time.elapsed());
+        }
+        read_result
     });
     drop(record_sender);
 
@@ -808,18 +840,39 @@ fn main() {
             .unwrap_or(1)
     };
 
-    for _ in 0..max(worker_count - 1, 1) {
+    for worker_index in 0..max(worker_count - 1, 1) {
         let worker_instructions = Arc::clone(&instructions);
         let worker_receiver = record_receiver.clone();
         let worker_sender = result_sender.clone();
+        let worker_profile_enabled = profile_enabled;
         std::thread::spawn(move || {
-            let _ = process_records(worker_instructions, worker_receiver, worker_sender)
-                .map_err(|error| eprintln!("{error}"));
+            let worker_start_time = if worker_profile_enabled {
+                Some(Instant::now())
+            } else {
+                None
+            };
+            let worker_result =
+                process_records(worker_instructions, worker_receiver, worker_sender)
+                    .map_err(|error| eprintln!("{error}"));
+            if let Some(start_time) = worker_start_time {
+                eprintln!("profile:worker_{worker_index}: {:?}", start_time.elapsed());
+            }
+            let _ = worker_result;
         });
     }
     drop(result_sender);
 
+    profile_log("worker_threads_spawned");
+
+    let results_start_time = if profile_enabled {
+        Some(Instant::now())
+    } else {
+        None
+    };
     let results_status = get_results(instructions, result_receiver);
+    if let Some(start_time) = results_start_time {
+        eprintln!("profile:get_results: {:?}", start_time.elapsed());
+    }
 
     // Check if read_input thread encountered an I/O error
     if let Err(error) = reader_handle.join().unwrap() {
