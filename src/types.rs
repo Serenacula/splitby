@@ -22,35 +22,25 @@ pub enum RegexEngine {
 }
 
 pub struct Instructions {
-    // Input
     pub input_mode: InputMode,
     pub input: Option<PathBuf>,
-    // Processing
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
     pub skip_empty: bool,
     pub placeholder: Option<Vec<u8>>,
-    // Failure Modes
     pub strict_return: bool,
     pub strict_bounds: bool,
     pub strict_range_order: bool,
     pub strict_utf8: bool,
-    // Output
     pub output: Option<PathBuf>,
     pub count: bool,
     pub join: Option<String>,
     pub trim_newline: bool,
-    // Method
     pub regex_engine: Option<RegexEngine>,
 }
 
 pub struct Record {
     pub index: usize,
     pub bytes: Vec<u8>,
-}
-
-pub enum RecordResult {
-    Ok { index: usize, bytes: Vec<u8> },
-    Err { index: usize, error: String },
 }

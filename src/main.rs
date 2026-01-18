@@ -23,8 +23,6 @@ mod workers {
     pub mod worker_utilities;
 }
 
-// CLI Parser: Uses clap to handle the basic setup
-
 #[derive(Parser)]
 #[command(
     name = "splitby",
@@ -36,7 +34,6 @@ struct Options {
     #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
     delimiter: Option<String>,
 
-    // Input mode
     #[arg(long = "per-line")]
     per_line: bool,
 
@@ -205,10 +202,8 @@ fn main() {
         }
     }
 
-    // SELECTIONS
     profile_log("selection_start");
 
-    // First, work out the mode we're in
     let uses_fields = field_mode || !options.field_list.is_empty();
     let uses_bytes = byte_mode || !options.byte_list.is_empty();
     let uses_chars = char_mode || !options.char_list.is_empty();
@@ -225,7 +220,6 @@ fn main() {
         SelectionMode::Fields
     };
 
-    // Merge all raw selection sources and parse
     let mut selection_strings: Vec<String> = Vec::new();
     match selection_mode {
         SelectionMode::Fields => selection_strings.extend(options.field_list.iter().cloned()),
@@ -233,8 +227,6 @@ fn main() {
         SelectionMode::Chars => selection_strings.extend(options.char_list.iter().cloned()),
     }
     selection_strings.extend(options.selection_list.iter().cloned());
-
-    // PARSING SELECTIONS - defined early so we can reuse it for auto-detection
 
     fn parse_selection(string_raw: &str) -> Result<(i32, i32), String> {
         fn parse_number(string: &str) -> Result<i32, String> {
@@ -250,13 +242,10 @@ fn main() {
 
         let string = string_raw.trim();
 
-        // First try to parse the whole selection
         if let Ok(value) = parse_number(string) {
             return Ok((value, value));
         }
 
-        // Okay, this is either a range or something invalid, so we need to find the two parts to it
-        // Gonna tear this out an just use regex later, but it's good enough for now
         let split_index: usize;
         if string.starts_with('-') {
             let split_index_search = string.strip_prefix('-').unwrap().find('-');
@@ -285,13 +274,11 @@ fn main() {
         Ok((start.unwrap(), end.unwrap()))
     }
 
-    // Helper: check if string can be parsed as selection(s), including comma-separated
     fn can_parse_as_selection(string: &str) -> bool {
         if string == "," {
             return false; // Just a comma is a delimiter, not a selection
         }
         if string.contains(',') {
-            // Check if any comma-separated part is a valid selection
             string.split(',').any(|part| {
                 let trimmed = part.trim();
                 !trimmed.is_empty() && parse_selection(trimmed).is_ok()
@@ -302,13 +289,10 @@ fn main() {
     }
     profile_log("selection_regex_start");
 
-    // Helper: check if string is a valid regex
     fn is_valid_regex(pattern: &str) -> bool {
         SimpleRegex::new(pattern).is_ok() || FancyRegex::new(pattern).is_ok()
     }
 
-    // Automatic delimiter detection (only if -d flag not set and in fields mode)
-    // Priority: selections take precedence. If not a selection and valid regex, use as delimiter
     let mut detected_delimiter: Option<String> = None;
     if selection_mode == SelectionMode::Fields
         && options.delimiter.is_none()
@@ -323,7 +307,6 @@ fn main() {
 
     profile_log("selection_regex_end");
 
-    // Check if delimiter is required (after auto-detection)
     if selection_mode == SelectionMode::Fields
         && options.delimiter.is_none()
         && detected_delimiter.is_none()
@@ -341,24 +324,16 @@ fn main() {
         let is_first = index == 0;
         let trimmed = string_raw.trim();
 
-        // For all selections after first -> selections (always parse)
-        // For first selection, check ambiguity only if delimiter wasn't set
         let should_check_ambiguity = is_first && !delimiter_was_set;
 
-        // Check if this string contains commas
         if trimmed.contains(',') {
-            // Split by commas and check each part
             let parts: Vec<&str> = trimmed.split(',').collect();
 
-            // For the first selection string, check if it's ambiguous
             if should_check_ambiguity {
-                // If the whole string is just a comma, it's a delimiter
                 if trimmed == "," {
-                    continue; // Skip this string, it's a delimiter
+                    continue;
                 }
 
-                // Check if any part contains letters (not numeric)
-                // If so, the whole string is a delimiter
                 let has_letter = parts.iter().any(|part| {
                     let trimmed_part = part.trim();
                     !trimmed_part.is_empty()
@@ -368,15 +343,14 @@ fn main() {
                 });
 
                 if has_letter {
-                    continue; // Skip this string, it's a delimiter
+                    continue;
                 }
             }
 
-            // Parse each comma-separated part as a selection
             for part in parts {
                 let trimmed_part = part.trim();
                 if trimmed_part.is_empty() {
-                    continue; // Skip empty parts (e.g., ",1" or "1,")
+                    continue;
                 }
 
                 let (start, end) = match parse_selection(trimmed_part) {
@@ -390,28 +364,22 @@ fn main() {
                 selections.push((start, end));
             }
         } else {
-            // No commas, parse as single selection
-            // For first selection, check ambiguity
             if should_check_ambiguity {
-                // If it's just a comma, it's a delimiter
                 if trimmed == "," {
-                    continue; // Skip this string, it's a delimiter
+                    continue;
                 }
 
-                // If it contains letters (not numeric), it's a delimiter
                 if trimmed
                     .chars()
                     .any(|char| char.is_alphabetic() && char != '-')
                 {
-                    continue; // Skip this string, it's a delimiter
+                    continue;
                 }
             }
 
             let (start, end) = match parse_selection(trimmed) {
                 Ok(range) => range,
                 Err(_) => {
-                    // For first selection, if parsing fails and delimiter wasn't set,
-                    // it might be a delimiter (but we already checked for letters above)
                     eprintln!("invalid selection: '{trimmed}'");
                     std::process::exit(2);
                 }
@@ -423,11 +391,9 @@ fn main() {
 
     profile_log("regex_compile_start");
 
-    // We don't want to compile this inside the workers, so it gets done here
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            // Use -d flag if set, otherwise use detected delimiter
             let delimiter: String = options
                 .delimiter
                 .clone()
@@ -442,7 +408,6 @@ fn main() {
                 std::process::exit(2)
             }
 
-            // Compile regex - try simple first, fall back to fancy if needed
             let simple_regex = SimpleRegex::new(&delimiter);
 
             match simple_regex {
@@ -460,13 +425,9 @@ fn main() {
 
     profile_log("regex_compile_end");
 
-    // Parse placeholder value (hex for byte mode, string for text modes)
-    // Take the last value if multiple are provided (last flag wins)
     let placeholder_value: Option<Vec<u8>> =
         if let Some(placeholder_str) = options.placeholder.last() {
-            // Check if it's a hex value (starts with 0x)
             if placeholder_str.starts_with("0x") || placeholder_str.starts_with("0X") {
-                // Parse hex value (single byte for byte mode)
                 let hex_str = &placeholder_str[2..];
                 match u8::from_str_radix(hex_str, 16) {
                     Ok(byte_value) => Some(vec![byte_value]),
@@ -476,7 +437,6 @@ fn main() {
                     }
                 }
             } else {
-                // String value (for text modes)
                 Some(placeholder_str.as_bytes().to_vec())
             }
         } else {
@@ -568,20 +528,14 @@ fn main() {
                         return Ok(()); // EOF
                     }
 
-                    // Check if this is just a trailing newline before removing it
-                    // (bytes_read == 1 means we only read the newline character)
                     if bytes_read == 1 && buffer == [b'\n'] {
-                        // Peek ahead without consuming to check if we're at EOF
                         let peek = reader.fill_buf().map_err(|error| format!("{error}"))?;
                         if peek.is_empty() {
-                            // Trailing newline at EOF - skip it
                             buffer.clear();
                             continue;
                         }
-                        // Empty line in the middle - process it normally below
                     }
 
-                    // Remove newline (and carriage return if present)
                     if buffer.last() == Some(&b'\n') {
                         buffer.pop();
                         if buffer.last() == Some(&b'\r') {
@@ -717,14 +671,12 @@ fn main() {
         instructions: Arc<Instructions>,
         result_receiver: channel::Receiver<ResultChunk>,
     ) -> Result<(), String> {
-        // Decide record terminator (what separates records in output)
         let record_terminator: Option<u8> = match instructions.input_mode {
             InputMode::PerLine => Some(b'\n'),
             InputMode::ZeroTerminated => Some(b'\0'),
             InputMode::WholeString => None,
         };
 
-        // Output target (file or stdout)
         let mut writer: Box<dyn Write> = match &instructions.output {
             Some(path) => {
                 let file = File::create(path)
@@ -783,7 +735,6 @@ fn main() {
                 }
             }
 
-            // Flush anything now in order (but buffer the last one if trim_newline is set)
             while let Some(&pending_index) = pending.keys().next() {
                 if pending_index == next_index {
                     if let Some(outputs) = pending.remove(&next_index) {
@@ -819,13 +770,10 @@ fn main() {
             }
         }
 
-        // Channel closed: flush remaining results
-        // The last result (if trim_newline is set) won't get a terminator
         while let Some(outputs) = pending.remove(&next_index) {
             for bytes in outputs {
                 output_buffer.extend_from_slice(&bytes);
 
-                // Only add terminator if this is not the last result or trim_newline is false
                 let is_last_result =
                     instructions.trim_newline && max_index_seen == Some(next_index);
 
@@ -839,8 +787,6 @@ fn main() {
             }
         }
 
-        // Channel closed: all senders dropped.
-        // If anything remains pending, indices were skipped (worker died early, etc.)
         if !pending.is_empty() {
             let first_missing = next_index;
             return Err(format!(
@@ -892,9 +838,8 @@ fn main() {
     });
     drop(record_sender);
 
-    // Check for single-core mode via environment variable (useful for macOS testing)
     let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
-        1 // Single-core mode: only 1 worker thread
+        1
     } else {
         std::thread::available_parallelism()
             .map(|count| count.get())
