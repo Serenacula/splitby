@@ -495,7 +495,18 @@ fn main() {
     });
 
     let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
-    let (result_sender, result_receiver) = channel::bounded::<RecordResult>(1024);
+    let (result_sender, result_receiver) = channel::bounded::<ResultChunk>(1024);
+
+    enum ResultChunk {
+        Ok {
+            start_index: usize,
+            outputs: Vec<Vec<u8>>,
+        },
+        Err {
+            index: usize,
+            error: String,
+        },
+    }
 
     fn read_input(
         input_mode: &InputMode,
@@ -629,7 +640,7 @@ fn main() {
     fn process_records(
         instructions: Arc<Instructions>,
         record_receiver: channel::Receiver<Vec<Record>>,
-        result_sender: channel::Sender<RecordResult>,
+        result_sender: channel::Sender<ResultChunk>,
     ) -> Result<(), String> {
         loop {
             // Get the batch
@@ -637,6 +648,13 @@ fn main() {
                 Ok(record_batch) => record_batch,
                 Err(_) => return Ok(()),
             };
+
+            if record_batch.is_empty() {
+                continue;
+            }
+
+            let batch_start_index = record_batch[0].index;
+            let mut batch_outputs: Vec<Vec<u8>> = Vec::with_capacity(record_batch.len());
 
             for record in record_batch {
                 let record_index = record.index;
@@ -656,21 +674,16 @@ fn main() {
                 match processed_result {
                     Ok(bytes) => {
                         if instructions.strict_return && bytes.is_empty() {
-                            let _ = result_sender.send(RecordResult::Err {
+                            let _ = result_sender.send(ResultChunk::Err {
                                 index: record_index,
                                 error: "strict return error: empty field".to_string(),
                             });
                             return Ok(());
                         }
-                        result_sender
-                            .send(RecordResult::Ok {
-                                index: record_index,
-                                bytes,
-                            })
-                            .map_err(|error| error.to_string())?;
+                        batch_outputs.push(bytes);
                     }
                     Err(error) => {
-                        let _ = result_sender.send(RecordResult::Err {
+                        let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
                             error,
                         });
@@ -678,12 +691,19 @@ fn main() {
                     }
                 }
             }
+
+            result_sender
+                .send(ResultChunk::Ok {
+                    start_index: batch_start_index,
+                    outputs: batch_outputs,
+                })
+                .map_err(|error| error.to_string())?;
         }
     }
 
     fn get_results(
         instructions: Arc<Instructions>,
-        result_receiver: channel::Receiver<RecordResult>,
+        result_receiver: channel::Receiver<ResultChunk>,
     ) -> Result<(), String> {
         // Decide record terminator (what separates records in output)
         let record_terminator: Option<u8> = match instructions.input_mode {
@@ -705,28 +725,31 @@ fn main() {
             }
         };
 
-        const OUTPUT_FLUSH_THRESHOLD: usize = 64 * 1024;
+        let output_flush_threshold = std::env::var("SPLITBY_OUTPUT_FLUSH")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(64 * 1024);
         let mut next_index: usize = 0;
-        let mut pending: BTreeMap<usize, Vec<u8>> = BTreeMap::new();
+        let mut pending: BTreeMap<usize, Vec<Vec<u8>>> = BTreeMap::new();
         let mut max_index_seen: Option<usize> = None;
-        let mut output_buffer: Vec<u8> = Vec::with_capacity(OUTPUT_FLUSH_THRESHOLD * 2);
+        let mut output_buffer: Vec<u8> = Vec::with_capacity(output_flush_threshold * 2);
 
-        let flush_output = |writer: &mut Box<dyn Write>,
-                            output_buffer: &mut Vec<u8>|
-         -> Result<(), String> {
-            if output_buffer.is_empty() {
-                return Ok(());
-            }
-            writer
-                .write_all(output_buffer)
-                .map_err(|error| error.to_string())?;
-            output_buffer.clear();
-            Ok(())
-        };
+        let flush_output =
+            |writer: &mut Box<dyn Write>, output_buffer: &mut Vec<u8>| -> Result<(), String> {
+                if output_buffer.is_empty() {
+                    return Ok(());
+                }
+                writer
+                    .write_all(output_buffer)
+                    .map_err(|error| error.to_string())?;
+                output_buffer.clear();
+                Ok(())
+            };
 
         while let Ok(result) = result_receiver.recv() {
             match result {
-                RecordResult::Err { index, error } => {
+                ResultChunk::Err { index, error } => {
                     let index = index + 1;
                     match instructions.input_mode {
                         InputMode::WholeString => return Err(error),
@@ -736,36 +759,47 @@ fn main() {
                         }
                     }
                 }
-                RecordResult::Ok { index, bytes } => {
-                    pending.insert(index, bytes);
-                    max_index_seen = Some(max_index_seen.map_or(index, |max| max.max(index)));
+                ResultChunk::Ok {
+                    start_index,
+                    outputs,
+                } => {
+                    let batch_end_index = start_index + outputs.len().saturating_sub(1);
+                    pending.insert(start_index, outputs);
+                    max_index_seen = Some(
+                        max_index_seen.map_or(batch_end_index, |max| max.max(batch_end_index)),
+                    );
                 }
             }
 
             // Flush anything now in order (but buffer the last one if trim_newline is set)
             while let Some(&pending_index) = pending.keys().next() {
                 if pending_index == next_index {
-                    let is_last_result =
-                        instructions.trim_newline && max_index_seen == Some(pending_index);
+                    if let Some(outputs) = pending.remove(&next_index) {
+                        let base_index = next_index;
+                        let mut offset = 0usize;
+                        while offset < outputs.len() {
+                            let record_index = base_index + offset;
+                            let is_last_result =
+                                instructions.trim_newline && max_index_seen == Some(record_index);
 
-                    // If this is the last result and trim_newline is set, don't print it yet
-                    // We'll print it after the channel closes
-                    if is_last_result {
-                        break;
-                    }
+                            if is_last_result {
+                                let remaining = outputs[offset..].to_vec();
+                                pending.insert(record_index, remaining);
+                                break;
+                            }
 
-                    if let Some(bytes) = pending.remove(&next_index) {
-                        output_buffer.extend_from_slice(&bytes);
+                            output_buffer.extend_from_slice(&outputs[offset]);
+                            if let Some(terminator_byte) = record_terminator {
+                                output_buffer.push(terminator_byte);
+                            }
 
-                        if let Some(terminator_byte) = record_terminator {
-                            output_buffer.push(terminator_byte);
+                            if output_buffer.len() >= output_flush_threshold {
+                                flush_output(&mut writer, &mut output_buffer)?;
+                            }
+
+                            next_index = record_index + 1;
+                            offset += 1;
                         }
-
-                        if output_buffer.len() >= OUTPUT_FLUSH_THRESHOLD {
-                            flush_output(&mut writer, &mut output_buffer)?;
-                        }
-
-                        next_index += 1;
                     }
                 } else {
                     break;
@@ -775,19 +809,22 @@ fn main() {
 
         // Channel closed: flush remaining results
         // The last result (if trim_newline is set) won't get a terminator
-        while let Some(bytes) = pending.remove(&next_index) {
-            output_buffer.extend_from_slice(&bytes);
+        while let Some(outputs) = pending.remove(&next_index) {
+            for bytes in outputs {
+                output_buffer.extend_from_slice(&bytes);
 
-            // Only add terminator if this is not the last result or trim_newline is false
-            let is_last_result = instructions.trim_newline && max_index_seen == Some(next_index);
+                // Only add terminator if this is not the last result or trim_newline is false
+                let is_last_result =
+                    instructions.trim_newline && max_index_seen == Some(next_index);
 
-            if let Some(terminator_byte) = record_terminator {
-                if !is_last_result {
-                    output_buffer.push(terminator_byte);
+                if let Some(terminator_byte) = record_terminator {
+                    if !is_last_result {
+                        output_buffer.push(terminator_byte);
+                    }
                 }
-            }
 
-            next_index += 1;
+                next_index += 1;
+            }
         }
 
         // Channel closed: all senders dropped.
