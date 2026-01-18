@@ -2,81 +2,39 @@
 # bench_splitby_vs_cut.sh  — portable cut vs splitby micro-benchmark
 #
 # Usage:
-#   ./benchmark.sh [VERSION] [LINES] [FIELDS] [ITERATIONS] [SINGLE_CORE]
-#   ./benchmark.sh 10000 20 3              # Old API: tests rust version (default)
-#   ./benchmark.sh rust 10000 20 3         # New API: test rust version
-#   ./benchmark.sh bash 10000 20 3         # New API: test bash version
-#   ./benchmark.sh both 10000 20 3         # New API: test both versions
-#   ./benchmark.sh both 10000 20 3 true    # New API: single-core mode (fair comparison with cut)
+#   ./benchmark.sh [LINES] [FIELDS] [ITERATIONS] [SINGLE_CORE]
+#   ./benchmark.sh 10000 20 3
+#   ./benchmark.sh 10000 20 3 true         # single-core mode (fair comparison with cut)
 #
-# Defaults: VERSION=rust, LINE_COUNT=10000, FIELD_COUNT=20, ITERATIONS=3, SINGLE_CORE=false
+# Defaults: LINE_COUNT=10000, FIELD_COUNT=20, ITERATIONS=3, SINGLE_CORE=false
 
 set -euo pipefail
 
-# Determine if first argument is a version string or a number (for backward compatibility)
-if [[ "${1:-}" =~ ^[0-9]+$ ]] || [[ -z "${1:-}" ]]; then
-    # Old API: first arg is LINES (or empty), default to rust
-    VERSION="rust"
-    LINE_COUNT=${1:-10000}
-    FIELD_COUNT=${2:-20}
-    ITER=${3:-3}
-    SINGLE_CORE=${4:-false}
-else
-    # New API: first arg is version
-    VERSION="$1"
-    LINE_COUNT=${2:-10000}
-    FIELD_COUNT=${3:-20}
-    ITER=${4:-3}
-    SINGLE_CORE=${5:-false}
-fi
+LINE_COUNT=${1:-10000}
+FIELD_COUNT=${2:-20}
+ITER=${3:-3}
+SINGLE_CORE=${4:-false}
 
 # Enable single-core mode via environment variable (Rust binary will respect it)
 if [[ "$SINGLE_CORE" == "true" ]]; then
     echo "Single-core mode enabled (using SPLITBY_SINGLE_CORE=1)"
-    echo "Note: Only Rust version will run in single-core mode."
 fi
 
-# Build Rust version if needed
-if [[ "$VERSION" == "rust" ]] || [[ "$VERSION" == "both" ]]; then
-    echo "Building Rust release version..."
-    echo "----------------------------------------"
-    cargo build --release
-    if [[ $? -ne 0 ]]; then
-        echo "Error: Failed to build Rust binary"
-        exit 1
-    fi
-    echo "Build complete."
-    echo
+# Build Rust version
+echo "Building Rust release version..."
+echo "----------------------------------------"
+cargo build --release
+if [[ $? -ne 0 ]]; then
+    echo "Error: Failed to build Rust binary"
+    exit 1
 fi
+echo "Build complete."
+echo
 
-# Determine which splitby command to use
-if [[ "$VERSION" == "rust" ]]; then
-    SPLITBY_CMD="./target/release/splitby"
-    if [[ ! -f "$SPLITBY_CMD" ]]; then
-        echo "Error: Rust binary not found at $SPLITBY_CMD"
-        echo "Please build it first with: cargo build --release"
-        exit 1
-    fi
-elif [[ "$VERSION" == "bash" ]]; then
-    SPLITBY_CMD="./splitby.sh"
-    if [[ ! -f "$SPLITBY_CMD" ]]; then
-        echo "Error: Bash script not found at $SPLITBY_CMD"
-        exit 1
-    fi
-elif [[ "$VERSION" == "both" ]]; then
-    # Will test both versions
-    RUST_CMD="./target/release/splitby"
-    BASH_CMD="./splitby.sh"
-    if [[ ! -f "$RUST_CMD" ]]; then
-        echo "Warning: Rust binary not found at $RUST_CMD, skipping Rust benchmarks"
-        RUST_CMD=""
-    fi
-    if [[ ! -f "$BASH_CMD" ]]; then
-        echo "Warning: Bash script not found at $BASH_CMD, skipping bash benchmarks"
-        BASH_CMD=""
-    fi
-else
-    echo "Error: Invalid version '$VERSION'. Use 'rust', 'bash', or 'both'"
+SPLITBY_CMD="./target/release/splitby"
+if [[ ! -f "$SPLITBY_CMD" ]]; then
+    echo "Error: Rust binary not found at $SPLITBY_CMD"
+    echo "Please build it first with: cargo build --release"
     exit 1
 fi
 
@@ -152,27 +110,10 @@ bench() {
 bench "cut       (3,5,7)" \
       cut -d',' -f3,5,7 "$TMP_DATA"
 
-# Benchmark splitby based on selected version
-if [[ "$VERSION" == "both" ]]; then
-    if [[ -n "$RUST_CMD" ]]; then
-        if [[ "$SINGLE_CORE" == "true" ]]; then
-            bench "splitby-rust (3 5 7) [single-core]" \
-                  env SPLITBY_SINGLE_CORE=1 "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
-        else
-            bench "splitby-rust (3 5 7)" \
-                  "$RUST_CMD" -i "$TMP_DATA" -d ',' 3 5 7
-        fi
-    fi
-    if [[ -n "$BASH_CMD" ]]; then
-        bench "splitby-bash (3 5 7)" \
-              "$BASH_CMD" -i "$TMP_DATA" -d ',' 3 5 7
-    fi
+if [[ "$SINGLE_CORE" == "true" ]]; then
+    bench "splitby   (3 5 7) [single-core]" \
+          env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
 else
-    if [[ "$SINGLE_CORE" == "true" ]]; then
-        bench "splitby   (3 5 7) [single-core]" \
-              env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
-    else
-        bench "splitby   (3 5 7)" \
-              "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
-    fi
+    bench "splitby   (3 5 7)" \
+          "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
 fi
