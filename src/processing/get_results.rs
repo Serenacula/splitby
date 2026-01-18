@@ -89,17 +89,8 @@ pub fn get_results(
                 if let Some(outputs) = pending.remove(&next_index) {
                     let base_index = next_index;
                     let mut offset = 0usize;
+
                     while offset < outputs.len() {
-                        let record_index = base_index + offset;
-                        let is_last_result =
-                            instructions.trim_newline && max_index_seen == Some(record_index);
-
-                        if is_last_result {
-                            let remaining = outputs[offset..].to_vec();
-                            pending.insert(record_index, remaining);
-                            break;
-                        }
-
                         output_buffer.extend_from_slice(&outputs[offset]);
                         if let Some(terminator_byte) = record_terminator {
                             output_buffer.push(terminator_byte);
@@ -109,7 +100,7 @@ pub fn get_results(
                             flush_output(&mut writer, &mut output_buffer)?;
                         }
 
-                        next_index = record_index + 1;
+                        next_index = base_index + offset + 1;
                         offset += 1;
                     }
                 }

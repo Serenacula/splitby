@@ -1,8 +1,8 @@
 mod types;
-use crate::types::*;
 use crate::processing::get_results::get_results;
 use crate::processing::process_records::process_records;
 use crate::processing::read_input::read_input;
+use crate::types::*;
 use clap::Parser;
 use crossbeam::channel;
 use fancy_regex::Regex as FancyRegex;
@@ -455,7 +455,8 @@ fn main() {
     });
 
     let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
-    let (result_sender, result_receiver) = channel::bounded::<processing::get_results::ResultChunk>(1024);
+    let (result_sender, result_receiver) =
+        channel::bounded::<processing::get_results::ResultChunk>(1024);
 
     profile_log("worker_threads_start");
 
