@@ -1,7 +1,8 @@
 mod types;
-mod worker;
 use crate::types::*;
-use crate::worker::*;
+use crate::workers::process_bytes::process_bytes;
+use crate::workers::process_chars::process_chars;
+use crate::workers::process_fields::process_fields;
 use clap::Parser;
 use crossbeam::channel;
 use fancy_regex::Regex as FancyRegex;
@@ -14,6 +15,13 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+
+mod workers {
+    pub mod process_bytes;
+    pub mod process_chars;
+    pub mod process_fields;
+    pub mod worker_utilities;
+}
 
 // CLI Parser: Uses clap to handle the basic setup
 
