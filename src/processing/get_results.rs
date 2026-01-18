@@ -4,18 +4,7 @@ use std::{
     io::{self, Write},
 };
 
-use crate::types::{InputMode, Instructions};
-
-pub enum ResultChunk {
-    Ok {
-        start_index: usize,
-        outputs: Vec<Vec<u8>>,
-    },
-    Err {
-        index: usize,
-        error: String,
-    },
-}
+use crate::types::*;
 
 pub fn get_results(
     instructions: std::sync::Arc<Instructions>,
@@ -45,8 +34,7 @@ pub fn get_results(
         .filter(|value| *value > 0)
         .unwrap_or(64 * 1024);
     let mut next_index: usize = 0;
-    let mut pending: BTreeMap<usize, Vec<Vec<u8>>> = BTreeMap::new();
-    let mut max_index_seen: Option<usize> = None;
+    let mut pending: BTreeMap<usize, Vec<OutputRecord>> = BTreeMap::new();
     let mut output_buffer: Vec<u8> = Vec::with_capacity(output_flush_threshold * 2);
 
     let flush_output =
@@ -77,10 +65,7 @@ pub fn get_results(
                 start_index,
                 outputs,
             } => {
-                let batch_end_index = start_index + outputs.len().saturating_sub(1);
                 pending.insert(start_index, outputs);
-                max_index_seen =
-                    Some(max_index_seen.map_or(batch_end_index, |max| max.max(batch_end_index)));
             }
         }
 
@@ -91,9 +76,12 @@ pub fn get_results(
                     let mut offset = 0usize;
 
                     while offset < outputs.len() {
-                        output_buffer.extend_from_slice(&outputs[offset]);
+                        let output_record = &outputs[offset];
+                        output_buffer.extend_from_slice(&output_record.bytes);
                         if let Some(terminator_byte) = record_terminator {
-                            output_buffer.push(terminator_byte);
+                            if output_record.has_terminator {
+                                output_buffer.push(terminator_byte);
+                            }
                         }
 
                         if output_buffer.len() >= output_flush_threshold {
@@ -111,13 +99,10 @@ pub fn get_results(
     }
 
     while let Some(outputs) = pending.remove(&next_index) {
-        for bytes in outputs {
-            output_buffer.extend_from_slice(&bytes);
-
-            let is_last_result = instructions.trim_newline && max_index_seen == Some(next_index);
-
+        for output_record in outputs {
+            output_buffer.extend_from_slice(&output_record.bytes);
             if let Some(terminator_byte) = record_terminator {
-                if !is_last_result {
+                if output_record.has_terminator {
                     output_buffer.push(terminator_byte);
                 }
             }

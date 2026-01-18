@@ -36,11 +36,27 @@ pub struct Instructions {
     pub output: Option<PathBuf>,
     pub count: bool,
     pub join: Option<String>,
-    pub trim_newline: bool,
     pub regex_engine: Option<RegexEngine>,
 }
 
 pub struct Record {
     pub index: usize,
     pub bytes: Vec<u8>,
+    pub has_terminator: bool,
+}
+
+pub struct OutputRecord {
+    pub bytes: Vec<u8>,
+    pub has_terminator: bool,
+}
+
+pub enum ResultChunk {
+    Ok {
+        start_index: usize,
+        outputs: Vec<OutputRecord>,
+    },
+    Err {
+        index: usize,
+        error: String,
+    },
 }

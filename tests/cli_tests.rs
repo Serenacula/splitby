@@ -383,29 +383,27 @@ fn join_and_trim_tests() {
         &["-d", " ", "-j", ",", "1", "2-3"],
         b"boo,hoo,foo\n",
     );
+}
+
+#[test]
+fn terminator_behavior_tests() {
     run_success_test(
-        "Trim newline: per-line mode",
-        b"a\nb\nc\n",
-        &["--trim-newline", "-d", " ", "1"],
-        b"a\nb\nc",
-    );
-    run_success_test(
-        "Trim newline: single line",
-        b"a\n",
-        &["--trim-newline", "-d", " ", "1"],
-        b"a",
-    );
-    run_success_test(
-        "Trim newline: whole-string mode",
+        "Per-line keeps final newline when present",
+        b"alpha\nbeta\n",
+        &["--bytes", "1"],
         b"a\nb\n",
-        &["--trim-newline", "-w", "-d", "\\n", "1"],
-        b"a",
     );
     run_success_test(
-        "Trim newline: without flag (has newline)",
-        b"a\nb\nc\n",
-        &["-d", " ", "1"],
-        b"a\nb\nc\n",
+        "Per-line does not add final newline when absent",
+        b"alpha\nbeta",
+        &["--bytes", "1"],
+        b"a\nb",
+    );
+    run_success_test(
+        "Per-line preserves empty line terminator",
+        b"\n",
+        &["--bytes"],
+        b"\n",
     );
 }
 
@@ -433,7 +431,7 @@ fn count_and_invert_tests() {
         "Using --count with extra newline",
         b"this\nis\na\ntest\n\n",
         &["-d", "\\n", "--count"],
-        b"1\n1\n1\n1\n",
+        b"1\n1\n1\n1\n1\n",
     );
     run_success_test(
         "Using --count with extra newline whole-string",
@@ -506,6 +504,17 @@ fn strictness_tests() {
         b"is a test\n",
     );
     run_error_test(
+        "Strict utf8 rejects invalid fields",
+        b"\xFF,\n",
+        &["-d", ",", "--strict-utf8", "1"],
+    );
+    run_success_test(
+        "No-strict-utf8 allows invalid fields",
+        b"\xFF,\n",
+        &["-d", ",", "--no-strict-utf8", "1"],
+        b"\xEF\xBF\xBD\n",
+    );
+    run_error_test(
         "Strict bounds with out-of-range index (0)",
         b"this is a test\n",
         &["-d", " ", "--strict-bounds", "0"],
@@ -515,10 +524,11 @@ fn strictness_tests() {
         b"this is a test\n",
         &["-d", " ", "--strict-bounds", "5"],
     );
-    run_error_test(
+    run_success_test(
         "Empty string with strict bounds",
         b"\n",
         &["-d", " ", "--strict-bounds", "1"],
+        b"\n",
     );
     run_error_test(
         "Strict return feature",
@@ -596,6 +606,17 @@ fn strictness_tests() {
         b"this is a test\n",
         &["-w", "-d", " "],
         b"this\nis\na\ntest\n",
+    );
+    run_error_test(
+        "Strict enables strict-return",
+        b",\n",
+        &["--strict", "-d", ","],
+    );
+    run_success_test(
+        "No-strict clears strict flags",
+        b"a b\n",
+        &["--strict", "--no-strict", "-d", " ", "5"],
+        b"\n",
     );
 }
 
@@ -677,6 +698,18 @@ fn skip_empty_tests() {
         &["--skip-empty", "-d", ",", "--count"],
         b"0\n",
     );
+    run_success_test(
+        "No-skip-empty overrides skip-empty",
+        b"a,,b\n",
+        &["-d", ",", "--count", "--skip-empty", "--no-skip-empty"],
+        b"3\n",
+    );
+    run_success_test(
+        "Skip-empty overrides no-skip-empty",
+        b"a,,b\n",
+        &["-d", ",", "--count", "--no-skip-empty", "--skip-empty"],
+        b"2\n",
+    );
 }
 
 #[test]
@@ -688,7 +721,7 @@ fn invalid_input_tests() {
         b"this is a test\n",
         &["-d", "[[", "1"],
     );
-    run_success_test("Empty input", b"\n", &["-d", "\\s+", "1"], b"\n");
+    run_success_test("Empty input", b"", &["-d", "\\s+", "1"], b"");
     run_error_test("Empty -i input", b"", &["-i", "", "-d", ","]);
     run_error_test(
         "Invalid index format",
@@ -699,6 +732,34 @@ fn invalid_input_tests() {
         "Invalid range format",
         b"this is a test\n",
         &["-d", "\\s+", "1-2a"],
+    );
+}
+
+#[test]
+fn zero_terminated_mode_tests() {
+    run_success_test(
+        "Zero-terminated: bytes selection keeps terminators",
+        b"alpha\0beta\0",
+        &["-z", "--bytes", "1"],
+        b"a\0b\0",
+    );
+    run_success_test(
+        "Zero-terminated: missing final terminator stays missing",
+        b"alpha\0beta",
+        &["-z", "--bytes", "1"],
+        b"a\0b",
+    );
+    run_success_test(
+        "Zero-terminated: empty record preserved",
+        b"\0",
+        &["-z", "--bytes"],
+        b"\0",
+    );
+    run_success_test(
+        "Zero-terminated: field selection",
+        b"a,b\0c,d\0",
+        &["-z", "-d", ",", "2"],
+        b"b\0d\0",
     );
 }
 
@@ -752,7 +813,7 @@ fn byte_mode_tests() {
         &["--bytes", "1"],
         b"h\nw\n",
     );
-    run_success_test("Byte mode: empty input", b"\n", &["--bytes"], b"\n");
+    run_success_test("Byte mode: empty input", b"", &["--bytes"], b"");
     run_success_test(
         "Byte mode: --count",
         b"hello\n",
@@ -875,7 +936,7 @@ fn char_mode_tests() {
         &["--characters"],
         b"hello\n",
     );
-    run_success_test("Char mode: empty input", b"\n", &["--characters"], b"\n");
+    run_success_test("Char mode: empty input", b"", &["--characters"], b"");
     run_success_test(
         "Char mode: --count",
         b"hello\n",
@@ -958,5 +1019,16 @@ fn char_mode_tests() {
         "café\n".as_bytes(),
         &["--characters", "1-4"],
         "café\n".as_bytes(),
+    );
+    run_error_test(
+        "Char mode: strict utf8 rejects invalid",
+        b"\xFF\n",
+        &["--characters", "--strict-utf8"],
+    );
+    run_success_test(
+        "Char mode: no-strict-utf8 allows invalid",
+        b"\xFF\n",
+        &["--characters", "--no-strict-utf8"],
+        b"\xEF\xBF\xBD\n",
     );
 }

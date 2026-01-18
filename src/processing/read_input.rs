@@ -59,15 +59,8 @@ pub fn read_input(
                     return Ok(());
                 }
 
-                if bytes_read == 1 && buffer == [b'\n'] {
-                    let peek = reader.fill_buf().map_err(|error| format!("{error}"))?;
-                    if peek.is_empty() {
-                        buffer.clear();
-                        continue;
-                    }
-                }
-
-                if buffer.last() == Some(&b'\n') {
+                let has_terminator = buffer.last() == Some(&b'\n');
+                if has_terminator {
                     buffer.pop();
                     if buffer.last() == Some(&b'\r') {
                         buffer.pop();
@@ -79,6 +72,7 @@ pub fn read_input(
                 batch.push(Record {
                     index: index,
                     bytes: record_bytes,
+                    has_terminator: has_terminator,
                 });
 
                 if batch_bytes >= batch_byte_quota {
@@ -99,7 +93,8 @@ pub fn read_input(
                     return Ok(());
                 }
 
-                if buffer.last() == Some(&b'\0') {
+                let has_terminator = buffer.last() == Some(&b'\0');
+                if has_terminator {
                     buffer.pop();
                 }
 
@@ -108,6 +103,7 @@ pub fn read_input(
                 batch.push(Record {
                     index: index,
                     bytes: record_bytes,
+                    has_terminator: has_terminator,
                 });
 
                 if batch_bytes >= batch_byte_quota {
@@ -126,6 +122,7 @@ pub fn read_input(
             batch.push(Record {
                 index: index,
                 bytes: buffer,
+                has_terminator: false,
             });
             flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
 

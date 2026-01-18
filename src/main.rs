@@ -74,7 +74,7 @@ struct Options {
     #[arg(long = "strict-utf8")]
     strict_utf8: bool,
 
-    #[arg(long = "no-strict-ut8")]
+    #[arg(long = "no-strict-utf8")]
     no_strict_utf8: bool,
 
     #[arg(short = 'i', long = "input", value_name = "FILE")]
@@ -94,9 +94,6 @@ struct Options {
         action = clap::ArgAction::Append,
     )]
     placeholder: Vec<String>,
-
-    #[arg(long = "trim-newline")]
-    trim_newline: bool,
 
     #[arg(
         short = 'f',
@@ -450,13 +447,11 @@ fn main() {
         output: options.output,
         count: options.count,
         join: options.join,
-        trim_newline: options.trim_newline,
         regex_engine: regex_engine,
     });
 
     let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
-    let (result_sender, result_receiver) =
-        channel::bounded::<processing::get_results::ResultChunk>(1024);
+    let (result_sender, result_receiver) = channel::bounded::<ResultChunk>(1024);
 
     profile_log("worker_threads_start");
 

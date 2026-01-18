@@ -9,12 +9,12 @@ mod worker_utilities;
 use self::process_bytes::process_bytes;
 use self::process_chars::process_chars;
 use self::process_fields::process_fields;
-use crate::types::{Instructions, Record, SelectionMode};
+use crate::types::*;
 
 pub fn process_records(
     instructions: Arc<Instructions>,
     record_receiver: channel::Receiver<Vec<Record>>,
-    result_sender: channel::Sender<crate::processing::get_results::ResultChunk>,
+    result_sender: channel::Sender<ResultChunk>,
 ) -> Result<(), String> {
     loop {
         let record_batch = match record_receiver.recv() {
@@ -27,10 +27,11 @@ pub fn process_records(
         }
 
         let batch_start_index = record_batch[0].index;
-        let mut batch_outputs: Vec<Vec<u8>> = Vec::with_capacity(record_batch.len());
+        let mut batch_outputs: Vec<OutputRecord> = Vec::with_capacity(record_batch.len());
 
         for record in record_batch {
             let record_index = record.index;
+            let has_terminator = record.has_terminator;
 
             let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
                 SelectionMode::Bytes => process_bytes(&instructions, record),
@@ -47,16 +48,19 @@ pub fn process_records(
             match processed_result {
                 Ok(bytes) => {
                     if instructions.strict_return && bytes.is_empty() {
-                        let _ = result_sender.send(crate::processing::get_results::ResultChunk::Err {
+                        let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
                             error: "strict return error: empty field".to_string(),
                         });
                         return Ok(());
                     }
-                    batch_outputs.push(bytes);
+                    batch_outputs.push(OutputRecord {
+                        bytes,
+                        has_terminator,
+                    });
                 }
                 Err(error) => {
-                    let _ = result_sender.send(crate::processing::get_results::ResultChunk::Err {
+                    let _ = result_sender.send(ResultChunk::Err {
                         index: record_index,
                         error,
                     });
@@ -66,7 +70,7 @@ pub fn process_records(
         }
 
         result_sender
-            .send(crate::processing::get_results::ResultChunk::Ok {
+            .send(ResultChunk::Ok {
                 start_index: batch_start_index,
                 outputs: batch_outputs,
             })
