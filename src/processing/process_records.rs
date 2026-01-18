@@ -1,0 +1,75 @@
+use crossbeam::channel;
+use std::sync::Arc;
+
+mod process_bytes;
+mod process_chars;
+mod process_fields;
+mod worker_utilities;
+
+use self::process_bytes::process_bytes;
+use self::process_chars::process_chars;
+use self::process_fields::process_fields;
+use crate::types::{Instructions, Record, SelectionMode};
+
+pub fn process_records(
+    instructions: Arc<Instructions>,
+    record_receiver: channel::Receiver<Vec<Record>>,
+    result_sender: channel::Sender<crate::processing::get_results::ResultChunk>,
+) -> Result<(), String> {
+    loop {
+        let record_batch = match record_receiver.recv() {
+            Ok(record_batch) => record_batch,
+            Err(_) => return Ok(()),
+        };
+
+        if record_batch.is_empty() {
+            continue;
+        }
+
+        let batch_start_index = record_batch[0].index;
+        let mut batch_outputs: Vec<Vec<u8>> = Vec::with_capacity(record_batch.len());
+
+        for record in record_batch {
+            let record_index = record.index;
+
+            let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
+                SelectionMode::Bytes => process_bytes(&instructions, record),
+                SelectionMode::Chars => process_chars(&instructions, record),
+                SelectionMode::Fields => {
+                    let engine = instructions
+                        .regex_engine
+                        .as_ref()
+                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
+                    process_fields(&instructions, engine, record)
+                }
+            };
+
+            match processed_result {
+                Ok(bytes) => {
+                    if instructions.strict_return && bytes.is_empty() {
+                        let _ = result_sender.send(crate::processing::get_results::ResultChunk::Err {
+                            index: record_index,
+                            error: "strict return error: empty field".to_string(),
+                        });
+                        return Ok(());
+                    }
+                    batch_outputs.push(bytes);
+                }
+                Err(error) => {
+                    let _ = result_sender.send(crate::processing::get_results::ResultChunk::Err {
+                        index: record_index,
+                        error,
+                    });
+                    return Ok(());
+                }
+            }
+        }
+
+        result_sender
+            .send(crate::processing::get_results::ResultChunk::Ok {
+                start_index: batch_start_index,
+                outputs: batch_outputs,
+            })
+            .map_err(|error| error.to_string())?;
+    }
+}

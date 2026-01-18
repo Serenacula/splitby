@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use crate::types::*;
-use crate::workers::worker_utilities::{
+use crate::processing::process_records::worker_utilities::{
     estimate_field_count, estimate_output_size, invert_selections, parse_selection, resolve_index,
     Field,
 };
+use crate::types::*;
 
 pub fn process_fields(
     instructions: &Instructions,
@@ -16,12 +16,10 @@ pub fn process_fields(
             std::str::from_utf8(&record.bytes)
                 .map_err(|_| "input is not valid UTF-8".to_string())?,
         ),
-        false => {
-            match std::str::from_utf8(&record.bytes) {
-                Ok(valid_str) => Cow::Borrowed(valid_str),
-                Err(_) => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
-            }
-        }
+        false => match std::str::from_utf8(&record.bytes) {
+            Ok(valid_str) => Cow::Borrowed(valid_str),
+            Err(_) => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
+        },
     };
 
     let delimiter_len = match engine {
@@ -196,7 +194,6 @@ pub fn process_fields(
             selection_has_output = true;
             let field_index = index as usize;
 
-            // Track first and last field indices
             if first_field_index.is_none() {
                 first_field_index = Some(field_index);
             }
@@ -208,7 +205,6 @@ pub fn process_fields(
                         selection_output.extend_from_slice(join.as_bytes());
                     }
                     None => {
-                        // Keep the closest delimiter: after previous, else before next, else space.
                         let delimiter_after_a = fields[previous_index].delimiter;
                         let delimiter_before_b = if index > 0 {
                             fields[index as usize - 1].delimiter
@@ -251,35 +247,33 @@ pub fn process_fields(
                     output.extend_from_slice(join.as_bytes());
                 }
                 None => {
-                    let delimiter_to_use: &[u8] =
-                        if instructions.input_mode == InputMode::WholeString {
-                            b"\n"
-                        } else {
-                            let previous_selection_indices = selection_field_indices[index - 1];
-                            let current_selection_indices = selection_field_indices[index];
+                    let delimiter_to_use: &[u8] = if instructions.input_mode == InputMode::WholeString
+                    {
+                        b"\n"
+                    } else {
+                        let previous_selection_indices = selection_field_indices[index - 1];
+                        let current_selection_indices = selection_field_indices[index];
 
-                            match (previous_selection_indices, current_selection_indices) {
-                                ((_, Some(prev_last)), (Some(curr_first), _)) => {
-                                    let delimiter_after_prev = fields[prev_last].delimiter;
-                                    let delimiter_before_curr = if curr_first > 0 {
-                                        fields[curr_first - 1].delimiter
-                                    } else {
-                                        b""
-                                    };
+                        match (previous_selection_indices, current_selection_indices) {
+                            ((_, Some(prev_last)), (Some(curr_first), _)) => {
+                                let delimiter_after_prev = fields[prev_last].delimiter;
+                                let delimiter_before_curr = if curr_first > 0 {
+                                    fields[curr_first - 1].delimiter
+                                } else {
+                                    b""
+                                };
 
-                                    if !delimiter_after_prev.is_empty() {
-                                        delimiter_after_prev
-                                    } else if !delimiter_before_curr.is_empty() {
-                                        delimiter_before_curr
-                                    } else {
-                                        b" "
-                                    }
-                                }
-                                _ => {
+                                if !delimiter_after_prev.is_empty() {
+                                    delimiter_after_prev
+                                } else if !delimiter_before_curr.is_empty() {
+                                    delimiter_before_curr
+                                } else {
                                     b" "
                                 }
                             }
-                        };
+                            _ => b" ",
+                        }
+                    };
 
                     output.extend_from_slice(delimiter_to_use);
                 }
