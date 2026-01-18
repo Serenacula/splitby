@@ -513,7 +513,11 @@ fn main() {
         input_path: &Option<PathBuf>,
         record_sender: channel::Sender<Vec<Record>>,
     ) -> Result<(), String> {
-        const BATCH_BYTE_QUOTA: usize = 256 * 1024;
+        let batch_byte_quota = std::env::var("SPLITBY_BATCH_QUOTA")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|value| *value > 0)
+            .unwrap_or(128 * 1024);
         let mut reader: Box<dyn BufRead> = match input_path.as_ref() {
             Some(path) => {
                 let file = File::open(path)
@@ -584,7 +588,7 @@ fn main() {
                         bytes: record_bytes,
                     });
 
-                    if batch_bytes >= BATCH_BYTE_QUOTA {
+                    if batch_bytes >= batch_byte_quota {
                         flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
                     }
 
@@ -613,7 +617,7 @@ fn main() {
                         bytes: record_bytes,
                     });
 
-                    if batch_bytes >= BATCH_BYTE_QUOTA {
+                    if batch_bytes >= batch_byte_quota {
                         flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
                     }
 
