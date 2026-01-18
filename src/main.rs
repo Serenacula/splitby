@@ -35,8 +35,23 @@ struct Options {
     #[arg(short = 'z', long = "zero-terminated")]
     zero_terminated: bool,
 
-    #[arg(short = 'j', long = "join", value_name = "STRING")]
+    #[arg(
+        short = 'j',
+        long = "join",
+        value_name = "STRING",
+        num_args = 1,
+        allow_hyphen_values = true
+    )]
     join: Option<String>,
+
+    #[arg(
+        long = "placeholder",
+        value_name = "STRING|HEX",
+        num_args = 1,
+        allow_hyphen_values = true,
+        action = clap::ArgAction::Append,
+    )]
+    placeholder: Vec<String>,
 
     #[arg(short = 'e', long = "skip-empty")]
     skip_empty: bool,
@@ -46,6 +61,15 @@ struct Options {
 
     #[arg(long = "invert")]
     invert: bool,
+
+    #[arg(long = "count")]
+    count: bool,
+
+    #[arg(short = 'i', long = "input", value_name = "FILE")]
+    input: Option<PathBuf>,
+
+    #[arg(short = 'o', long = "output", value_name = "FILE")]
+    output: Option<PathBuf>,
 
     #[arg(long = "strict")]
     strict: bool,
@@ -76,24 +100,6 @@ struct Options {
 
     #[arg(long = "no-strict-utf8")]
     no_strict_utf8: bool,
-
-    #[arg(short = 'i', long = "input", value_name = "FILE")]
-    input: Option<PathBuf>,
-
-    #[arg(short = 'o', long = "output", value_name = "FILE")]
-    output: Option<PathBuf>,
-
-    #[arg(long = "count")]
-    count: bool,
-
-    #[arg(
-        long = "placeholder",
-        value_name = "STRING|HEX",
-        num_args = 1,
-        allow_hyphen_values = true,
-        action = clap::ArgAction::Append,
-    )]
-    placeholder: Vec<String>,
 
     #[arg(
         short = 'f',
@@ -217,66 +223,50 @@ fn main() {
     }
     selection_strings.extend(options.selection_list.iter().cloned());
 
-    fn parse_selection(string_raw: &str) -> Result<(i32, i32), String> {
-        fn parse_number(string: &str) -> Result<i32, String> {
-            let lowered = string.to_ascii_lowercase();
-            match lowered.as_str() {
-                "start" | "first" => Ok(1),
-                "end" | "last" => Ok(-1),
-                _ => lowered
-                    .parse::<i32>()
-                    .map_err(|_| format!("range has invalid number: {string}")),
-            }
-        }
-
-        let string = string_raw.trim();
-
-        if let Ok(value) = parse_number(string) {
-            return Ok((value, value));
-        }
-
-        let split_index: usize;
-        if string.starts_with('-') {
-            let split_index_search = string.strip_prefix('-').unwrap().find('-');
-            if split_index_search.is_none() {
-                return Err(format!("invalid selection: {string}"));
-            }
-            split_index = split_index_search.unwrap() + 1
-        } else {
-            let split_index_search = string.find('-');
-            if split_index_search.is_none() {
-                return Err(format!("invalid selection: {string}"));
-            }
-            split_index = split_index_search.unwrap()
-        }
-
-        let (first_split, second_split) = string.split_at(split_index);
-
-        let no_hyphen = &second_split[1..];
-
-        let start = parse_number(first_split);
-        let end = parse_number(no_hyphen); // Strip the range hyphen
-        if start.is_err() || end.is_err() {
-            return Err(format!("invalid range '{string}'"));
-        }
-
-        Ok((start.unwrap(), end.unwrap()))
-    }
-
-    fn can_parse_as_selection(string: &str) -> bool {
-        if string == "," {
-            return false; // Just a comma is a delimiter, not a selection
-        }
-        if string.contains(',') {
-            string.split(',').any(|part| {
-                let trimmed = part.trim();
-                !trimmed.is_empty() && parse_selection(trimmed).is_ok()
-            })
-        } else {
-            parse_selection(string).is_ok()
-        }
-    }
     profile_log("selection_regex_start");
+
+    const SELECTION_TOKEN_PATTERN: &str =
+        r"(?i)^(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$";
+    let selection_regex = SimpleRegex::new(SELECTION_TOKEN_PATTERN).unwrap_or_else(|error| {
+        eprintln!("internal error: failed to compile selection regex: {error}");
+        std::process::exit(2);
+    });
+
+    fn parse_selection_token(
+        token: &str,
+        selection_regex: &SimpleRegex,
+    ) -> Result<(i32, i32), String> {
+        let captures = selection_regex
+            .captures(token)
+            .ok_or_else(|| format!("invalid selection: '{token}'"))?;
+        let start_match = captures
+            .name("start")
+            .ok_or_else(|| format!("invalid selection: '{token}'"))?;
+        let end_token = captures
+            .name("end")
+            .map(|value| value.as_str())
+            .unwrap_or_else(|| start_match.as_str());
+
+        let start_lowered = start_match.as_str().to_ascii_lowercase();
+        let start = match start_lowered.as_str() {
+            "start" | "first" => Ok(1),
+            "end" | "last" => Ok(-1),
+            _ => start_lowered
+                .parse::<i32>()
+                .map_err(|_| format!("invalid selection: '{token}'")),
+        }?;
+
+        let end_lowered = end_token.to_ascii_lowercase();
+        let end = match end_lowered.as_str() {
+            "start" | "first" => Ok(1),
+            "end" | "last" => Ok(-1),
+            _ => end_lowered
+                .parse::<i32>()
+                .map_err(|_| format!("invalid selection: '{token}'")),
+        }?;
+
+        Ok((start, end))
+    }
 
     fn is_valid_regex(pattern: &str) -> bool {
         SimpleRegex::new(pattern).is_ok() || FancyRegex::new(pattern).is_ok()
@@ -288,7 +278,18 @@ fn main() {
         && !selection_strings.is_empty()
     {
         let first_arg = selection_strings[0].trim();
-        if !can_parse_as_selection(first_arg) && is_valid_regex(first_arg) {
+        let can_parse_selection = if first_arg == "," {
+            false
+        } else if first_arg.contains(',') {
+            first_arg.split(',').any(|part| {
+                let trimmed = part.trim();
+                !trimmed.is_empty() && parse_selection_token(trimmed, &selection_regex).is_ok()
+            })
+        } else {
+            parse_selection_token(first_arg.trim(), &selection_regex).is_ok()
+        };
+
+        if !can_parse_selection && is_valid_regex(first_arg) {
             detected_delimiter = Some(first_arg.to_string());
             selection_strings.remove(0);
         }
@@ -306,75 +307,49 @@ fn main() {
         std::process::exit(2);
     }
 
-    let mut selections: Vec<(i32, i32)> = Vec::new();
     let delimiter_was_set = options.delimiter.is_some();
+    let mut selections: Vec<(i32, i32)> = Vec::new();
 
     for (index, string_raw) in selection_strings.iter().enumerate() {
         let is_first = index == 0;
         let trimmed = string_raw.trim();
-
         let should_check_ambiguity = is_first && !delimiter_was_set;
 
-        if trimmed.contains(',') {
-            let parts: Vec<&str> = trimmed.split(',').collect();
-
-            if should_check_ambiguity {
-                if trimmed == "," {
-                    continue;
-                }
-
-                let has_letter = parts.iter().any(|part| {
+        if should_check_ambiguity {
+            let should_skip = if trimmed == "," {
+                true
+            } else if trimmed.contains(',') {
+                trimmed.split(',').any(|part| {
                     let trimmed_part = part.trim();
-                    !trimmed_part.is_empty()
-                        && trimmed_part
-                            .chars()
-                            .any(|char| char.is_alphabetic() && char != '-')
-                });
-
-                if has_letter {
-                    continue;
-                }
-            }
-
-            for part in parts {
-                let trimmed_part = part.trim();
-                if trimmed_part.is_empty() {
-                    continue;
-                }
-
-                let (start, end) = match parse_selection(trimmed_part) {
-                    Ok(range) => range,
-                    Err(_) => {
-                        eprintln!("invalid selection: '{trimmed_part}'");
-                        std::process::exit(2);
-                    }
-                };
-
-                selections.push((start, end));
-            }
-        } else {
-            if should_check_ambiguity {
-                if trimmed == "," {
-                    continue;
-                }
-
-                if trimmed
+                    trimmed_part
+                        .chars()
+                        .any(|character| character.is_alphabetic() && character != '-')
+                })
+            } else {
+                trimmed
                     .chars()
-                    .any(|char| char.is_alphabetic() && char != '-')
-                {
-                    continue;
-                }
-            }
-
-            let (start, end) = match parse_selection(trimmed) {
-                Ok(range) => range,
-                Err(_) => {
-                    eprintln!("invalid selection: '{trimmed}'");
-                    std::process::exit(2);
-                }
+                    .any(|character| character.is_alphabetic() && character != '-')
             };
 
-            selections.push((start, end));
+            if should_skip {
+                continue;
+            }
+        }
+
+        for part in trimmed.split(',') {
+            let trimmed_part = part.trim();
+            if trimmed_part.is_empty() {
+                continue;
+            }
+
+            let token = trimmed_part.to_string();
+            match parse_selection_token(&token, &selection_regex) {
+                Ok(range) => selections.push(range),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(2);
+                }
+            }
         }
     }
 
