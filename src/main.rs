@@ -236,8 +236,9 @@ fn main() {
         token: &str,
         selection_regex: &SimpleRegex,
     ) -> Result<(i32, i32), String> {
+        let trimmed = token.trim();
         let captures = selection_regex
-            .captures(token)
+            .captures(trimmed)
             .ok_or_else(|| format!("invalid selection: '{token}'"))?;
         let start_match = captures
             .name("start")
@@ -268,75 +269,28 @@ fn main() {
         Ok((start, end))
     }
 
-    fn is_valid_regex(pattern: &str) -> bool {
-        SimpleRegex::new(pattern).is_ok() || FancyRegex::new(pattern).is_ok()
-    }
-
-    let mut detected_delimiter: Option<String> = None;
-    if selection_mode == SelectionMode::Fields
-        && options.delimiter.is_none()
-        && !selection_strings.is_empty()
-    {
-        let first_arg = selection_strings[0].trim();
-        let can_parse_selection = if first_arg == "," {
-            false
-        } else if first_arg.contains(',') {
-            first_arg.split(',').any(|part| {
-                let trimmed = part.trim();
-                !trimmed.is_empty() && parse_selection_token(trimmed, &selection_regex).is_ok()
-            })
-        } else {
-            parse_selection_token(first_arg.trim(), &selection_regex).is_ok()
-        };
-
-        if !can_parse_selection && is_valid_regex(first_arg) {
-            detected_delimiter = Some(first_arg.to_string());
-            selection_strings.remove(0);
-        }
-    }
-
     profile_log("selection_regex_end");
 
-    if selection_mode == SelectionMode::Fields
-        && options.delimiter.is_none()
-        && detected_delimiter.is_none()
-    {
-        eprintln!(
-            "delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
-        );
-        std::process::exit(2);
-    }
+    // Error because no delimiter
 
-    let delimiter_was_set = options.delimiter.is_some();
+    let mut delimiter: Option<String> = options.delimiter;
     let mut selections: Vec<(i32, i32)> = Vec::new();
-
     for (index, string_raw) in selection_strings.iter().enumerate() {
-        let is_first = index == 0;
-        let trimmed = string_raw.trim();
-        let should_check_ambiguity = is_first && !delimiter_was_set;
+        let parts: Vec<&str> = string_raw.split(",").map(|part| part.trim()).collect();
 
-        if should_check_ambiguity {
-            let should_skip = if trimmed == "," {
-                true
-            } else if trimmed.contains(',') {
-                trimmed.split(',').any(|part| {
-                    let trimmed_part = part.trim();
-                    trimmed_part
-                        .chars()
-                        .any(|character| character.is_alphabetic() && character != '-')
-                })
-            } else {
-                trimmed
-                    .chars()
-                    .any(|character| character.is_alphabetic() && character != '-')
-            };
+        if index == 0 && delimiter.is_none() {
+            let has_number = parts.iter().any(|part| {
+                !part.is_empty() && parse_selection_token(part, &selection_regex).is_ok()
+            });
 
-            if should_skip {
+            // if not a selection
+            if string_raw.trim() == "," || !has_number {
+                delimiter = Some(string_raw.clone());
                 continue;
             }
         }
 
-        for part in trimmed.split(',') {
+        for part in &parts {
             let trimmed_part = part.trim();
             if trimmed_part.is_empty() {
                 continue;
@@ -355,17 +309,20 @@ fn main() {
 
     profile_log("regex_compile_start");
 
+    if selection_mode == SelectionMode::Fields && delimiter.is_none() {
+        eprintln!(
+            "delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
+        );
+        std::process::exit(2);
+    }
+
     let regex_engine: Option<RegexEngine> = match selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            let delimiter: String = options
-                .delimiter
-                .clone()
-                .or(detected_delimiter)
-                .unwrap_or_else(|| {
-                    eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
-                    std::process::exit(2)
-                });
+            let delimiter: String = delimiter.unwrap_or_else(|| {
+                eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
+                std::process::exit(2)
+            });
 
             if delimiter.is_empty() {
                 eprintln!("empty string is not a valid delimiter");
