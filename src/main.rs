@@ -387,11 +387,11 @@ fn main() {
 
     profile_log("worker_threads_start");
 
+    // Setting up our Reader worker
     let reader_instructions = Arc::clone(&instructions);
     let reader_sender = record_sender.clone();
-    let reader_profile_enabled = profile_enabled;
     let reader_handle = std::thread::spawn(move || {
-        let read_start_time = if reader_profile_enabled {
+        let read_start_time = if profile_enabled {
             Some(Instant::now())
         } else {
             None
@@ -408,6 +408,7 @@ fn main() {
     });
     drop(record_sender);
 
+    // Working out how much memory we need
     let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
         1
     } else {
@@ -416,6 +417,7 @@ fn main() {
             .unwrap_or(1)
     };
 
+    // Setting up our main processing workers
     for worker_index in 0..max(worker_count - 1, 1) {
         let worker_instructions = Arc::clone(&instructions);
         let worker_receiver = record_receiver.clone();
@@ -427,13 +429,11 @@ fn main() {
             } else {
                 None
             };
-            let worker_result =
-                process_records(worker_instructions, worker_receiver, worker_sender)
-                    .map_err(|error| eprintln!("{error}"));
+            let _ = process_records(worker_instructions, worker_receiver, worker_sender)
+                .map_err(|error| eprintln!("{error}"));
             if let Some(start_time) = worker_start_time {
                 eprintln!("profile:worker_{worker_index}: {:?}", start_time.elapsed());
             }
-            let _ = worker_result;
         });
     }
     drop(result_sender);
