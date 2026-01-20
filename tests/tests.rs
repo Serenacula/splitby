@@ -345,7 +345,7 @@ mod comma_separated_selection {
         run_success_test(
             "Comma-separated selections: with join",
             b"apple,banana,cherry\n",
-            &["-d", ",", "-j", "|", "1,2,3"],
+            &["-d", ",", "--join=|", "1", "2", "3"],
             b"apple|banana|cherry\n",
         );
     }
@@ -365,7 +365,7 @@ mod comma_separated_selection {
         run_success_test(
             "Comma-separated selections: byte mode",
             b"hello\n",
-            &["--bytes", "1,3,5"],
+            &["--bytes", "1", "3", "5"],
             b"hlo\n",
         );
     }
@@ -375,7 +375,7 @@ mod comma_separated_selection {
         run_success_test(
             "Comma-separated selections: char mode",
             b"hello\n",
-            &["--characters", "1,3,5"],
+            &["--characters", "1", "3", "5"],
             b"hlo\n",
         );
     }
@@ -563,7 +563,7 @@ mod join_and_trim {
         run_success_test(
             "Can join selections",
             b"boo hoo foo\n",
-            &["-d", " ", "-j", ","],
+            &["-d", " ", "--join=,"],
             b"boo,hoo,foo\n",
         );
     }
@@ -573,7 +573,7 @@ mod join_and_trim {
         run_success_test(
             "Can join whole string",
             b"boo hoo foo\n",
-            &["-w", "-d", " ", "-j", ","],
+            &["-w", "-d", " ", "--join=,"],
             b"boo,hoo,foo\n",
         );
     }
@@ -583,8 +583,138 @@ mod join_and_trim {
         run_success_test(
             "Doesn't join in ranges",
             b"boo hoo foo\n",
-            &["-d", " ", "-j", ",", "1", "2-3"],
+            &["-d", " ", "--join=,", "1", "2-3"],
             b"boo,hoo,foo\n",
+        );
+    }
+
+    #[test]
+    fn join_space() {
+        run_success_test(
+            "Join with @space",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=@space", "1", "2", "3"],
+            b"apple banana cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_space_single_selection() {
+        run_success_test(
+            "Join with @space (single selection, no join)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=@space", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn join_first() {
+        run_success_test(
+            "Join with @first (uses first delimiter)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=@first", "1", "2", "3"],
+            b"apple,banana,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_first_mixed_delimiters() {
+        run_success_test(
+            "Join with @first (mixed delimiters, uses first)",
+            b"apple;banana,cherry\n",
+            &["-d", "[,;]", "--join=@first", "1", "2", "3"],
+            b"apple;banana;cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_last() {
+        run_success_test(
+            "Join with @last (uses last delimiter)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=@last", "1", "2", "3"],
+            b"apple,banana,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_last_mixed_delimiters() {
+        run_success_test(
+            "Join with @last (mixed delimiters, uses last)",
+            b"apple;banana,cherry\n",
+            &["-d", "[,;]", "--join=@last", "1", "2", "3"],
+            b"apple,banana,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_first_no_delimiters() {
+        run_success_test(
+            "Join with @first (no delimiters, falls back to space)",
+            b"apple\n",
+            &["-d", ",", "--join=@first", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn join_last_no_delimiters() {
+        run_success_test(
+            "Join with @last (no delimiters, falls back to space)",
+            b"apple\n",
+            &["-d", ",", "--join=@last", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn join_first_empty_fields() {
+        run_success_test(
+            "Join with @first (empty fields, still finds delimiter)",
+            b",,,\n",
+            &["-d", ",", "--join=@first", "1", "2", "3"],
+            b",,\n",
+        );
+    }
+
+    #[test]
+    fn join_last_empty_fields() {
+        run_success_test(
+            "Join with @last (empty fields, still finds delimiter)",
+            b",,,\n",
+            &["-d", ",", "--join=@last", "1", "2", "3"],
+            b",,\n",
+        );
+    }
+
+    #[test]
+    fn join_space_whole_string() {
+        run_success_test(
+            "Join with @space in whole-string mode",
+            b"apple,banana,cherry",
+            &["-w", "-d", ",", "--join=@space", "1", "2", "3"],
+            b"apple banana cherry",
+        );
+    }
+
+    #[test]
+    fn join_first_whole_string() {
+        run_success_test(
+            "Join with @first in whole-string mode",
+            b"apple,banana,cherry",
+            &["-w", "-d", ",", "--join=@first", "1", "2", "3"],
+            b"apple,banana,cherry",
+        );
+    }
+
+    #[test]
+    fn join_last_whole_string() {
+        run_success_test(
+            "Join with @last in whole-string mode",
+            b"apple,banana,cherry",
+            &["-w", "-d", ",", "--join=@last", "1", "2", "3"],
+            b"apple,banana,cherry",
         );
     }
 }
@@ -681,7 +811,7 @@ mod count_and_invert {
         run_success_test(
             "Count takes precedence over join",
             b"a b c\n",
-            &["-d", " ", "--count", "-j", ","],
+            &["-d", " ", "--count", "--join=,"],
             b"3\n",
         );
     }
@@ -731,7 +861,7 @@ mod count_and_invert {
         run_success_test(
             "Invert range with join",
             b"a b c d\n",
-            &["-d", " ", "--invert", "-j", ",", "2-3"],
+            &["-d", " ", "--invert", "--join=,", "2-3"],
             b"a,d\n",
         );
     }
@@ -1565,7 +1695,7 @@ mod char_mode {
         run_success_test(
             "Char mode: --join",
             b"hello\n",
-            &["--join", ",", "--characters", "1", "3", "5"],
+            &["--join=,", "--characters", "1", "3", "5"],
             b"h,l,o\n",
         );
     }

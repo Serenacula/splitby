@@ -100,6 +100,19 @@ pub fn process_fields(
     let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
     let mut strict_return_passed: bool = false;
 
+    // Find first and last delimiters for @first and @last join modes
+    let first_delimiter = fields
+        .iter()
+        .find(|field| !field.delimiter.is_empty())
+        .map(|field| field.delimiter)
+        .unwrap_or(b"");
+    let last_delimiter = fields
+        .iter()
+        .rev()
+        .find(|field| !field.delimiter.is_empty())
+        .map(|field| field.delimiter)
+        .unwrap_or(b"");
+
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
             let has_data = field_index < fields.len()
@@ -132,16 +145,6 @@ pub fn process_fields(
                     Some(JoinMode::String(join_bytes)) => {
                         output.extend_from_slice(join_bytes);
                     }
-                    Some(JoinMode::Auto) => {
-                        // Existing logic: try after-previous, then before-next, then space
-                        if !current_delimiter.is_empty() {
-                            output.extend_from_slice(current_delimiter);
-                        } else if !next_delimiter.is_empty() {
-                            output.extend_from_slice(next_delimiter);
-                        } else {
-                            output.push(b' ');
-                        }
-                    }
                     Some(JoinMode::AfterPrevious) => {
                         if !current_delimiter.is_empty() {
                             output.extend_from_slice(current_delimiter);
@@ -156,15 +159,34 @@ pub fn process_fields(
                             output.push(b' '); // Fallback to space if no delimiter
                         }
                     }
+                    Some(JoinMode::First) => {
+                        if !first_delimiter.is_empty() {
+                            output.extend_from_slice(first_delimiter);
+                        } else {
+                            output.push(b' '); // Fallback to space if no delimiter
+                        }
+                    }
+                    Some(JoinMode::Last) => {
+                        if !last_delimiter.is_empty() {
+                            output.extend_from_slice(last_delimiter);
+                        } else {
+                            output.push(b' '); // Fallback to space if no delimiter
+                        }
+                    }
+                    Some(JoinMode::Space) => {
+                        output.push(b' ');
+                    }
                     Some(JoinMode::None) => {
                         // No join - do nothing
                     }
-                    None => {
-                        // Default behavior (existing logic when no join specified)
+                    None | Some(JoinMode::Auto) => {
+                        // Default behavior
                         if !current_delimiter.is_empty() {
                             output.extend_from_slice(current_delimiter);
                         } else if !next_delimiter.is_empty() {
                             output.extend_from_slice(next_delimiter);
+                        } else if !last_delimiter.is_empty() {
+                            output.extend_from_slice(last_delimiter);
                         } else {
                             output.push(b' ');
                         }

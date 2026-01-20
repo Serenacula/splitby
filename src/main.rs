@@ -93,49 +93,34 @@ struct Options {
     #[arg(
         short = 'j',
         long = "join",
-        value_name = "STRING",
         num_args = 1,
+        value_name = "STRING|HEX",
+        require_equals = true,
         allow_hyphen_values = true
     )]
     join: Option<String>,
 
     #[arg(
         long = "placeholder",
-        value_name = "STRING|HEX",
         num_args = 1,
+        value_name = "STRING|HEX",
         require_equals = true,
         allow_hyphen_values = true,
         action = clap::ArgAction::Append,
     )]
     placeholder: Vec<String>,
 
+    #[arg(short = 'f', long = "fields")]
+    fields: bool,
+
+    #[arg(short = 'b', long = "bytes")]
+    bytes: bool,
+
+    #[arg(short = 'c', long = "characters")]
+    chars: bool,
+
     #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
     delimiter: Option<String>,
-
-    #[arg(
-        short = 'f',
-        long = "fields",
-        value_name = "SELECTION",
-        num_args = 0..=1,
-        allow_hyphen_values = true,
-    )]
-    field_list: Vec<String>,
-
-    #[arg(short = 'b',
-        long = "bytes",
-        value_name = "SELECTION",
-        num_args = 0..=1,
-        allow_hyphen_values = true,
-    )]
-    byte_list: Vec<String>,
-
-    #[arg(short = 'c',
-        long = "characters",
-        value_name = "SELECTION",
-        num_args = 0..=1,
-        allow_hyphen_values = true,
-    )]
-    char_list: Vec<String>,
 
     #[arg(value_name = "SELECTION", num_args = 0.., allow_hyphen_values = true)]
     selection_list: Vec<String>,
@@ -146,23 +131,21 @@ fn main() {
 
     // Sorting out our last-flag-wins, since clap doesn't do this automatically
     let mut input_mode: InputMode = InputMode::PerLine;
+    let mut selection_mode: SelectionMode = SelectionMode::Fields;
     let mut skip_empty = false;
     let mut strict_return = false;
     let mut strict_bounds = false;
     let mut strict_range_order = true;
     let mut strict_utf8 = false;
-    let mut field_mode = false;
-    let mut byte_mode = false;
-    let mut char_mode = false;
     for arg in std::env::args_os() {
         match arg.to_string_lossy().as_ref() {
             "--per-line" => input_mode = InputMode::PerLine,
             "-w" | "--whole-string" => input_mode = InputMode::WholeString,
             "-z" | "--zero-terminated" => input_mode = InputMode::ZeroTerminated,
 
-            "-b" | "--bytes" => byte_mode = true,
-            "-f" | "--fields" => field_mode = true,
-            "-c" | "--characters" => char_mode = true,
+            "-b" | "--bytes" => selection_mode = SelectionMode::Bytes,
+            "-f" | "--fields" => selection_mode = SelectionMode::Fields,
+            "-c" | "--characters" => selection_mode = SelectionMode::Chars,
 
             "-e" | "--skip-empty" => skip_empty = true,
             "-E" | "--no-skip-empty" => skip_empty = false,
@@ -195,30 +178,6 @@ fn main() {
             _ => {}
         }
     }
-
-    let uses_fields = field_mode || !options.field_list.is_empty();
-    let uses_bytes = byte_mode || !options.byte_list.is_empty();
-    let uses_chars = char_mode || !options.char_list.is_empty();
-
-    if (uses_fields as u8 + uses_bytes as u8 + uses_chars as u8) > 1 {
-        eprintln!("cannot combine --fields, --bytes and --characters");
-        std::process::exit(2);
-    }
-    let selection_mode = if uses_bytes {
-        SelectionMode::Bytes
-    } else if uses_chars {
-        SelectionMode::Chars
-    } else {
-        SelectionMode::Fields
-    };
-
-    let mut selection_strings: Vec<String> = Vec::new();
-    match selection_mode {
-        SelectionMode::Fields => selection_strings.extend(options.field_list.iter().cloned()),
-        SelectionMode::Bytes => selection_strings.extend(options.byte_list.iter().cloned()),
-        SelectionMode::Chars => selection_strings.extend(options.char_list.iter().cloned()),
-    }
-    selection_strings.extend(options.selection_list.iter().cloned());
 
     const SELECTION_TOKEN_PATTERN: &str =
         r"(?i)^(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$";
@@ -268,7 +227,7 @@ fn main() {
 
     let mut delimiter: Option<String> = options.delimiter;
     let mut selections: Vec<(i32, i32)> = Vec::new();
-    for (index, string_raw) in selection_strings.iter().enumerate() {
+    for (index, string_raw) in options.selection_list.iter().enumerate() {
         let parts: Vec<&str> = string_raw.split(",").map(|part| part.trim()).collect();
 
         if index == 0 && delimiter.is_none() {
@@ -388,6 +347,9 @@ fn main() {
                 "@auto" => Some(JoinMode::Auto),
                 "@after-previous" => Some(JoinMode::AfterPrevious),
                 "@before-next" => Some(JoinMode::BeforeNext),
+                "@first" => Some(JoinMode::First),
+                "@last" => Some(JoinMode::Last),
+                "@space" => Some(JoinMode::Space),
                 "@none" => Some(JoinMode::None),
                 // Regular string join or hex
                 _ => {

@@ -64,12 +64,8 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
                     Some(JoinMode::String(join_bytes)) => {
                         output.extend_from_slice(join_bytes);
                     }
-                    Some(JoinMode::None) => {
-                        // No join - do nothing
-                    }
-                    // Other modes should have errored during parsing, but handle gracefully
-                    _ => {
-                        // This shouldn't happen due to validation, but handle it
+                    Some(JoinMode::None) | _ => {
+                        // do nothing
                     }
                 }
             }

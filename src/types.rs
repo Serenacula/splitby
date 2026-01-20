@@ -22,6 +22,9 @@ pub enum JoinMode {
     Auto,            // @auto: existing logic
     AfterPrevious,   // @after-previous: use delimiter after previous field
     BeforeNext,      // @before-next: use delimiter before next field
+    First,           // @first: use first delimiter in record
+    Last,            // @last: use last delimiter in record
+    Space,           // @space: use space character
     None,            // @none: no join (equivalent to "")
 }
 
