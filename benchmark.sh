@@ -112,8 +112,8 @@ bench "cut       (3,5,7)" \
 
 if [[ "$SINGLE_CORE" == "true" ]]; then
     bench "splitby   (3 5 7) [single-core]" \
-          env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+          env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" --input="$TMP_DATA" ',' 3 5 7
 else
     bench "splitby   (3 5 7)" \
-          "$SPLITBY_CMD" -i "$TMP_DATA" -d ',' 3 5 7
+          "$SPLITBY_CMD" --align --input="$TMP_DATA" ',' 3 5 7
 fi
