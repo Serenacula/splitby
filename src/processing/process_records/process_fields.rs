@@ -77,7 +77,7 @@ pub fn process_fields(
         return Ok(Vec::new());
     }
 
-    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+    let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
         &instructions.selections,
         fields.len(),
         instructions.placeholder.is_some(),

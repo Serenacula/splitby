@@ -30,7 +30,7 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Initial normalisation pass
-    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+    let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
         &instructions.selections,
         grapheme_count,
         instructions.placeholder.is_some(),

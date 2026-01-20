@@ -1,4 +1,6 @@
-use crate::processing::process_records::worker_utilities::{invert_selections, normalise_selections};
+use crate::processing::process_records::worker_utilities::{
+    invert_selections, normalise_selections,
+};
 use crate::types::*;
 
 pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
@@ -20,7 +22,7 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Initial normalisation pass
-    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+    let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
         &instructions.selections,
         byte_length,
         instructions.placeholder.is_some(),

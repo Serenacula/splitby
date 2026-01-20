@@ -156,9 +156,8 @@ pub fn invert_selections(
     length: usize,
 ) -> Vec<(usize, usize)> {
     // Sort
-    normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
-        start_a.cmp(start_b).then(end_a.cmp(end_b))
-    });
+    normalised_selections
+        .sort_by(|(start_a, end_a), (start_b, end_b)| start_a.cmp(start_b).then(end_a.cmp(end_b)));
 
     // Merge
     let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
