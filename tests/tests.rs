@@ -16,23 +16,24 @@ fn run_success_test(
         .unwrap_or_else(|error| panic!("{description}: failed to run: {error}"));
 
     if !output.status.success() {
+        let error = "expected success, got status";
         let input = String::from_utf8_lossy(input_bytes);
         let stderr_text = String::from_utf8_lossy(&output.stderr);
         let stdout_text = String::from_utf8_lossy(&output.stdout);
         panic!(
-            "-----\nDESC: {description}\nERROR: expected success, got status {}\nINPUT: {input}\nARGS: {arguments:?}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}",
-            output.status
+            "-----\n DESC: {description}\nERROR: {error}\n\n ARGS: {arguments:?}\nINPUT: {input}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}",
         );
     }
 
     if output.stdout != expected_stdout {
+        let error = "stdout mismatch";
         let input = String::from_utf8_lossy(input_bytes);
         let expected_hex = bytes_to_hex_string(expected_stdout);
         let actual_hex = bytes_to_hex_string(&output.stdout);
         let expected_text = String::from_utf8_lossy(expected_stdout);
         let actual_text = String::from_utf8_lossy(&output.stdout);
         panic!(
-            "-----\n DESC: {description}\nERROR: stdout mismatch\n\n           ARGS: {arguments:?}\n          INPUT: {input}\nEXPECTED (text): {expected_text}\n  ACTUAL (text): {actual_text}\nEXPECTED  (hex):  {expected_hex}\n  ACTUAL  (hex):  {actual_hex}"
+            "-----\n DESC: {description}\nERROR: {error}\n\n ARGS: {arguments:?}\nINPUT: {input}\nEXPECTED (text): {expected_text}\n  ACTUAL (text): {actual_text}\nEXPECTED  (hex):  {expected_hex}\n  ACTUAL  (hex):  {actual_hex}"
         );
     }
 }
@@ -47,10 +48,12 @@ fn run_error_test(description: &str, input_bytes: &[u8], arguments: &[&str]) {
         .unwrap_or_else(|error| panic!("{description}: failed to run: {error}"));
 
     if output.status.success() {
-        let stderr_text = String::from_utf8_lossy(&output.stderr);
-        let stdout_text = String::from_utf8_lossy(&output.stdout);
+        let error = "expected failure, got success";
+        let input = String::from_utf8_lossy(input_bytes);
+        let actual_hex = bytes_to_hex_string(&output.stdout);
+        let actual_text = String::from_utf8_lossy(&output.stdout);
         panic!(
-            "{description}: expected failure, got success\nargs: {arguments:?}\nstdout: {stdout_text}\nstderr: {stderr_text}"
+            "-----\n DESC: {description}\nERROR: {error}\n\n ARGS: {arguments:?}\nINPUT: {input}\nACTUAL (text): {actual_text}\nACTUAL  (hex):  {actual_hex}"
         );
     }
 }
@@ -84,7 +87,7 @@ fn run_hex_output_test(
         let stderr_text = String::from_utf8_lossy(&output.stderr);
         let stdout_text = String::from_utf8_lossy(&output.stdout);
         panic!(
-            "{description}: expected success, got status {}\nargs: {arguments:?}\nstdout: {stdout_text}\nstderr: {stderr_text}",
+            "-----\n DESC: {description}\nERROR: expected success, got status {}\n\n  ARGS: {arguments:?}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}",
             output.status
         );
     }
@@ -92,7 +95,7 @@ fn run_hex_output_test(
     let hex_output = bytes_to_hex_string(&output.stdout);
     assert_eq!(
         hex_output, expected_hex,
-        "{description}: hex output mismatch\nargs: {arguments:?}"
+        "DESC: {description}\nERROR: hex output mismatch\n\nARGS: {arguments:?}"
     );
 }
 
@@ -124,8 +127,8 @@ mod basic_usage {
         run_success_test(
             "Test equals syntax",
             b"this is a test\n",
-            &["-w", "--delimiter= "],
-            b"this\nis\na\ntest\n",
+            &["-w", "--delimiter= ", "--join=,"],
+            b"this,is,a,test\n",
         );
     }
 
@@ -189,7 +192,7 @@ mod range_and_selection {
             "Split by space, empty selection whole-string",
             b"this is a test\n",
             &["-w", "-d", " "],
-            b"this\nis\na\ntest\n",
+            b"this is a test\n",
         );
     }
 
@@ -248,8 +251,8 @@ mod range_and_selection {
         run_success_test(
             "Split by space whole-string",
             b"this is a test\n",
-            &["-w", "-d", " ", "1", "2", "3-4"],
-            b"this\nis\na test\n",
+            &["-w", "-d", " ", "1", "3-4"],
+            b"this a test\n",
         );
     }
 }
@@ -353,7 +356,7 @@ mod comma_separated_selection {
             "Comma-separated selections: whole-string mode",
             b"apple,banana\ncherry,date\n",
             &["-w", "-d", ",", "1,2"],
-            b"apple\nbanana\ncherry",
+            b"apple,banana\ncherry",
         );
     }
 
@@ -566,6 +569,16 @@ mod join_and_trim {
     }
 
     #[test]
+    fn can_join_whole_string() {
+        run_success_test(
+            "Can join whole string",
+            b"boo hoo foo\n",
+            &["-w", "-d", " ", "-j", ","],
+            b"boo,hoo,foo\n",
+        );
+    }
+
+    #[test]
     fn doesnt_join_in_ranges() {
         run_success_test(
             "Doesn't join in ranges",
@@ -659,7 +672,7 @@ mod count_and_invert {
             "Using --count with extra newline whole-string",
             b"this\nis\na\ntest\n\n",
             &["--whole-string", "-d", "\\n", "--count"],
-            b"4",
+            b"5",
         );
     }
 
@@ -699,7 +712,7 @@ mod count_and_invert {
             "Invert single index whole-string",
             b"a b c d\n",
             &["-d", " ", "--whole-string", "--invert", "2"],
-            b"a\nc d\n",
+            b"a c d\n",
         );
     }
 
@@ -943,7 +956,16 @@ mod strictness {
             "Works with no range",
             b"this is a test\n",
             &["-w", "-d", " "],
-            b"this\nis\na\ntest\n",
+            b"this is a test\n",
+        );
+    }
+
+    #[test]
+    fn strict_return_only_delimiter() {
+        run_error_test(
+            "Strict return fails with no valid fields",
+            b",\n",
+            &["--strict", "-d", ","],
         );
     }
 

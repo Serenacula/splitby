@@ -10,14 +10,13 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     if byte_length == 0 {
-        return Ok(Vec::new());
-    }
-
-    if instructions.selections.is_empty() {
-        if instructions.invert {
-            return Ok(Vec::new());
+        if instructions.strict_return {
+            return Err("strict returns error: empty record".to_string());
         }
-        return Ok(bytes.to_vec());
+        if instructions.strict_bounds && !instructions.selections.is_empty() {
+            return Err("strict bounds error: empty record".to_string());
+        }
+        return Ok(Vec::new());
     }
 
     // Initial normalisation pass
@@ -43,13 +42,16 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Invert if applicable
-    let selections = if !instructions.invert {
+    let selections = if instructions.selections.is_empty() {
+        vec![(0, byte_length.saturating_sub(1))]
+    } else if !instructions.invert {
         normalised_selections
     } else {
         // Sort
         normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
             start_a.cmp(start_b).then(end_a.cmp(end_b))
         });
+
         // Merge
         let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
         for (start, end) in normalised_selections {

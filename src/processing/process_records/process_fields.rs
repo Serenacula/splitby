@@ -76,18 +76,6 @@ pub fn process_fields(
         return Ok(Vec::new());
     }
 
-    if instructions.selections.is_empty() {
-        if instructions.invert {
-            return Ok(Vec::new());
-        }
-        let mut result: Vec<u8> = Vec::new();
-        for field in fields {
-            result.extend_from_slice(field.text);
-            result.extend_from_slice(field.delimiter);
-        }
-        return Ok(result);
-    }
-
     let mut normalised_selections: Vec<(usize, usize)> =
         Vec::with_capacity(instructions.selections.len());
     for &(start, end) in &instructions.selections {
@@ -105,16 +93,17 @@ pub fn process_fields(
         }
     }
 
-    let selections = if !instructions.invert {
-        if !normalised_selections.is_empty() {
-            normalised_selections
-        } else {
-            vec![(0, fields.len().saturating_sub(1))]
-        }
+    let selections = if instructions.selections.is_empty() {
+        vec![(0, fields.len().saturating_sub(1))]
+    } else if !instructions.invert {
+        normalised_selections
     } else {
+        // Sort
         normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
             start_a.cmp(start_b).then(end_a.cmp(end_b))
         });
+
+        // Merge
         let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
         for (start, end) in normalised_selections {
             if let Some((_, last_end)) = merged.last_mut() {
@@ -126,6 +115,7 @@ pub fn process_fields(
             merged.push((start, end));
         }
 
+        // Build inverted list
         let mut invert_pointer: usize = 0;
         let mut inverted: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
         for (start, end) in &merged {
@@ -142,6 +132,7 @@ pub fn process_fields(
 
     let estimated_output_size = estimate_output_size(record.bytes.len(), selections.len());
     let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
+    let mut strict_return_passed: bool = false;
 
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
@@ -153,31 +144,29 @@ pub fn process_fields(
             }
 
             if field_index < fields.len() {
-                output.extend_from_slice(fields[field_index].text);
+                if !fields[field_index].text.is_empty() {
+                    output.extend_from_slice(fields[field_index].text);
+                    strict_return_passed = true;
+                }
             } else if let Some(placeholder) = &instructions.placeholder {
                 output.extend_from_slice(placeholder);
+                strict_return_passed = true;
             }
 
             let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
             if !is_last {
-                let previous_delimiter = if field_index > 0 {
-                    fields[field_index - 1].delimiter
-                } else {
-                    b""
-                };
-                let current_delimiter = if field_index < fields.len() {
-                    fields[field_index].delimiter
+                let current_delimiter = fields[field_index].delimiter;
+                let next_delimiter = if field_index < fields.len() - 1 {
+                    fields[field_index + 1].delimiter
                 } else {
                     b""
                 };
                 if let Some(join) = &instructions.join {
                     output.extend_from_slice(join)
-                } else if instructions.input_mode == InputMode::WholeString {
-                    output.push(b'\n');
-                } else if !previous_delimiter.is_empty() {
-                    output.extend_from_slice(previous_delimiter);
                 } else if !current_delimiter.is_empty() {
                     output.extend_from_slice(current_delimiter);
+                } else if !next_delimiter.is_empty() {
+                    output.extend_from_slice(next_delimiter);
                 } else {
                     output.push(b' ');
                 }
@@ -185,5 +174,9 @@ pub fn process_fields(
         }
     }
 
-    Ok(output)
+    if instructions.strict_return && !strict_return_passed {
+        Err("strict returns error: no valid output".to_string())
+    } else {
+        Ok(output)
+    }
 }

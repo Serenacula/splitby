@@ -102,8 +102,13 @@ pub fn normalise_selection(
         }
         Ok(Some((start as usize, end as usize)))
     } else {
+        if end < 0 {
+            return Ok(None);
+        }
         let clamped_start = if is_placeholder {
             start.max(0)
+        } else if start >= len as i32 {
+            return Ok(None);
         } else {
             start.max(0).min(len.saturating_sub(1) as i32)
         };
