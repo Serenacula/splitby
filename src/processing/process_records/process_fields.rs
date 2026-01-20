@@ -113,6 +113,9 @@ pub fn process_fields(
         .map(|field| field.delimiter)
         .unwrap_or(b"");
 
+    // Track field position for alignment
+    let mut field_position: usize = 0;
+
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
             let has_data = field_index < fields.len()
@@ -192,6 +195,80 @@ pub fn process_fields(
                         }
                     }
                 }
+
+                // Add alignment padding after delimiter (not after final field)
+                // Padding aligns the start of the next field
+                if let Some(max_widths) = &record.field_widths {
+                    if field_position < max_widths.len() {
+                        let max_field_width = max_widths[field_position];
+                        // Current field text width
+                        let current_field_width = if field_index < fields.len() {
+                            fields[field_index].text.len()
+                        } else if let Some(placeholder) = &instructions.placeholder {
+                            placeholder.len()
+                        } else {
+                            0
+                        };
+
+                        // Calculate delimiter/join width that was just output
+                        let delimiter_width = match &instructions.join {
+                            Some(JoinMode::String(join_bytes)) => join_bytes.len(),
+                            Some(JoinMode::AfterPrevious) => {
+                                if !current_delimiter.is_empty() {
+                                    current_delimiter.len()
+                                } else {
+                                    1 // space fallback
+                                }
+                            }
+                            Some(JoinMode::BeforeNext) => {
+                                if !next_delimiter.is_empty() {
+                                    next_delimiter.len()
+                                } else {
+                                    1 // space fallback
+                                }
+                            }
+                            Some(JoinMode::First) => {
+                                if !first_delimiter.is_empty() {
+                                    first_delimiter.len()
+                                } else {
+                                    1 // space fallback
+                                }
+                            }
+                            Some(JoinMode::Last) => {
+                                if !last_delimiter.is_empty() {
+                                    last_delimiter.len()
+                                } else {
+                                    1 // space fallback
+                                }
+                            }
+                            Some(JoinMode::Space) => 1,
+                            Some(JoinMode::None) => 0,
+                            None | Some(JoinMode::Auto) => {
+                                if !current_delimiter.is_empty() {
+                                    current_delimiter.len()
+                                } else if !next_delimiter.is_empty() {
+                                    next_delimiter.len()
+                                } else if !last_delimiter.is_empty() {
+                                    last_delimiter.len()
+                                } else {
+                                    1 // space fallback
+                                }
+                            }
+                        };
+
+                        // Padding aligns the start of the next field
+                        // After max-width field + delimiter, next field starts at: max_field_width + delimiter_width + 1
+                        // After current field + delimiter, next field starts at: current_field_width + delimiter_width + 1
+                        // Padding needed = (max_field_width + delimiter_width + 1) - (current_field_width + delimiter_width + 1)
+                        //                = max_field_width - current_field_width
+                        let padding_needed = max_field_width.saturating_sub(current_field_width);
+                        for _ in 0..padding_needed {
+                            output.push(b' ');
+                        }
+                    }
+                }
+
+                field_position += 1;
             }
         }
     }

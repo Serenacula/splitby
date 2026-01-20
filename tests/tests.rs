@@ -2062,3 +2062,109 @@ mod hex_parsing {
         );
     }
 }
+
+mod align {
+    use super::*;
+
+    #[test]
+    fn basic_alignment() {
+        run_success_test(
+            "Align: basic alignment",
+            b"apple,banana,cherry\na,bb,ccc\nx,y,z\n",
+            &["-d", ",", "--align", "1", "2", "3"],
+            b"apple,banana,cherry\na,    bb,    ccc\nx,    y,     z\n",
+        );
+    }
+
+    #[test]
+    fn align_no_padding_after_final_field() {
+        run_success_test(
+            "Align: no padding after final field",
+            b"apple,banana\na,bb\n",
+            &["-d", ",", "--align", "1", "2"],
+            b"apple,banana\na,    bb\n",
+        );
+    }
+
+    #[test]
+    fn align_with_join() {
+        run_success_test(
+            "Align: with join string",
+            b"apple,banana,cherry\na,bb,ccc\n",
+            &["-d", ",", "--align", "--join=|", "1", "2", "3"],
+            b"apple|banana|cherry\na|    bb|    ccc\n",
+        );
+    }
+
+    #[test]
+    fn align_with_skip_empty() {
+        run_success_test(
+            "Align: with skip-empty",
+            b"apple,,cherry\na,bb,\n",
+            &["-d", ",", "--align", "--skip-empty", "1", "2"],
+            b"apple,cherry\na,    bb\n",
+        );
+    }
+
+    #[test]
+    fn align_with_placeholder() {
+        run_success_test(
+            "Align: with placeholder",
+            b"apple,banana,cherry\na,bb\n",
+            &["-d", ",", "--align", "--placeholder=X", "1", "2", "3"],
+            b"apple,banana,cherry\na,    bb,    X\n",
+        );
+    }
+
+    #[test]
+    fn align_empty_input() {
+        run_success_test("Align: empty input", b"", &["-d", ",", "--align", "1"], b"");
+    }
+
+    #[test]
+    fn align_single_field() {
+        run_success_test(
+            "Align: single field (no padding needed)",
+            b"apple\na\n",
+            &["-d", ",", "--align", "1"],
+            b"apple\na\n",
+        );
+    }
+
+    #[test]
+    fn align_with_invert() {
+        run_success_test(
+            "Align: with invert",
+            b"apple,banana,cherry\na,bb,ccc\n",
+            &["-d", ",", "--align", "--invert", "2"],
+            b"apple,cherry\na,    ccc\n",
+        );
+    }
+
+    #[test]
+    fn align_error_whole_string() {
+        run_error_test(
+            "Align: error in whole-string mode",
+            b"apple,banana\n",
+            &["-w", "-d", ",", "--align", "1", "2"],
+        );
+    }
+
+    #[test]
+    fn align_error_bytes_mode() {
+        run_error_test(
+            "Align: error in bytes mode",
+            b"hello\n",
+            &["--bytes", "--align", "1"],
+        );
+    }
+
+    #[test]
+    fn align_error_chars_mode() {
+        run_error_test(
+            "Align: error in chars mode",
+            b"hello\n",
+            &["--characters", "--align", "1"],
+        );
+    }
+}

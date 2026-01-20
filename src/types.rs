@@ -28,6 +28,7 @@ pub enum JoinMode {
     None,            // @none: no join (equivalent to "")
 }
 
+#[derive(Clone)]
 pub enum RegexEngine {
     Simple(SimpleRegex),
     Fancy(FancyRegex),
@@ -49,12 +50,14 @@ pub struct Instructions {
     pub count: bool,
     pub join: Option<JoinMode>,
     pub regex_engine: Option<RegexEngine>,
+    pub align: bool,
 }
 
 pub struct Record {
     pub index: usize,
     pub bytes: Vec<u8>,
     pub has_terminator: bool,
+    pub field_widths: Option<Vec<usize>>,
 }
 
 pub struct OutputRecord {

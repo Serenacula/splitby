@@ -13,6 +13,7 @@ mod processing {
     pub mod get_results;
     pub mod process_records;
     pub mod read_input;
+    pub mod scan_field_widths;
 }
 
 #[derive(Parser)]
@@ -122,8 +123,25 @@ struct Options {
     #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
     delimiter: Option<String>,
 
+    #[arg(long = "align")]
+    align: bool,
+
     #[arg(value_name = "SELECTION", num_args = 0.., allow_hyphen_values = true)]
     selection_list: Vec<String>,
+}
+
+pub struct ReaderInstructions {
+    pub regex_engine: Option<RegexEngine>,
+    pub align: bool,
+    pub input_mode: InputMode,
+    pub input: Option<PathBuf>,
+    pub selections: Vec<(i32, i32)>,
+    pub skip_empty: bool,
+    pub invert: bool,
+    pub placeholder: Option<Vec<u8>>,
+    pub strict_bounds: bool,
+    pub strict_range_order: bool,
+    pub strict_utf8: bool,
 }
 
 fn main() {
@@ -368,6 +386,35 @@ fn main() {
         None => None,
     };
 
+    // Validate --align flag
+    if options.align {
+        if input_mode != InputMode::PerLine {
+            eprintln!("--align is only supported in per-line mode");
+            std::process::exit(2);
+        }
+        if selection_mode != SelectionMode::Fields {
+            eprintln!("--align is only supported in fields mode");
+            std::process::exit(2);
+        }
+    }
+
+    // Clone regex_engine for ReaderInstructions
+    let reader_regex_engine = regex_engine.clone();
+
+    let reader_instructions = ReaderInstructions {
+        regex_engine: reader_regex_engine,
+        align: options.align,
+        input_mode: input_mode,
+        input: options.input.clone(),
+        selections: selections.clone(),
+        skip_empty: skip_empty,
+        invert: options.invert,
+        placeholder: placeholder_value.clone(),
+        strict_bounds: strict_bounds,
+        strict_range_order: strict_range_order,
+        strict_utf8: strict_utf8,
+    };
+
     let instructions = Arc::new(Instructions {
         input_mode: input_mode,
         input: options.input,
@@ -384,21 +431,15 @@ fn main() {
         count: options.count,
         join: join,
         regex_engine: regex_engine,
+        align: options.align,
     });
 
     let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
     let (result_sender, result_receiver) = channel::bounded::<ResultChunk>(1024);
 
     // Setting up our Reader worker
-    let reader_instructions = Arc::clone(&instructions);
     let reader_sender = record_sender.clone();
-    let reader_handle = std::thread::spawn(move || {
-        read_input(
-            &reader_instructions.input_mode,
-            &reader_instructions.input,
-            reader_sender,
-        )
-    });
+    let reader_handle = std::thread::spawn(move || read_input(&reader_instructions, reader_sender));
     drop(record_sender);
 
     // Working out how much memory we need
