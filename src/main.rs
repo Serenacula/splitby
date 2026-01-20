@@ -19,7 +19,7 @@ mod processing {
 #[command(
     name = "splitby",
     version,
-    about = "Split text by a regex delimiter (flags only; no processing yet).",
+    about = "Split text by a regex delimiter, select parts of the result.",
     disable_help_subcommand = true
 )]
 struct Options {
@@ -343,12 +343,31 @@ fn main() {
         };
 
     let join = match options.join {
-        Some(join) => {
-            if selection_mode == SelectionMode::Bytes {
-                eprintln!("join is not supported in byte mode");
-                std::process::exit(2);
-            } else {
-                Some(join.as_bytes().to_vec())
+        Some(join_str) => {
+            // Validate that special flags aren't used in bytes/chars modes
+            if join_str.starts_with('@') {
+                if selection_mode != SelectionMode::Fields {
+                    eprintln!(
+                        "join flags (@auto, @after-previous, etc.) are only supported in fields mode"
+                    );
+                    std::process::exit(2);
+                }
+            }
+
+            // Check if it's a special flag
+            match join_str.as_str() {
+                "@auto" => Some(JoinMode::Auto),
+                "@after-previous" => Some(JoinMode::AfterPrevious),
+                "@before-next" => Some(JoinMode::BeforeNext),
+                "@none" => Some(JoinMode::None),
+                // Regular string join
+                _ => {
+                    if selection_mode == SelectionMode::Bytes {
+                        eprintln!("join is not supported in byte mode");
+                        std::process::exit(2);
+                    }
+                    Some(JoinMode::String(join_str.as_bytes().to_vec()))
+                }
             }
         }
         None => None,

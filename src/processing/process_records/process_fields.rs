@@ -127,14 +127,48 @@ pub fn process_fields(
                 } else {
                     b""
                 };
-                if let Some(join) = &instructions.join {
-                    output.extend_from_slice(join)
-                } else if !current_delimiter.is_empty() {
-                    output.extend_from_slice(current_delimiter);
-                } else if !next_delimiter.is_empty() {
-                    output.extend_from_slice(next_delimiter);
-                } else {
-                    output.push(b' ');
+
+                match &instructions.join {
+                    Some(JoinMode::String(join_bytes)) => {
+                        output.extend_from_slice(join_bytes);
+                    }
+                    Some(JoinMode::Auto) => {
+                        // Existing logic: try after-previous, then before-next, then space
+                        if !current_delimiter.is_empty() {
+                            output.extend_from_slice(current_delimiter);
+                        } else if !next_delimiter.is_empty() {
+                            output.extend_from_slice(next_delimiter);
+                        } else {
+                            output.push(b' ');
+                        }
+                    }
+                    Some(JoinMode::AfterPrevious) => {
+                        if !current_delimiter.is_empty() {
+                            output.extend_from_slice(current_delimiter);
+                        } else {
+                            output.push(b' '); // Fallback to space if no delimiter
+                        }
+                    }
+                    Some(JoinMode::BeforeNext) => {
+                        if !next_delimiter.is_empty() {
+                            output.extend_from_slice(next_delimiter);
+                        } else {
+                            output.push(b' '); // Fallback to space if no delimiter
+                        }
+                    }
+                    Some(JoinMode::None) => {
+                        // No join - do nothing
+                    }
+                    None => {
+                        // Default behavior (existing logic when no join specified)
+                        if !current_delimiter.is_empty() {
+                            output.extend_from_slice(current_delimiter);
+                        } else if !next_delimiter.is_empty() {
+                            output.extend_from_slice(next_delimiter);
+                        } else {
+                            output.push(b' ');
+                        }
+                    }
                 }
             }
         }

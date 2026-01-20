@@ -60,8 +60,17 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
                 output.extend_from_slice(&placeholder);
             }
             if !(index == selections.len() - 1 && i == selection.1) {
-                if let Some(join) = &instructions.join {
-                    output.extend_from_slice(&join);
+                match &instructions.join {
+                    Some(JoinMode::String(join_bytes)) => {
+                        output.extend_from_slice(join_bytes);
+                    }
+                    Some(JoinMode::None) => {
+                        // No join - do nothing
+                    }
+                    // Other modes should have errored during parsing, but handle gracefully
+                    _ => {
+                        // This shouldn't happen due to validation, but handle it
+                    }
                 }
             }
         }

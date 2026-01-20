@@ -16,6 +16,15 @@ pub enum SelectionMode {
     Chars,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub enum JoinMode {
+    String(Vec<u8>), // Regular string join
+    Auto,            // @auto: existing logic
+    AfterPrevious,   // @after-previous: use delimiter after previous field
+    BeforeNext,      // @before-next: use delimiter before next field
+    None,            // @none: no join (equivalent to "")
+}
+
 pub enum RegexEngine {
     Simple(SimpleRegex),
     Fancy(FancyRegex),
@@ -35,7 +44,7 @@ pub struct Instructions {
     pub strict_utf8: bool,
     pub output: Option<PathBuf>,
     pub count: bool,
-    pub join: Option<Vec<u8>>,
+    pub join: Option<JoinMode>,
     pub regex_engine: Option<RegexEngine>,
 }
 
