@@ -1,7 +1,7 @@
+use std::cmp::max;
+
+use crate::processing::process_records::worker_utilities::normalise_selection;
 use crate::types::*;
-use crate::processing::process_records::worker_utilities::{
-    estimate_output_size, invert_selections, parse_selection,
-};
 
 pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
     let bytes = &record.bytes;
@@ -15,60 +15,78 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
         return Ok(Vec::new());
     }
 
-    let selections_to_process = if instructions.invert {
-        invert_selections(
-            &instructions.selections,
+    // Initial normalisation pass
+    let mut normalised_selections: Vec<(usize, usize)> =
+        Vec::with_capacity(instructions.selections.len());
+    for &(start, end) in &instructions.selections {
+        match normalise_selection(
+            start,
+            end,
             byte_length,
-            instructions.strict_bounds,
-            instructions.strict_range_order,
-        )?
-    } else {
-        instructions.selections.clone()
-    };
-
-    if selections_to_process.is_empty() {
-        if instructions.invert {
-            return Ok(Vec::new());
-        }
-        return Ok(bytes.to_vec());
-    }
-
-    let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
-
-    for &(raw_start, raw_end) in &selections_to_process {
-        match parse_selection(
-            raw_start,
-            raw_end,
-            byte_length,
+            instructions.placeholder.is_some(),
             instructions.strict_bounds,
             instructions.strict_range_order,
         ) {
-            Ok(Some((process_start, process_end))) => {
-                let start_usize = process_start as usize;
-                let end_usize = process_end as usize;
-                let selection_bytes = bytes[start_usize..=end_usize].to_vec();
-                output_selections.push(selection_bytes);
+            Ok(Some(range)) => {
+                normalised_selections.push(range);
             }
-            Ok(None) => {
-                if let Some(ref placeholder) = instructions.placeholder {
-                    output_selections.push(placeholder.clone());
-                }
-            }
+            Ok(None) => continue,
             Err(error) => {
                 return Err(error);
             }
         }
     }
 
-    let estimated_output_size = estimate_output_size(byte_length, output_selections.len());
-    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
-    for (index, selection) in output_selections.iter().enumerate() {
-        if index > 0 && instructions.join.is_some() {
-            if let Some(join) = &instructions.join {
-                output.extend_from_slice(join.as_bytes());
+    // Invert if applicable
+    let selections = if !instructions.invert {
+        normalised_selections
+    } else {
+        // Sort
+        normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
+            start_a.cmp(start_b).then(end_a.cmp(end_b))
+        });
+        // Merge
+        let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
+        for (start, end) in normalised_selections {
+            if let Some((_, last_end)) = merged.last_mut() {
+                if start <= *last_end {
+                    *last_end = (*last_end).max(end);
+                    continue;
+                }
+            }
+            merged.push((start, end));
+        }
+
+        // Build inverted list
+        let mut invert_pointer: usize = 0;
+        let mut inverted_selections: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
+        for (start, end) in &merged {
+            if start > &byte_length {
+                inverted_selections.push((invert_pointer, byte_length - 1));
+                break;
+            } else {
+                inverted_selections.push((invert_pointer, start.saturating_sub(1)));
+                invert_pointer = end + 1;
             }
         }
-        output.extend_from_slice(selection);
+        if merged.last().is_some_and(|last| last.1 < byte_length) {
+            inverted_selections.push((invert_pointer, byte_length - 1));
+        }
+        inverted_selections
+    };
+
+    // Make our real output
+    let mut output: Vec<u8> = Vec::with_capacity(byte_length);
+    for selection in selections {
+        for i in selection.0..=selection.1 {
+            if i < byte_length {
+                output.push(bytes[i])
+            } else {
+                if let Some(placeholder) = &instructions.placeholder {
+                    output.extend_from_slice(&placeholder);
+                }
+            }
+        }
     }
 
     Ok(output)

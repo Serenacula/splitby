@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    estimate_field_count, estimate_output_size, invert_selections, parse_selection, resolve_index,
-    Field,
+    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, invert_selections,
+    normalise_selection, resolve_index,
 };
 use crate::types::*;
 
@@ -11,15 +11,9 @@ pub fn process_fields(
     engine: &RegexEngine,
     record: Record,
 ) -> Result<Vec<u8>, String> {
-    let text: Cow<str> = match instructions.strict_utf8 {
-        true => Cow::Borrowed(
-            std::str::from_utf8(&record.bytes)
-                .map_err(|_| "input is not valid UTF-8".to_string())?,
-        ),
-        false => match std::str::from_utf8(&record.bytes) {
-            Ok(valid_str) => Cow::Borrowed(valid_str),
-            Err(_) => Cow::Owned(String::from_utf8_lossy(&record.bytes).into_owned()),
-        },
+    let text: Cow<str> = match bytes_to_cow_string(&record.bytes, instructions.strict_utf8) {
+        Ok(string) => string,
+        Err(e) => return Err(e),
     };
 
     let delimiter_len = match engine {
@@ -135,7 +129,7 @@ pub fn process_fields(
         Vec::with_capacity(selections_to_process.len());
 
     for &(raw_start, raw_end) in &selections_to_process {
-        let (process_start, process_end) = match parse_selection(
+        let (process_start, process_end) = match normalise_selection(
             raw_start,
             raw_end,
             fields.len(),
@@ -172,7 +166,7 @@ pub fn process_fields(
             }
         };
 
-        let range_size = (process_end - process_start + 1) as usize;
+        let range_size = (process_end - process_start + 1);
         let avg_field_size = if fields.is_empty() {
             50
         } else {
@@ -247,33 +241,33 @@ pub fn process_fields(
                     output.extend_from_slice(join.as_bytes());
                 }
                 None => {
-                    let delimiter_to_use: &[u8] = if instructions.input_mode == InputMode::WholeString
-                    {
-                        b"\n"
-                    } else {
-                        let previous_selection_indices = selection_field_indices[index - 1];
-                        let current_selection_indices = selection_field_indices[index];
+                    let delimiter_to_use: &[u8] =
+                        if instructions.input_mode == InputMode::WholeString {
+                            b"\n"
+                        } else {
+                            let previous_selection_indices = selection_field_indices[index - 1];
+                            let current_selection_indices = selection_field_indices[index];
 
-                        match (previous_selection_indices, current_selection_indices) {
-                            ((_, Some(prev_last)), (Some(curr_first), _)) => {
-                                let delimiter_after_prev = fields[prev_last].delimiter;
-                                let delimiter_before_curr = if curr_first > 0 {
-                                    fields[curr_first - 1].delimiter
-                                } else {
-                                    b""
-                                };
+                            match (previous_selection_indices, current_selection_indices) {
+                                ((_, Some(prev_last)), (Some(curr_first), _)) => {
+                                    let delimiter_after_prev = fields[prev_last].delimiter;
+                                    let delimiter_before_curr = if curr_first > 0 {
+                                        fields[curr_first - 1].delimiter
+                                    } else {
+                                        b""
+                                    };
 
-                                if !delimiter_after_prev.is_empty() {
-                                    delimiter_after_prev
-                                } else if !delimiter_before_curr.is_empty() {
-                                    delimiter_before_curr
-                                } else {
-                                    b" "
+                                    if !delimiter_after_prev.is_empty() {
+                                        delimiter_after_prev
+                                    } else if !delimiter_before_curr.is_empty() {
+                                        delimiter_before_curr
+                                    } else {
+                                        b" "
+                                    }
                                 }
+                                _ => b" ",
                             }
-                            _ => b" ",
-                        }
-                    };
+                        };
 
                     output.extend_from_slice(delimiter_to_use);
                 }

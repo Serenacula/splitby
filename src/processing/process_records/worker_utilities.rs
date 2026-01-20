@@ -1,3 +1,19 @@
+use std::{
+    borrow::Cow,
+    cmp::{max, min},
+};
+
+/// From Bytes to Cow string
+pub fn bytes_to_cow_string<'a>(bytes: &'a [u8], strict_utf8: bool) -> Result<Cow<'a, str>, String> {
+    match std::str::from_utf8(bytes) {
+        Ok(string) => Ok(Cow::Borrowed(string)),
+        Err(_) => match strict_utf8 {
+            false => Ok(Cow::Owned(String::from_utf8_lossy(bytes).into_owned())),
+            true => Err("input is not valid UTF-8".to_string()),
+        },
+    }
+}
+
 /// Rough capacity hint for field buffers.
 pub fn estimate_field_count(input_len: usize, delimiter_len: usize) -> usize {
     if input_len == 0 {
@@ -31,14 +47,20 @@ pub fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
     }
 }
 
+pub struct NormalisedSelection {
+    start: usize,
+    end: usize,
+    length: usize,
+}
 /// Parse and validate a selection range.
-pub fn parse_selection(
+pub fn normalise_selection(
     raw_start: i32,
     raw_end: i32,
     len: usize,
+    is_placeholder: bool,
     strict_bounds: bool,
     strict_range_order: bool,
-) -> Result<Option<(i32, i32)>, String> {
+) -> Result<Option<(usize, usize)>, String> {
     if strict_bounds && (raw_start == 0 || raw_end == 0) {
         return Err(format!("selections are 1-based, 0 is an invalid index"));
     }
@@ -60,7 +82,7 @@ pub fn parse_selection(
         };
     }
 
-    let (process_start, process_end) = if strict_bounds {
+    if strict_bounds {
         if len == 0 {
             return Err(format!("strict bounds error: no valid fields to select"));
         }
@@ -70,36 +92,36 @@ pub fn parse_selection(
         if start < 0 || start >= len as i32 {
             if is_single_index {
                 return Err(format!(
-                    "strict bounds error: index ({}) out of bounds. must be between 1 and {}",
+                    "strict bounds error: index ({}) out of bounds, must be between 1 and {}",
                     raw_start, len
                 ));
             } else {
                 return Err(format!(
-                    "strict bounds error: start index ({}) out of bounds. must be between 1 and {}",
+                    "strict bounds error: start index ({}) out of bounds, must be between 1 and {}",
                     raw_start, len
                 ));
             }
         }
         if end < 0 || end >= len as i32 {
             return Err(format!(
-                "strict bounds error: end index ({}) out of bounds. must be between 1 and {}",
+                "strict bounds error: end index ({}) out of bounds, must be between 1 and {}",
                 raw_end, len
             ));
         }
-        (start, end)
+        Ok(Some((start as usize, end as usize)))
     } else {
-        let max_index = len as i32 - 1;
-        let clamped_start = if start < 0 { 0 } else { start };
-        let clamped_end = if end > max_index { max_index } else { end };
-
-        if clamped_start > max_index || clamped_end < 0 {
-            return Ok(None);
-        }
-
-        (clamped_start, clamped_end)
-    };
-
-    Ok(Some((process_start, process_end)))
+        let clamped_start = if is_placeholder {
+            start.max(0)
+        } else {
+            start.max(0).min(len.saturating_sub(1) as i32)
+        };
+        let clamped_end = if is_placeholder {
+            end.max(0)
+        } else {
+            end.max(0).min(len.saturating_sub(1) as i32)
+        };
+        Ok(Some((clamped_start as usize, clamped_end as usize)))
+    }
 }
 
 pub struct Field<'a> {

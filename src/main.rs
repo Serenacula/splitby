@@ -364,6 +364,18 @@ fn main() {
             None
         };
 
+    let join = match options.join {
+        Some(join) => {
+            if selection_mode == SelectionMode::Bytes {
+                eprintln!("join is not supported in byte mode");
+                std::process::exit(2);
+            } else {
+                Some(join.as_bytes().to_vec())
+            }
+        }
+        None => None,
+    };
+
     let instructions = Arc::new(Instructions {
         input_mode: input_mode,
         input: options.input,
@@ -378,7 +390,7 @@ fn main() {
         strict_utf8: strict_utf8,
         output: options.output,
         count: options.count,
-        join: options.join,
+        join: join,
         regex_engine: regex_engine,
     });
 

@@ -35,7 +35,7 @@ pub struct Instructions {
     pub strict_utf8: bool,
     pub output: Option<PathBuf>,
     pub count: bool,
-    pub join: Option<String>,
+    pub join: Option<Vec<u8>>,
     pub regex_engine: Option<RegexEngine>,
 }
 
