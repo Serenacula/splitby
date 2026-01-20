@@ -1,8 +1,7 @@
 use std::borrow::Cow;
-use std::cmp::max;
 
 use crate::processing::process_records::worker_utilities::{
-    bytes_to_cow_string, estimate_output_size, invert_selections, normalise_selection,
+    bytes_to_cow_string, normalise_selection,
 };
 use crate::types::*;
 use unicode_segmentation::UnicodeSegmentation;
@@ -22,6 +21,13 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
 
     if grapheme_count == 0 {
         return Ok(Vec::new());
+    }
+
+    if instructions.selections.is_empty() {
+        if instructions.invert {
+            return Ok(Vec::new());
+        }
+        return Ok(text.as_bytes().to_vec());
     }
 
     // Initial normalisation pass
@@ -86,7 +92,6 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
 
     // Make our real output
     let mut output: Vec<u8> = Vec::with_capacity(grapheme_count);
-    let is_join = instructions.join.is_some();
     for (index, selection) in selections.iter().enumerate() {
         for i in selection.0..=selection.1 {
             if i < grapheme_count {
@@ -94,7 +99,7 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
             } else if let Some(placeholder) = &instructions.placeholder {
                 output.extend_from_slice(&placeholder);
             }
-            if is_join && !(index == selections.len() - 1 && i == selection.1) {
+            if !(index == selections.len() - 1 && i == selection.1) {
                 if let Some(join) = &instructions.join {
                     output.extend_from_slice(&join);
                 }
@@ -102,5 +107,9 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
         }
     }
 
-    Ok(output)
+    if instructions.strict_return && output.is_empty() {
+        Err("strict returns error: no valid output".to_string())
+    } else {
+        Ok(output)
+    }
 }

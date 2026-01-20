@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use crate::processing::process_records::worker_utilities::normalise_selection;
 use crate::types::*;
 
@@ -13,6 +11,13 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
 
     if byte_length == 0 {
         return Ok(Vec::new());
+    }
+
+    if instructions.selections.is_empty() {
+        if instructions.invert {
+            return Ok(Vec::new());
+        }
+        return Ok(bytes.to_vec());
     }
 
     // Initial normalisation pass
@@ -89,5 +94,9 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
         }
     }
 
-    Ok(output)
+    if instructions.strict_return && output.is_empty() {
+        Err("strict returns error: no valid output".to_string())
+    } else {
+        Ok(output)
+    }
 }

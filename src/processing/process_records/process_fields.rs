@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, invert_selections,
-    normalise_selection, resolve_index,
+    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, normalise_selection,
 };
 use crate::types::*;
 
@@ -17,7 +16,7 @@ pub fn process_fields(
     };
 
     let delimiter_len = match engine {
-        RegexEngine::Simple(re) => re.as_str().len(),
+        RegexEngine::Simple(regex) => regex.as_str().len(),
         RegexEngine::Fancy(_) => 1,
     };
     let estimated_field_count = estimate_field_count(record.bytes.len(), delimiter_len);
@@ -52,24 +51,20 @@ pub fn process_fields(
         }
     }
 
-    fields.push(Field {
-        text: text[cursor..text.len()].as_bytes(),
-        delimiter: b"",
-    });
-
-    if instructions.input_mode == InputMode::WholeString {
-        while let Some(last_field) = fields.last() {
-            if last_field.text.is_empty() {
-                fields.pop();
-            } else {
-                break;
-            }
-        }
+    // Don't add an empty field at the end for whole-string
+    let final_text = text[cursor..text.len()].as_bytes();
+    if !final_text.is_empty() || instructions.input_mode != InputMode::WholeString {
+        fields.push(Field {
+            text: text[cursor..text.len()].as_bytes(),
+            delimiter: b"",
+        });
     }
 
     if instructions.skip_empty {
-        let filtered: Vec<Field> = fields.into_iter().filter(|f| !f.text.is_empty()).collect();
-        fields = filtered;
+        fields = fields
+            .into_iter()
+            .filter(|field| !field.text.is_empty())
+            .collect();
     }
 
     if instructions.count {
@@ -77,203 +72,117 @@ pub fn process_fields(
         return Ok(count.to_string().into_bytes());
     }
 
-    if fields.is_empty() || fields.iter().all(|f| f.text.is_empty()) {
+    if fields.is_empty() {
         return Ok(Vec::new());
     }
 
-    let selections_to_process = if instructions.invert {
-        invert_selections(
-            &instructions.selections,
-            fields.len(),
-            instructions.strict_bounds,
-            instructions.strict_range_order,
-        )?
-    } else {
-        instructions.selections.clone()
-    };
-
-    if selections_to_process.is_empty() {
+    if instructions.selections.is_empty() {
         if instructions.invert {
             return Ok(Vec::new());
         }
-        let estimated_output_size = if fields.is_empty() {
-            0
-        } else {
-            let total_field_size: usize = fields.iter().map(|f| f.text.len()).sum();
-            let delimiter_overhead = (fields.len().saturating_sub(1)) * 2;
-            total_field_size + delimiter_overhead
-        };
-        let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
-        for (index, field) in fields.iter().enumerate() {
-            if index > 0 {
-                match &instructions.join {
-                    Some(join) => {
-                        output.extend_from_slice(join.as_bytes());
-                    }
-                    None => {
-                        if instructions.input_mode == InputMode::WholeString {
-                            output.push(b'\n');
-                        } else {
-                            output.push(b' ');
-                        }
-                    }
-                }
-            }
-            output.extend_from_slice(field.text);
+        let mut result: Vec<u8> = Vec::new();
+        for field in fields {
+            result.extend_from_slice(field.text);
+            result.extend_from_slice(field.delimiter);
         }
-        return Ok(output);
+        return Ok(result);
     }
 
-    let mut output_selections: Vec<Vec<u8>> = Vec::with_capacity(selections_to_process.len());
-    let mut selection_field_indices: Vec<(Option<usize>, Option<usize>)> =
-        Vec::with_capacity(selections_to_process.len());
-
-    for &(raw_start, raw_end) in &selections_to_process {
-        let (process_start, process_end) = match normalise_selection(
-            raw_start,
-            raw_end,
+    let mut normalised_selections: Vec<(usize, usize)> =
+        Vec::with_capacity(instructions.selections.len());
+    for &(start, end) in &instructions.selections {
+        match normalise_selection(
+            start,
+            end,
             fields.len(),
+            instructions.placeholder.is_some(),
             instructions.strict_bounds,
             instructions.strict_range_order,
         ) {
-            Ok(Some(range)) => range,
-            Ok(None) => {
-                if let Some(ref placeholder) = instructions.placeholder {
-                    output_selections.push(placeholder.clone());
-                    let estimated_first = if fields.is_empty() {
-                        None
-                    } else {
-                        match resolve_index(raw_start, fields.len()) {
-                            Ok(resolved) if (resolved as usize) < fields.len() => {
-                                Some(resolved as usize)
-                            }
-                            _ => {
-                                if raw_start > fields.len() as i32 {
-                                    Some(fields.len() - 1)
-                                } else {
-                                    Some(0)
-                                }
-                            }
-                        }
-                    };
-                    let estimated_last = estimated_first;
-                    selection_field_indices.push((estimated_first, estimated_last));
-                }
-                continue;
-            }
-            Err(error) => {
-                return Err(error);
-            }
-        };
-
-        let range_size = (process_end - process_start + 1);
-        let avg_field_size = if fields.is_empty() {
-            50
-        } else {
-            let total_size: usize = fields.iter().map(|f| f.text.len()).sum();
-            total_size / fields.len().max(1)
-        };
-        let estimated_selection_size = range_size * avg_field_size;
-        let mut selection_output: Vec<u8> = Vec::with_capacity(estimated_selection_size);
-        let mut selection_has_output = false;
-        let mut previous_index: Option<usize> = None;
-        let mut first_field_index: Option<usize> = None;
-        let mut last_field_index: Option<usize> = None;
-
-        for index in process_start..=process_end {
-            if index < 0 || index as usize >= fields.len() {
-                continue;
-            }
-
-            selection_has_output = true;
-            let field_index = index as usize;
-
-            if first_field_index.is_none() {
-                first_field_index = Some(field_index);
-            }
-            last_field_index = Some(field_index);
-
-            if let Some(previous_index) = previous_index {
-                match &instructions.join {
-                    Some(join) => {
-                        selection_output.extend_from_slice(join.as_bytes());
-                    }
-                    None => {
-                        let delimiter_after_a = fields[previous_index].delimiter;
-                        let delimiter_before_b = if index > 0 {
-                            fields[index as usize - 1].delimiter
-                        } else {
-                            b""
-                        };
-
-                        if !delimiter_after_a.is_empty() {
-                            selection_output.extend_from_slice(delimiter_after_a);
-                        } else if !delimiter_before_b.is_empty() {
-                            selection_output.extend_from_slice(delimiter_before_b);
-                        } else {
-                            selection_output.push(b' ');
-                        }
-                    }
-                }
-            }
-
-            selection_output.extend_from_slice(fields[field_index].text);
-            previous_index = Some(field_index);
-        }
-
-        if !selection_has_output {
-            if let Some(ref placeholder) = instructions.placeholder {
-                output_selections.push(placeholder.clone());
-                selection_field_indices.push((None, None));
-            }
-        } else if selection_has_output {
-            output_selections.push(selection_output);
-            selection_field_indices.push((first_field_index, last_field_index));
+            Ok(Some(range)) => normalised_selections.push(range),
+            Ok(None) => {}
+            Err(error) => return Err(error),
         }
     }
 
-    let estimated_output_size = estimate_output_size(record.bytes.len(), output_selections.len());
-    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
-    for (index, selection) in output_selections.iter().enumerate() {
-        if index > 0 {
-            match &instructions.join {
-                Some(join) => {
-                    output.extend_from_slice(join.as_bytes());
+    let selections = if !instructions.invert {
+        if !normalised_selections.is_empty() {
+            normalised_selections
+        } else {
+            vec![(0, fields.len().saturating_sub(1))]
+        }
+    } else {
+        normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
+            start_a.cmp(start_b).then(end_a.cmp(end_b))
+        });
+        let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
+        for (start, end) in normalised_selections {
+            if let Some((_, last_end)) = merged.last_mut() {
+                if start <= *last_end {
+                    *last_end = (*last_end).max(end);
+                    continue;
                 }
-                None => {
-                    let delimiter_to_use: &[u8] =
-                        if instructions.input_mode == InputMode::WholeString {
-                            b"\n"
-                        } else {
-                            let previous_selection_indices = selection_field_indices[index - 1];
-                            let current_selection_indices = selection_field_indices[index];
+            }
+            merged.push((start, end));
+        }
 
-                            match (previous_selection_indices, current_selection_indices) {
-                                ((_, Some(prev_last)), (Some(curr_first), _)) => {
-                                    let delimiter_after_prev = fields[prev_last].delimiter;
-                                    let delimiter_before_curr = if curr_first > 0 {
-                                        fields[curr_first - 1].delimiter
-                                    } else {
-                                        b""
-                                    };
+        let mut invert_pointer: usize = 0;
+        let mut inverted: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
+        for (start, end) in &merged {
+            if *start > invert_pointer {
+                inverted.push((invert_pointer, start.saturating_sub(1)));
+            }
+            invert_pointer = end.saturating_add(1);
+        }
+        if invert_pointer < fields.len() {
+            inverted.push((invert_pointer, fields.len().saturating_sub(1)));
+        }
+        inverted
+    };
 
-                                    if !delimiter_after_prev.is_empty() {
-                                        delimiter_after_prev
-                                    } else if !delimiter_before_curr.is_empty() {
-                                        delimiter_before_curr
-                                    } else {
-                                        b" "
-                                    }
-                                }
-                                _ => b" ",
-                            }
-                        };
+    let estimated_output_size = estimate_output_size(record.bytes.len(), selections.len());
+    let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
 
-                    output.extend_from_slice(delimiter_to_use);
+    for (selection_index, selection) in selections.iter().enumerate() {
+        for field_index in selection.0..=selection.1 {
+            let has_data = field_index < fields.len()
+                || (instructions.placeholder.is_some() && !instructions.invert);
+
+            if !has_data {
+                continue;
+            }
+
+            if field_index < fields.len() {
+                output.extend_from_slice(fields[field_index].text);
+            } else if let Some(placeholder) = &instructions.placeholder {
+                output.extend_from_slice(placeholder);
+            }
+
+            let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
+            if !is_last {
+                let previous_delimiter = if field_index > 0 {
+                    fields[field_index - 1].delimiter
+                } else {
+                    b""
+                };
+                let current_delimiter = if field_index < fields.len() {
+                    fields[field_index].delimiter
+                } else {
+                    b""
+                };
+                if let Some(join) = &instructions.join {
+                    output.extend_from_slice(join)
+                } else if instructions.input_mode == InputMode::WholeString {
+                    output.push(b'\n');
+                } else if !previous_delimiter.is_empty() {
+                    output.extend_from_slice(previous_delimiter);
+                } else if !current_delimiter.is_empty() {
+                    output.extend_from_slice(current_delimiter);
+                } else {
+                    output.push(b' ');
                 }
             }
         }
-        output.extend_from_slice(selection);
     }
 
     Ok(output)

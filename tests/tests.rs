@@ -16,18 +16,25 @@ fn run_success_test(
         .unwrap_or_else(|error| panic!("{description}: failed to run: {error}"));
 
     if !output.status.success() {
+        let input = String::from_utf8_lossy(input_bytes);
         let stderr_text = String::from_utf8_lossy(&output.stderr);
         let stdout_text = String::from_utf8_lossy(&output.stdout);
         panic!(
-            "{description}: expected success, got status {}\nargs: {arguments:?}\nstdout: {stdout_text}\nstderr: {stderr_text}",
+            "-----\nDESC: {description}\nERROR: expected success, got status {}\nINPUT: {input}\nARGS: {arguments:?}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}",
             output.status
         );
     }
 
-    assert_eq!(
-        output.stdout, expected_stdout,
-        "{description}: stdout mismatch\nargs: {arguments:?}"
-    );
+    if output.stdout != expected_stdout {
+        let input = String::from_utf8_lossy(input_bytes);
+        let expected_hex = bytes_to_hex_string(expected_stdout);
+        let actual_hex = bytes_to_hex_string(&output.stdout);
+        let expected_text = String::from_utf8_lossy(expected_stdout);
+        let actual_text = String::from_utf8_lossy(&output.stdout);
+        panic!(
+            "-----\n DESC: {description}\nERROR: stdout mismatch\n\n           ARGS: {arguments:?}\n          INPUT: {input}\nEXPECTED (text): {expected_text}\n  ACTUAL (text): {actual_text}\nEXPECTED  (hex):  {expected_hex}\n  ACTUAL  (hex):  {actual_hex}"
+        );
+    }
 }
 
 fn run_error_test(description: &str, input_bytes: &[u8], arguments: &[&str]) {
@@ -826,11 +833,10 @@ fn byte_mode_tests() {
         &["--count", "--bytes"],
         b"0\n",
     );
-    run_success_test(
-        "Byte mode: --join",
+    run_error_test(
+        "Byte mode: --join (not supported)",
         b"hello\n",
         &["--join", ",", "--bytes", "1", "3", "5"],
-        b"h,l,o\n",
     );
     run_success_test(
         "Byte mode: --invert",
