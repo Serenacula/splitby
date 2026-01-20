@@ -150,6 +150,43 @@ pub fn normalise_selections(
     Ok(normalised_selections)
 }
 
+/// Invert a list of selection ranges by sorting, merging, and building the complement.
+pub fn invert_selections(
+    mut normalised_selections: Vec<(usize, usize)>,
+    length: usize,
+) -> Vec<(usize, usize)> {
+    // Sort
+    normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
+        start_a.cmp(start_b).then(end_a.cmp(end_b))
+    });
+
+    // Merge
+    let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
+    for (start, end) in normalised_selections {
+        if let Some((_, last_end)) = merged.last_mut() {
+            if start <= *last_end {
+                *last_end = (*last_end).max(end);
+                continue;
+            }
+        }
+        merged.push((start, end));
+    }
+
+    // Build inverted list
+    let mut invert_pointer: usize = 0;
+    let mut inverted: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
+    for (start, end) in &merged {
+        if *start > invert_pointer {
+            inverted.push((invert_pointer, start.saturating_sub(1)));
+        }
+        invert_pointer = end.saturating_add(1);
+    }
+    if invert_pointer < length {
+        inverted.push((invert_pointer, length.saturating_sub(1)));
+    }
+    inverted
+}
+
 pub struct Field<'a> {
     pub text: &'a [u8],
     pub delimiter: &'a [u8],

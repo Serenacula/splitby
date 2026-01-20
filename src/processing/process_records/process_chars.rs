@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    bytes_to_cow_string, normalise_selections,
+    bytes_to_cow_string, invert_selections, normalise_selections,
 };
 use crate::types::*;
 use unicode_segmentation::UnicodeSegmentation;
@@ -47,39 +47,7 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     } else if !instructions.invert {
         normalised_selections
     } else {
-        // Sort
-        normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
-            start_a.cmp(start_b).then(end_a.cmp(end_b))
-        });
-
-        // Merge
-        let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
-        for (start, end) in normalised_selections {
-            if let Some((_, last_end)) = merged.last_mut() {
-                if start <= *last_end {
-                    *last_end = (*last_end).max(end);
-                    continue;
-                }
-            }
-            merged.push((start, end));
-        }
-
-        // Build inverted list
-        let mut invert_pointer: usize = 0;
-        let mut inverted_selections: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
-        for (start, end) in &merged {
-            if start > &grapheme_count {
-                inverted_selections.push((invert_pointer, grapheme_count - 1));
-                break;
-            } else {
-                inverted_selections.push((invert_pointer, start.saturating_sub(1)));
-                invert_pointer = end + 1;
-            }
-        }
-        if merged.last().is_some_and(|last| last.1 < grapheme_count) {
-            inverted_selections.push((invert_pointer, grapheme_count - 1));
-        }
-        inverted_selections
+        invert_selections(normalised_selections, grapheme_count)
     };
 
     // Make our real output

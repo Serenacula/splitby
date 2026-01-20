@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, normalise_selections,
+    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, invert_selections,
+    normalise_selections,
 };
 use crate::types::*;
 
@@ -92,36 +93,7 @@ pub fn process_fields(
     } else if !instructions.invert {
         normalised_selections
     } else {
-        // Sort
-        normalised_selections.sort_by(|(start_a, end_a), (start_b, end_b)| {
-            start_a.cmp(start_b).then(end_a.cmp(end_b))
-        });
-
-        // Merge
-        let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
-        for (start, end) in normalised_selections {
-            if let Some((_, last_end)) = merged.last_mut() {
-                if start <= *last_end {
-                    *last_end = (*last_end).max(end);
-                    continue;
-                }
-            }
-            merged.push((start, end));
-        }
-
-        // Build inverted list
-        let mut invert_pointer: usize = 0;
-        let mut inverted: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
-        for (start, end) in &merged {
-            if *start > invert_pointer {
-                inverted.push((invert_pointer, start.saturating_sub(1)));
-            }
-            invert_pointer = end.saturating_add(1);
-        }
-        if invert_pointer < fields.len() {
-            inverted.push((invert_pointer, fields.len().saturating_sub(1)));
-        }
-        inverted
+        invert_selections(normalised_selections, fields.len())
     };
 
     let estimated_output_size = estimate_output_size(record.bytes.len(), selections.len());
