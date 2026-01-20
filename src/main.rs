@@ -23,8 +23,21 @@ mod processing {
     disable_help_subcommand = true
 )]
 struct Options {
-    #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
-    delimiter: Option<String>,
+    #[arg(
+        short = 'i',
+        long = "input",
+        value_name = "FILE",
+        require_equals = true
+    )]
+    input: Option<PathBuf>,
+
+    #[arg(
+        short = 'o',
+        long = "output",
+        value_name = "FILE",
+        require_equals = true
+    )]
+    output: Option<PathBuf>,
 
     #[arg(long = "per-line")]
     per_line: bool,
@@ -34,24 +47,6 @@ struct Options {
 
     #[arg(short = 'z', long = "zero-terminated")]
     zero_terminated: bool,
-
-    #[arg(
-        short = 'j',
-        long = "join",
-        value_name = "STRING",
-        num_args = 1,
-        allow_hyphen_values = true
-    )]
-    join: Option<String>,
-
-    #[arg(
-        long = "placeholder",
-        value_name = "STRING|HEX",
-        num_args = 1,
-        allow_hyphen_values = true,
-        action = clap::ArgAction::Append,
-    )]
-    placeholder: Vec<String>,
 
     #[arg(short = 'e', long = "skip-empty")]
     skip_empty: bool,
@@ -64,12 +59,6 @@ struct Options {
 
     #[arg(long = "count")]
     count: bool,
-
-    #[arg(short = 'i', long = "input", value_name = "FILE")]
-    input: Option<PathBuf>,
-
-    #[arg(short = 'o', long = "output", value_name = "FILE")]
-    output: Option<PathBuf>,
 
     #[arg(long = "strict")]
     strict: bool,
@@ -100,6 +89,28 @@ struct Options {
 
     #[arg(long = "no-strict-utf8")]
     no_strict_utf8: bool,
+
+    #[arg(
+        short = 'j',
+        long = "join",
+        value_name = "STRING",
+        num_args = 1,
+        allow_hyphen_values = true
+    )]
+    join: Option<String>,
+
+    #[arg(
+        long = "placeholder",
+        value_name = "STRING|HEX",
+        num_args = 1,
+        require_equals = true,
+        allow_hyphen_values = true,
+        action = clap::ArgAction::Append,
+    )]
+    placeholder: Vec<String>,
+
+    #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
+    delimiter: Option<String>,
 
     #[arg(
         short = 'f',
@@ -324,19 +335,37 @@ fn main() {
         }
     };
 
+    fn parse_hex(hex_str: &str) -> Option<Vec<u8>> {
+        if !hex_str.starts_with("0x") && !hex_str.starts_with("0X") {
+            return None;
+        }
+
+        let hex_digits = &hex_str[2..];
+        if hex_digits.is_empty() {
+            return None;
+        }
+
+        if hex_digits.len() % 2 != 0 {
+            return None; // Odd number of hex digits
+        }
+
+        let mut bytes = Vec::with_capacity(hex_digits.len() / 2);
+        for chunk in hex_digits.as_bytes().chunks(2) {
+            let hex_pair = std::str::from_utf8(chunk).ok()?;
+            match u8::from_str_radix(hex_pair, 16) {
+                Ok(byte_value) => bytes.push(byte_value),
+                Err(_) => return None,
+            }
+        }
+
+        Some(bytes)
+    }
+
     let placeholder_value: Option<Vec<u8>> =
         if let Some(placeholder_str) = options.placeholder.last() {
-            if placeholder_str.starts_with("0x") || placeholder_str.starts_with("0X") {
-                let hex_str = &placeholder_str[2..];
-                match u8::from_str_radix(hex_str, 16) {
-                    Ok(byte_value) => Some(vec![byte_value]),
-                    Err(_) => {
-                        eprintln!("invalid hex value for placeholder: {}", placeholder_str);
-                        std::process::exit(2);
-                    }
-                }
-            } else {
-                Some(placeholder_str.as_bytes().to_vec())
+            match parse_hex(placeholder_str) {
+                Some(hex_bytes) => Some(hex_bytes),
+                None => Some(placeholder_str.as_bytes().to_vec()),
             }
         } else {
             None
@@ -360,13 +389,17 @@ fn main() {
                 "@after-previous" => Some(JoinMode::AfterPrevious),
                 "@before-next" => Some(JoinMode::BeforeNext),
                 "@none" => Some(JoinMode::None),
-                // Regular string join
+                // Regular string join or hex
                 _ => {
                     if selection_mode == SelectionMode::Bytes {
                         eprintln!("join is not supported in byte mode");
                         std::process::exit(2);
                     }
-                    Some(JoinMode::String(join_str.as_bytes().to_vec()))
+                    // Try parsing as hex first
+                    match parse_hex(&join_str) {
+                        Some(hex_bytes) => Some(JoinMode::String(hex_bytes)),
+                        None => Some(JoinMode::String(join_str.as_bytes().to_vec())),
+                    }
                 }
             }
         }

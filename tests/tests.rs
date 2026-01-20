@@ -1688,3 +1688,247 @@ mod char_mode {
         );
     }
 }
+
+mod hex_parsing {
+    use super::*;
+
+    #[test]
+    fn placeholder_single_byte_hex() {
+        run_success_test(
+            "Placeholder: single-byte hex (0x2C = comma)",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0x2C", "1", "5"],
+            b"apple,,\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_single_byte_hex_uppercase() {
+        run_success_test(
+            "Placeholder: single-byte hex uppercase prefix (0X2C)",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0X2C", "1", "5"],
+            b"apple,,\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_multi_byte_hex() {
+        run_success_test(
+            "Placeholder: multi-byte hex (0x2C20 = comma+space)",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0x2C20", "1", "5"],
+            b"apple,, \n",
+        );
+    }
+
+    #[test]
+    fn placeholder_multi_byte_hex_uppercase() {
+        run_success_test(
+            "Placeholder: multi-byte hex uppercase prefix (0X3A3A = ::)",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0X3A3A", "1", "5"],
+            b"apple,::\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_four_bytes() {
+        run_hex_output_test(
+            "Placeholder: four-byte hex (0x48656C6C = Hell)",
+            b"hello\n",
+            &["--bytes", "--placeholder=0x48656C6C", "1", "10", "3"],
+            "68 48 65 6c 6c 6c 0a",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_zero_byte() {
+        run_hex_output_test(
+            "Placeholder: hex zero byte (0x00)",
+            b"hello\n",
+            &["--bytes", "--placeholder=0x00", "1", "10", "3"],
+            "68 00 6c 0a",
+        );
+    }
+
+    #[test]
+    fn placeholder_string_fallback() {
+        run_success_test(
+            "Placeholder: string fallback (not hex)",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=N/A", "1", "5"],
+            b"apple,N/A\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_string_with_0x_prefix() {
+        run_success_test(
+            "Placeholder: string starting with 0x but not valid hex",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0xinvalid", "1", "5"],
+            b"apple,0xinvalid\n",
+        );
+    }
+
+    #[test]
+    fn join_single_byte_hex() {
+        run_success_test(
+            "Join: single-byte hex (0x2C = comma)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0x2C", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_single_byte_hex_uppercase() {
+        run_success_test(
+            "Join: single-byte hex uppercase prefix (0X09 = tab)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0X09", "1", "3"],
+            b"apple\tcherry\n",
+        );
+    }
+
+    #[test]
+    fn join_multi_byte_hex() {
+        run_success_test(
+            "Join: multi-byte hex (0x2C20 = comma+space)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0x2C20", "1", "3"],
+            b"apple, cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_multi_byte_hex_uppercase() {
+        run_success_test(
+            "Join: multi-byte hex uppercase prefix (0X3A20 = colon+space)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0X3A20", "1", "3"],
+            b"apple: cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_four_bytes() {
+        run_success_test(
+            "Join: four-byte hex (0x48656C6C = Hell)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0x48656C6C", "1", "3"],
+            b"appleHellcherry\n",
+        );
+    }
+
+    #[test]
+    fn join_string_fallback() {
+        run_success_test(
+            "Join: string fallback (not hex)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=|", "1", "3"],
+            b"apple|cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_string_with_0x_prefix() {
+        run_success_test(
+            "Join: string starting with 0x but not valid hex",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0xinvalid", "1", "3"],
+            b"apple0xinvalidcherry\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_odd_length() {
+        run_success_test(
+            "Join: odd-length hex falls back to string",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0x2C2", "1", "3"],
+            b"apple0x2C2cherry\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_odd_length() {
+        run_success_test(
+            "Placeholder: odd-length hex falls back to string",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0x2C2", "1", "5"],
+            b"apple,0x2C2\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_empty_after_prefix() {
+        run_success_test(
+            "Join: empty hex after 0x falls back to string",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0x", "1", "3"],
+            b"apple0xcherry\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_empty_after_prefix() {
+        run_success_test(
+            "Placeholder: empty hex after 0x falls back to string",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0x", "1", "5"],
+            b"apple,0x\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_invalid_characters() {
+        run_success_test(
+            "Join: invalid hex characters fall back to string",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=0xGH", "1", "3"],
+            b"apple0xGHcherry\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_invalid_characters() {
+        run_success_test(
+            "Placeholder: invalid hex characters fall back to string",
+            b"apple,banana\n",
+            &["-d", ",", "--placeholder=0xGH", "1", "5"],
+            b"apple,0xGH\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_with_special_flags() {
+        run_success_test(
+            "Join: hex parsing doesn't interfere with special flags",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=@auto", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_hex_in_char_mode() {
+        run_success_test(
+            "Placeholder: hex in char mode",
+            b"hello\n",
+            &["--characters", "--placeholder=0x2C20", "1", "10", "3"],
+            b"h, l\n",
+        );
+    }
+
+    #[test]
+    fn join_hex_in_char_mode() {
+        run_success_test(
+            "Join: hex in char mode",
+            b"hello\n",
+            &["--characters", "--join=0x2C20", "1", "3", "5"],
+            b"h, l, o\n",
+        );
+    }
+}
