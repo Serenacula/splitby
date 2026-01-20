@@ -1,4 +1,4 @@
-use crate::processing::process_records::worker_utilities::normalise_selection;
+use crate::processing::process_records::worker_utilities::normalise_selections;
 use crate::types::*;
 
 pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
@@ -20,26 +20,16 @@ pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Initial normalisation pass
-    let mut normalised_selections: Vec<(usize, usize)> =
-        Vec::with_capacity(instructions.selections.len());
-    for &(start, end) in &instructions.selections {
-        match normalise_selection(
-            start,
-            end,
-            byte_length,
-            instructions.placeholder.is_some(),
-            instructions.strict_bounds,
-            instructions.strict_range_order,
-        ) {
-            Ok(Some(range)) => {
-                normalised_selections.push(range);
-            }
-            Ok(None) => continue,
-            Err(error) => {
-                return Err(error);
-            }
-        }
-    }
+    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+        &instructions.selections,
+        byte_length,
+        instructions.placeholder.is_some(),
+        instructions.strict_bounds,
+        instructions.strict_range_order,
+    ) {
+        Ok(result) => result,
+        Err(error) => return Err(error),
+    };
 
     // Invert if applicable
     let selections = if instructions.selections.is_empty() {

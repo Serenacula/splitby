@@ -48,7 +48,7 @@ pub fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
 pub fn normalise_selection(
     raw_start: i32,
     raw_end: i32,
-    len: usize,
+    length: usize,
     is_placeholder: bool,
     strict_bounds: bool,
     strict_range_order: bool,
@@ -57,8 +57,8 @@ pub fn normalise_selection(
         return Err(format!("selections are 1-based, 0 is an invalid index"));
     }
 
-    let start = resolve_index(raw_start, len)?;
-    let end = resolve_index(raw_end, len)?;
+    let start = resolve_index(raw_start, length)?;
+    let end = resolve_index(raw_end, length)?;
 
     if start > end {
         match strict_range_order {
@@ -75,29 +75,29 @@ pub fn normalise_selection(
     }
 
     if strict_bounds {
-        if len == 0 {
+        if length == 0 {
             return Err(format!("strict bounds error: no valid fields to select"));
         }
 
         let is_single_index = raw_start == raw_end;
 
-        if start < 0 || start >= len as i32 {
+        if start < 0 || start >= length as i32 {
             if is_single_index {
                 return Err(format!(
                     "strict bounds error: index ({}) out of bounds, must be between 1 and {}",
-                    raw_start, len
+                    raw_start, length
                 ));
             } else {
                 return Err(format!(
                     "strict bounds error: start index ({}) out of bounds, must be between 1 and {}",
-                    raw_start, len
+                    raw_start, length
                 ));
             }
         }
-        if end < 0 || end >= len as i32 {
+        if end < 0 || end >= length as i32 {
             return Err(format!(
                 "strict bounds error: end index ({}) out of bounds, must be between 1 and {}",
-                raw_end, len
+                raw_end, length
             ));
         }
         Ok(Some((start as usize, end as usize)))
@@ -107,18 +107,47 @@ pub fn normalise_selection(
         }
         let clamped_start = if is_placeholder {
             start.max(0)
-        } else if start >= len as i32 {
+        } else if start >= length as i32 {
             return Ok(None);
         } else {
-            start.max(0).min(len.saturating_sub(1) as i32)
+            start.max(0).min(length.saturating_sub(1) as i32)
         };
         let clamped_end = if is_placeholder {
             end.max(0)
         } else {
-            end.max(0).min(len.saturating_sub(1) as i32)
+            end.max(0).min(length.saturating_sub(1) as i32)
         };
         Ok(Some((clamped_start as usize, clamped_end as usize)))
     }
+}
+
+pub fn normalise_selections(
+    selections: &Vec<(i32, i32)>,
+    length: usize,
+    is_placeholder: bool,
+    is_strict_bounds: bool,
+    is_strict_range_order: bool,
+) -> Result<Vec<(usize, usize)>, String> {
+    let mut normalised_selections: Vec<(usize, usize)> = Vec::with_capacity(selections.len());
+    for &(start, end) in selections {
+        match normalise_selection(
+            start,
+            end,
+            length,
+            is_placeholder,
+            is_strict_bounds,
+            is_strict_range_order,
+        ) {
+            Ok(Some(range)) => {
+                normalised_selections.push(range);
+            }
+            Ok(None) => continue,
+            Err(error) => {
+                return Err(error);
+            }
+        }
+    }
+    Ok(normalised_selections)
 }
 
 pub struct Field<'a> {

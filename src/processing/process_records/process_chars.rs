@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    bytes_to_cow_string, normalise_selection,
+    bytes_to_cow_string, normalise_selections,
 };
 use crate::types::*;
 use unicode_segmentation::UnicodeSegmentation;
@@ -30,26 +30,16 @@ pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<
     }
 
     // Initial normalisation pass
-    let mut normalised_selections: Vec<(usize, usize)> =
-        Vec::with_capacity(instructions.selections.len());
-    for &(start, end) in &instructions.selections {
-        match normalise_selection(
-            start,
-            end,
-            grapheme_count,
-            instructions.placeholder.is_some(),
-            instructions.strict_bounds,
-            instructions.strict_range_order,
-        ) {
-            Ok(Some(range)) => {
-                normalised_selections.push(range);
-            }
-            Ok(None) => continue,
-            Err(error) => {
-                return Err(error);
-            }
-        }
-    }
+    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+        &instructions.selections,
+        grapheme_count,
+        instructions.placeholder.is_some(),
+        instructions.strict_bounds,
+        instructions.strict_range_order,
+    ) {
+        Ok(result) => result,
+        Err(error) => return Err(error),
+    };
 
     // Invert if applicable
     let selections = if instructions.selections.is_empty() {

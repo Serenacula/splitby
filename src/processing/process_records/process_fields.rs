@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::processing::process_records::worker_utilities::{
-    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, normalise_selection,
+    Field, bytes_to_cow_string, estimate_field_count, estimate_output_size, normalise_selections,
 };
 use crate::types::*;
 
@@ -76,22 +76,16 @@ pub fn process_fields(
         return Ok(Vec::new());
     }
 
-    let mut normalised_selections: Vec<(usize, usize)> =
-        Vec::with_capacity(instructions.selections.len());
-    for &(start, end) in &instructions.selections {
-        match normalise_selection(
-            start,
-            end,
-            fields.len(),
-            instructions.placeholder.is_some(),
-            instructions.strict_bounds,
-            instructions.strict_range_order,
-        ) {
-            Ok(Some(range)) => normalised_selections.push(range),
-            Ok(None) => {}
-            Err(error) => return Err(error),
-        }
-    }
+    let mut normalised_selections: Vec<(usize, usize)> = match normalise_selections(
+        &instructions.selections,
+        fields.len(),
+        instructions.placeholder.is_some(),
+        instructions.strict_bounds,
+        instructions.strict_range_order,
+    ) {
+        Ok(result) => result,
+        Err(error) => return Err(error),
+    };
 
     let selections = if instructions.selections.is_empty() {
         vec![(0, fields.len().saturating_sub(1))]
