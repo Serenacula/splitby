@@ -115,5 +115,5 @@ if [[ "$SINGLE_CORE" == "true" ]]; then
           env SPLITBY_SINGLE_CORE=1 "$SPLITBY_CMD" --input="$TMP_DATA" ',' 3 5 7
 else
     bench "splitby   (3 5 7)" \
-          "$SPLITBY_CMD" --align --input="$TMP_DATA" ',' 3 5 7
+          "$SPLITBY_CMD" --input="$TMP_DATA" ',' 3 5 7
 fi
