@@ -5,11 +5,12 @@ mod transform;
 mod types;
 
 use clap::Parser;
-use cli::{Options, parse_options};
 use crossbeam::channel;
+use std::{cmp::max, sync::Arc};
+
+use cli::{Options, parse_options};
 use input::read_input;
 use output::get_results;
-use std::{cmp::max, sync::Arc};
 use transform::process_records;
 use types::*;
 
