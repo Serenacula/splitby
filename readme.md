@@ -25,7 +25,7 @@ Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be sep
 _Simple usecase_
 
 ```sh
-echo "boo hoo" | splitby -d " " 1
+echo "boo hoo" | splitby " " 1
 > boo
 echo "boo,hoo" | splitby , 2
 > hoo
@@ -325,7 +325,7 @@ This option allows you to align the output to a specific width.
 > A feature is planned to give more control over the alignment, but it is not yet implemented.
 
 ```sh
-echo "apple,banana,cherry\na,b,c" | splitby -a 10 2
+echo "apple,banana,cherry\na,b,c" | splitby -a ,
 > apple,banana,cherry
 > a,    b,     c
 ```
