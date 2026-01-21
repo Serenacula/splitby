@@ -4,8 +4,44 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-use crate::types::{InputMode, Record};
 use crate::ReaderInstructions;
+use crate::types::{InputMode, Record};
+
+fn read_record(
+    reader: &mut Box<dyn BufRead>,
+    buffer: &mut Vec<u8>,
+    index: &mut usize,
+    terminator: u8,
+) -> Result<Option<Record>, String> {
+    let bytes_read = reader.read_until(terminator, buffer).map_err(|error| {
+        if terminator == b'\0' {
+            format!("error while reading: {error}")
+        } else {
+            format!("{error}")
+        }
+    })?;
+    if bytes_read == 0 {
+        return Ok(None);
+    }
+
+    let has_terminator = buffer.last() == Some(&terminator);
+    if has_terminator {
+        buffer.pop();
+        if &terminator == &b'\n' && buffer.last() == Some(&b'\r') {
+            buffer.pop();
+        }
+    }
+
+    let record_bytes = std::mem::take(buffer);
+    let record = Record {
+        index: *index,
+        bytes: record_bytes,
+        has_terminator,
+        field_widths: None,
+    };
+    *index += 1;
+    Ok(Some(record))
+}
 
 pub fn read_input(
     reader_instructions: &ReaderInstructions,
@@ -46,38 +82,32 @@ pub fn read_input(
         Ok(())
     };
 
+    let add_record_to_batch = |record: Record,
+                               batch: &mut Vec<Record>,
+                               batch_bytes: &mut usize,
+                               batch_byte_quota: usize,
+                               record_sender: &channel::Sender<Vec<Record>>|
+     -> Result<(), String> {
+        *batch_bytes = batch_bytes.saturating_add(record.bytes.len());
+        batch.push(record);
+
+        if *batch_bytes >= batch_byte_quota {
+            flush_batch(record_sender, batch, batch_bytes)?;
+        }
+        Ok(())
+    };
+
     // Handle align mode: read all records, scan widths, then stream
     if reader_instructions.align && reader_instructions.input_mode == InputMode::PerLine {
         let mut all_records: Vec<Record> = Vec::new();
         let mut buffer: Vec<u8> = Vec::new();
-        let mut index: usize = 0;
 
         // Read all records into memory
         loop {
-            let bytes_read = reader
-                .read_until(b'\n', &mut buffer)
-                .map_err(|error| format!("{error}"))?;
-            if bytes_read == 0 {
-                break;
+            match read_record(&mut reader, &mut buffer, &mut index, b'\n')? {
+                Some(record) => all_records.push(record),
+                None => break,
             }
-
-            let has_terminator = buffer.last() == Some(&b'\n');
-            if has_terminator {
-                buffer.pop();
-                if buffer.last() == Some(&b'\r') {
-                    buffer.pop();
-                }
-            }
-
-            let record_bytes = std::mem::take(&mut buffer);
-            all_records.push(Record {
-                index: index,
-                bytes: record_bytes,
-                has_terminator: has_terminator,
-                field_widths: None,
-            });
-
-            index += 1;
         }
 
         // Scan field widths
@@ -89,33 +119,18 @@ pub fn read_input(
             record.field_widths = Some(max_widths.clone());
         }
 
-        // Stream buffered records in batches
-        let batch_byte_quota = std::env::var("SPLITBY_BATCH_QUOTA")
-            .ok()
-            .and_then(|value| value.parse::<usize>().ok())
-            .filter(|value| *value > 0)
-            .unwrap_or(128 * 1024);
-        let mut batch: Vec<Record> = Vec::new();
-        let mut batch_bytes: usize = 0;
-
+        // Stream buffered records in batches using existing batch variables
         for record in all_records {
-            batch_bytes = batch_bytes.saturating_add(record.bytes.len());
-            batch.push(record);
-
-            if batch_bytes >= batch_byte_quota {
-                record_sender
-                    .send(std::mem::take(&mut batch))
-                    .map_err(|error| format!("{error}"))?;
-                batch_bytes = 0;
-            }
+            add_record_to_batch(
+                record,
+                &mut batch,
+                &mut batch_bytes,
+                batch_byte_quota,
+                &record_sender,
+            )?;
         }
 
-        if !batch.is_empty() {
-            record_sender
-                .send(batch)
-                .map_err(|error| format!("{error}"))?;
-        }
-
+        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
         return Ok(());
     }
 
@@ -124,68 +139,41 @@ pub fn read_input(
         InputMode::PerLine => {
             let mut buffer: Vec<u8> = Vec::new();
             loop {
-                let bytes_read = reader
-                    .read_until(b'\n', &mut buffer)
-                    .map_err(|error| format!("{error}"))?;
-                if bytes_read == 0 {
-                    flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
-                    return Ok(());
-                }
-
-                let has_terminator = buffer.last() == Some(&b'\n');
-                if has_terminator {
-                    buffer.pop();
-                    if buffer.last() == Some(&b'\r') {
-                        buffer.pop();
+                match read_record(&mut reader, &mut buffer, &mut index, b'\n')? {
+                    Some(record) => {
+                        add_record_to_batch(
+                            record,
+                            &mut batch,
+                            &mut batch_bytes,
+                            batch_byte_quota,
+                            &record_sender,
+                        )?;
+                    }
+                    None => {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
+                        return Ok(());
                     }
                 }
-
-                let record_bytes = std::mem::take(&mut buffer);
-                batch_bytes = batch_bytes.saturating_add(record_bytes.len());
-                batch.push(Record {
-                    index: index,
-                    bytes: record_bytes,
-                    has_terminator: has_terminator,
-                    field_widths: None,
-                });
-
-                if batch_bytes >= batch_byte_quota {
-                    flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
-                }
-
-                index += 1;
             }
         }
         InputMode::ZeroTerminated => {
             let mut buffer: Vec<u8> = Vec::new();
             loop {
-                let bytes_read = reader
-                    .read_until(b'\0', &mut buffer)
-                    .map_err(|error| format!("error while reading: {error}"))?;
-                if bytes_read == 0 {
-                    flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
-                    return Ok(());
+                match read_record(&mut reader, &mut buffer, &mut index, b'\0')? {
+                    Some(record) => {
+                        add_record_to_batch(
+                            record,
+                            &mut batch,
+                            &mut batch_bytes,
+                            batch_byte_quota,
+                            &record_sender,
+                        )?;
+                    }
+                    None => {
+                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
+                        return Ok(());
+                    }
                 }
-
-                let has_terminator = buffer.last() == Some(&b'\0');
-                if has_terminator {
-                    buffer.pop();
-                }
-
-                let record_bytes = std::mem::take(&mut buffer);
-                batch_bytes = batch_bytes.saturating_add(record_bytes.len());
-                batch.push(Record {
-                    index: index,
-                    bytes: record_bytes,
-                    has_terminator: has_terminator,
-                    field_widths: None,
-                });
-
-                if batch_bytes >= batch_byte_quota {
-                    flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
-                }
-
-                index += 1;
             }
         }
         InputMode::WholeString => {
@@ -195,7 +183,7 @@ pub fn read_input(
                 .map_err(|error| format!("{error}"))?;
 
             batch.push(Record {
-                index: index,
+                index,
                 bytes: buffer,
                 has_terminator: false,
                 field_widths: None,
