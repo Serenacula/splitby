@@ -133,30 +133,30 @@ cat file.csv | getword 1
 
 ## Options
 
-| Flag                         | Disable Flag            | Description                                                              | Default Value |
-| ---------------------------- | ----------------------- | ------------------------------------------------------------------------ | ------------- |
-| -h, --help                   |                         | Print help text                                                          |               |
-| -v, --version                |                         | Print version number                                                     |               |
-| -i, --input=\<input_file>    |                         | Provide an input file                                                    |               |
-| -o, --output=\<output_file>  |                         | Write output to a file                                                   |               |
-| -d, --delimiter \<regex>     |                         | Specify the delimiter to use (required for fields mode)                  |               |
-| -j, --join=\<string\|hex>    |                         | Join each selection with a given string                                  |               |
-| --placeholder=\<string\|hex> |                         | Inserts placeholder for invalid selections                               |               |
-| -p, --per-line               |                         | Processes the input line by line (default)                               | Enabled       |
-| -w, --whole-string           |                         | Processes the input as a single string, rather than each line separately |               |
-| -z, --zero-terminated        |                         | Processes the input as zero-terminated strings                           |               |
-| -f, --fields                 |                         | Select fields split by delimiter (default)                               | Enabled       |
-| -b, --bytes                  |                         | Select bytes from the input                                              |               |
-| -c, --characters             |                         | Select characters from the input                                         |               |
-| -a, --align                  |                         | Align output to a specific width                                         |               |
-| --count                      |                         | Return the number of results after splitting                             |               |
-| --invert                     |                         | Inverts the chosen selection                                             |               |
-| -e, --skip-empty             | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             | Disabled      |
-| -s, --strict                 | --no-strict             | Shorthand for all strict features                                        |               |
-| --strict-bounds              | --no-strict-bounds      | Emit error if range is out of bounds                                     | Disabled      |
-| --strict-return              | --no-strict-return      | Emit error if there is no result                                         | Disabled      |
-| --strict-range-order         | --no-strict-range-order | Emit error if start of a range is greater than the end                   | Enabled       |
-| --strict-utf8                | --no-strict-utf8        | Emit error on invalid UTF-8 sequences                                    | Disabled      |
+| Flag                          | Disable Flag              | Description                                                              | Default Value |
+| ----------------------------- | ------------------------- | ------------------------------------------------------------------------ | ------------- |
+| `-h, --help`                  |                           | Print help text                                                          |               |
+| `-v, --version`               |                           | Print version number                                                     |               |
+| `-i, --input=<FILE>`          |                           | Provide an input file                                                    |               |
+| `-o, --output=<FILE>`         |                           | Write output to a file                                                   |               |
+| `-d, --delimiter <REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
+| `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
+| `--placeholder=<STRING\|HEX>` |                           | Inserts placeholder for invalid selections                               |               |
+| `-p, --per-line`              |                           | Processes the input line by line (default)                               | Enabled       |
+| `-w, --whole-string`          |                           | Processes the input as a single string, rather than each line separately |               |
+| `-z, --zero-terminated`       |                           | Processes the input as zero-terminated strings                           |               |
+| `-f, --fields`                |                           | Select fields split by delimiter (default)                               | Enabled       |
+| `-b, --bytes`                 |                           | Select bytes from the input                                              |               |
+| `-c, --characters`            |                           | Select characters from the input                                         |               |
+| `-a, --align`                 |                           | Align output to a specific width                                         |               |
+| `--count`                     |                           | Return the number of results after splitting                             |               |
+| `--invert`                    |                           | Inverts the chosen selection                                             |               |
+| `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
+| `-s, --strict`                | `--no-strict`             | Shorthand for all strict features                                        |               |
+| `--strict-bounds`             | `--no-strict-bounds`      | Emit error if range is out of bounds                                     | Disabled      |
+| `--strict-return`             | `--no-strict-return`      | Emit error if there is no result                                         | Disabled      |
+| `--strict-range-order`        | `--no-strict-range-order` | Emit error if start of a range is greater than the end                   | Enabled       |
+| `--strict-utf8`               | `--no-strict-utf8`        | Emit error on invalid UTF-8 sequences                                    | Disabled      |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
