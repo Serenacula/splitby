@@ -99,16 +99,17 @@ jobs:
             - name: Create checksums
               shell: bash
               run: |
-                  cd splitby-*
-                  sha256sum * > checksums.txt
-                  cd ..
+                  rm -f checksums.txt
+                  for dir in splitby-*; do
+                    (cd "$dir" && sha256sum * >> ../checksums.txt)
+                  done
 
             - name: Create Release
               uses: softprops/action-gh-release@v1
               with:
                   tag_name: ${{ github.ref_name }}
                   files: |
-                      splitby-*/checksums.txt
+                      checksums.txt
                       splitby-*/*
                   draft: false
                   prerelease: false
