@@ -291,11 +291,8 @@ pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
     // Validate --align flag
     validate_align(options.align, input_mode, selection_mode)?;
 
-    // Clone regex_engine for ReaderInstructions
-    let reader_regex_engine = regex_engine.clone();
-
     let reader_instructions = ReaderInstructions {
-        regex_engine: reader_regex_engine,
+        regex_engine: regex_engine.clone(),
         align: options.align,
         input_mode: input_mode,
         input: options.input.clone(),
@@ -310,7 +307,6 @@ pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
 
     let instructions = Instructions {
         input_mode: input_mode,
-        input: options.input,
         selection_mode: selection_mode,
         selections: selections,
         invert: options.invert,

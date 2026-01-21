@@ -36,7 +36,6 @@ pub enum RegexEngine {
 
 pub struct Instructions {
     pub input_mode: InputMode,
-    pub input: Option<PathBuf>,
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
