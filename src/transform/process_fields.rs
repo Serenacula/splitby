@@ -185,8 +185,8 @@ pub fn process_fields(
                             output.extend_from_slice(current_delimiter);
                         } else if !next_delimiter.is_empty() {
                             output.extend_from_slice(next_delimiter);
-                        } else if !last_delimiter.is_empty() {
-                            output.extend_from_slice(last_delimiter);
+                        } else if !first_delimiter.is_empty() {
+                            output.extend_from_slice(first_delimiter);
                         } else {
                             output.push(b' ');
                         }
@@ -245,8 +245,8 @@ pub fn process_fields(
                                     current_delimiter.len()
                                 } else if !next_delimiter.is_empty() {
                                     next_delimiter.len()
-                                } else if !last_delimiter.is_empty() {
-                                    last_delimiter.len()
+                                } else if !first_delimiter.is_empty() {
+                                    first_delimiter.len()
                                 } else {
                                     1 // space fallback
                                 }
