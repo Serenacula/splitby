@@ -7,10 +7,10 @@ A high-performance Rust command-line tool that splits text by a regex delimiter 
 The usage format is:
 
 ```sh
-splitby [options] -d <delimiter> <index_or_range>
+splitby [options] <delimiter> <selections>
 ```
 
-The delimiter can be any regex string, e.g. `-d "\s+"`. Note: The delimiter is only required when using fields mode (`-f, --fields`, which is the default).
+The delimiter can be any regex string, e.g. `"\s+"`
 
 The index states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for bash.
 
@@ -139,7 +139,7 @@ cat file.csv | getword 1
 | `-v, --version`               |                           | Print version number                                                     |               |
 | `-i, --input=<FILE>`          |                           | Provide an input file                                                    |               |
 | `-o, --output=<FILE>`         |                           | Write output to a file                                                   |               |
-| `-d, --delimiter <REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
+| `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
 | `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
 | `--placeholder=<STRING\|HEX>` |                           | Inserts placeholder for invalid selections                               |               |
 | `-p, --per-line`              |                           | Processes the input line by line (default)                               | Enabled       |
@@ -173,12 +173,12 @@ echo "this,is a.test" | splitby --strict -d "[,.]" 1 4 # regex needs to be quote
 > this,test
 ```
 
-As shorthand, you can drop the `-d` flag if you use the format `splitby <FLAGS> <DELIMITER> <SELECTIONS>`, and it will be inferred. But after this, it will begin parsing selections. For example:
+As shorthand, you can drop the `-d` flag if you use the format `splitby <FLAGS> <DELIMITER> <SELECTIONS>`, and it will be inferred. But after reading the delimiter, it will begin parsing selections. To avoid this, you can explicitly declare the delimiter with the `-d` flag. For example:
 
 ```sh
 echo "this,is a.test" | splitby --strict "[,.]" 1 4 # equivalent to above
 > this,test
-echo "this,is a.test" | splitby "[,.]" --strict 1 4 # this will break! because it thinks --strict is a selection
+echo "this,is a.test" | splitby "[,.]" --strict 1 4 # this will break! it thinks --strict is a selection
 > invalid selection: '--strict'
 echo "this,is a.test" | splitby -d "[,.]" --strict 1 4 # using the -d flag explicitly lets it know it's a delimiter
 > this,test
@@ -228,7 +228,7 @@ Test results:
 ```
 
 ```sh
-cat test-result.md | splitby --whole-string -d "\n" 2 # By using \n we can select a specific line
+cat test-result.md | splitby --whole-string "\n" 2 # By using \n we can select a specific line
 > 2. Error
 ```
 
@@ -239,7 +239,8 @@ _-z, --zero-terminated_
 This mode treats the input as a sequence of zero-terminated strings. It runs once over the entire input. Useful for processing filenames from `find -print0` or other tools that output null-terminated strings.
 
 ```sh
-find . -name "*.txt" -print0 | splitby -j "\n" -z / last
+# split on /, join with \n, and get the last field
+find . -name "*.txt" -print0 | splitby -d "/" -j "\n" -z last
 > file1.txt
 > file2.txt
 > file3.txt
@@ -422,7 +423,7 @@ echo "boo,,hoo" | splitby , --count --skip-empty
 
 #### Strict
 
-_-s, --strict_ | _-S, --no-strict_
+_--strict_ | _--no-strict_
 
 The plain `--strict` flag is shorthand for all strictness options listed below.
 
