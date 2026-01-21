@@ -15,9 +15,13 @@ use validation::{validate_align, validate_join_mode};
     name = "splitby",
     version = "v1.0.0",
     about = "Split text by a regex delimiter, select parts of the result.",
-    disable_help_subcommand = true
+    disable_help_subcommand = true,
+    disable_version_flag = true
 )]
 pub struct Options {
+    #[arg(short = 'v', long = "version", action = clap::ArgAction::Version, help = "Print version")]
+    pub version: Option<bool>,
+
     #[arg(
         short = 'i',
         long = "input",
