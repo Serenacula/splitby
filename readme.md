@@ -27,44 +27,44 @@ _Simple usecase_
 ```sh
 echo "boo hoo" | splitby -d " " 1
 > boo
-echo "boo,hoo" | splitby , 2 # you can skip the -d flag, in normal use
+echo "boo,hoo" | splitby , 2
 > hoo
 ```
 
 _Regex_
 
 ```sh
-echo "boo hoo\n  foo" | splitby -d "\s+" 1 3
+echo "boo hoo\n  foo" | splitby "\s+" 1 3
 > boo foo # by default, the delimiter after the previous selection is kept between selections
 ```
 
 _Range_
 
 ```sh
-echo "this,is,a,test" | splitby -d "," 2-4
+echo "this,is,a,test" | splitby , 2-4
 > is,a,test
 ```
 
 _Negative index_
 
 ```sh
-echo "this is a test" | splitby -d " " -2
+echo "this is a test" | splitby " " -2
 > a
-echo "this is a test" | splitby -d " " -3--1
+echo "this is a test" | splitby " " -3--1
 > is a test
 ```
 
 _Multiple indexes_
 
 ```sh
-echo "this is a test" | splitby -d " " 1 3-4
+echo "this is a test" | splitby " " 1 3-4
 > this a test
 ```
 
 _Whole-input mode_
 
 ```sh
-echo "this is\na test" | splitby -d " " 1 4
+echo "this is\na test" | splitby " " 1 4
 > this test
 ```
 
@@ -78,11 +78,11 @@ echo "café" | splitby -c 1 4
 _Special keywords_
 
 ```sh
-echo "this is a test" | splitby -d " " first-last
+echo "this is a test" | splitby " " first-last
 > this is a test
-echo "this is a test" | splitby -d " " start-2
+echo "this is a test" | splitby " " start-2
 > this is
-echo "this is a test" | splitby -d " " end
+echo "this is a test" | splitby " " end
 > test
 ```
 
@@ -162,6 +162,28 @@ By default the input string is taken from stdin, unless the `--input` flag is us
 
 Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Flags respect last-flag-wins logic.
 
+### Delimiter
+
+_-d, --delimiter <REGEX>_
+
+This flag specifies the delimiter to use. It can be any regex string.
+
+```sh
+echo "this,is a.test" | splitby --strict -d "[,.]" 1 4 # regex needs to be quoted
+> this,test
+```
+
+As shorthand, you can drop the `-d` flag if you use the format `splitby <FLAGS> <DELIMITER> <SELECTIONS>`, and it will be inferred. But after this, it will begin parsing selections. For example:
+
+```sh
+echo "this,is a.test" | splitby --strict "[,.]" 1 4 # equivalent to above
+> this,test
+echo "this,is a.test" | splitby "[,.]" --strict 1 4 # this will break! because it thinks --strict is a selection
+> invalid selection: '--strict'
+echo "this,is a.test" | splitby -d "[,.]" --strict 1 4 # using the -d flag explicitly lets it know it's a delimiter
+> this,test
+```
+
 ### Input Modes
 
 #### MODE: Per-line
@@ -182,7 +204,7 @@ Alex,35
 ```
 
 ```sh
-cat staff.csv | splitby -d "," 1 # Extract just the names
+cat staff.csv | splitby , 1 # Extract just the names
 > Name
 > Bob
 > Alice
@@ -217,7 +239,7 @@ _-z, --zero-terminated_
 This mode treats the input as a sequence of zero-terminated strings. It runs once over the entire input. Useful for processing filenames from `find -print0` or other tools that output null-terminated strings.
 
 ```sh
-find . -name "*.txt" -print0 | splitby -z -d "/" last
+find . -name "*.txt" -print0 | splitby -j "\n" -z / last
 > file1.txt
 > file2.txt
 > file3.txt
@@ -232,7 +254,7 @@ _-f, --fields_ (default: enabled)
 This mode treats the input as a sequence of fields, split by a delimiter.
 
 ```sh
-echo "this is a test" | splitby -d " " 2
+echo "this is a test" | splitby " " 2
 > is
 ```
 
@@ -271,9 +293,9 @@ _--invert_
 The invert option selects everything _except_ what you choose.
 
 ```sh
-echo "this is a test" | splitby -d " " 2
+echo "this is a test" | splitby " " 2
 > is
-echo "this is a test" | splitby -d " " --invert 2
+echo "this is a test" | splitby --invert " " 2
 > this a test
 ```
 
@@ -281,14 +303,14 @@ echo "this is a test" | splitby -d " " --invert 2
 
 _-e, --skip-empty_ | _-E, --no-skip-empty_ (default: disabled)
 
-By default the tool does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
+By default the tool does not skip empty values. `--skip-empty` tells it to ignore empty fields when counting and indexing.
 
 With indexes:
 
 ```sh
-echo "boo,,hoo" | splitby -d "," 2
+echo "boo,,hoo" | splitby , 2
 >
-echo "boo,,hoo" | splitby --skip-empty -d "," 2
+echo "boo,,hoo" | splitby --skip-empty , 2
 > hoo
 ```
 
@@ -317,10 +339,10 @@ This flag lets you control how selections are joined together.
 By default, the joiner is the delimiter after the previous selection. If unavailable, the joiner is the delimiter before the next selection. If both are unavailable, the joiner is the first delimiter in the record.
 
 ```sh
-echo "this is\na test" | splitby -d " " 1 2
+echo "this is\na test" | splitby " " 1 2
 > this is
 > a test
-echo "this is\na test" | splitby -d " " --join="," 1 2
+echo "this is\na test" | splitby --join="," --delimiter=" " 1 2
 > this,is
 > a,test
 ```
@@ -328,7 +350,7 @@ echo "this is\na test" | splitby -d " " --join="," 1 2
 The join flag also accepts hex values (with `0x` or `0X` prefix) for multi-byte joiners or non-printable characters:
 
 ```sh
-echo "this is\na test" | splitby -d " " --join="0x2C20" 1 2
+echo "this is\na test" | splitby --join="0x2C20" " " 1 2
 > this, is
 > a, test
 ```
@@ -355,13 +377,13 @@ The placeholder accepts both string values and hex values (with `0x` or `0X` pre
 A join string is added here for clarity:
 
 ```sh
-echo "boo hoo foo" | splitby -d " " -j ":" 1 4 2 # Out of range value gets skipped
+echo "boo hoo foo" | splitby -j ":" " " 1 4 2 # Out of range value gets skipped
 > boo:hoo
-echo "boo hoo foo" | splitby -d " " -j ":" --placeholder="?" 1 4 2
+echo "boo hoo foo" | splitby -j ":" --placeholder="?" " " 1 4 2
 > boo:?:hoo
-echo "boo hoo foo" | splitby -d " " -j "," --placeholder="" 1 4 2
+echo "boo hoo foo" | splitby -j "," --placeholder="" " " 1 4 2
 > boo,,hoo # empty string placeholder
-echo "boo hoo foo" | splitby -d " " -j "," --placeholder="0x2C20" 1 4 2
+echo "boo hoo foo" | splitby -j "," --placeholder="0x2C20" " " 1 4 2
 > boo, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
 ```
 
@@ -376,9 +398,9 @@ echo "this;is;a;test" | splitby --count -d ";"
 > 4
 ```
 
-As with index selection, empty fields are counted unless you use the --skip-empty flag.
+As with index selection, empty fields are counted unless you use the `--skip-empty` flag.
 
-Behaviours that affect selections are ignored, e.g. --invert, --placeholder
+Behaviours that affect selections are ignored, e.g. `--invert`, `--placeholder`
 
 ```sh
 echo "boo;;hoo" | splitby --count -d ";"
@@ -390,9 +412,9 @@ echo "boo;;hoo" | splitby --count -d ";" --skip-empty
 With count:
 
 ```sh
-echo "boo,,hoo" | splitby -d "," --count
+echo "boo,,hoo" | splitby , --count
 > 3
-echo "boo,,hoo" | splitby -d "," --count --skip-empty
+echo "boo,,hoo" | splitby , --count --skip-empty
 > 2
 ```
 
@@ -408,23 +430,23 @@ The plain `--strict` flag is shorthand for all strictness options listed below.
 
 _--strict-bounds_ | _--no-strict-bounds_ (default: disabled)
 
-In normal operation, the tool silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
+In normal operation, the tool silently limits the bounds to within the range. `--strict-bounds` tells it to emit an error instead.
 
 For example, this is silently corrected to `2-3`. With strict mode, it emits an error to stderr instead:
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 2-5
+echo "boo hoo foo" | splitby " " 2-5
 > hoo foo
-echo "boo hoo foo" | splitby -d " " --strict-bounds 2-5
+echo "boo hoo foo" | splitby --strict-bounds " " 2-5
 > End index (5) out of bounds. Must be between 1 and 3
 ```
 
 This also applies to single indexes out of bounds.
 
 ```sh
-echo "boo hoo foo" | splitby -d " " 4
+echo "boo hoo foo" | splitby " " 4
 >
-echo "boo hoo foo" | splitby -d " " --strict-bounds 4
+echo "boo hoo foo" | splitby --strict-bounds " " 4
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
@@ -432,27 +454,27 @@ echo "boo hoo foo" | splitby -d " " --strict-bounds 4
 
 _--strict-return_ | _--no-strict-return_ (default: disabled)
 
-In situations where the selected result would be empty, the tool defaults to emitting nothing. --strict-return tells it to emit an error instead.
+In situations where the selected result would be empty, the tool defaults to emitting nothing. `--strict-return` tells it to emit an error instead.
 
 For example:
 
 ```sh
-echo ",boo" | splitby -d "," 1
+echo ",boo" | splitby , 1
 >
-echo ",boo" | splitby --strict-return -d "," 1
+echo ",boo" | splitby --strict-return , 1
 > strict return check failed: No valid fields available
 ```
 
 Similarly, if you skip empty fields:
 
 ```sh
-echo ",," | splitby --skip-empty -d ","
+echo ",," | splitby --skip-empty ,
 >
-echo ",," | splitby --skip-empty -d "," --strict-return
+echo ",," | splitby --skip-empty , --strict-return
 > strict return check failed: No valid fields available
 ```
 
-It has no effect when --count is used.
+It has no effect when `--count` is used.
 
 #### Strict Range Order
 
@@ -461,9 +483,9 @@ _--strict-range-order_ | _--no-strict-range-order_ (default: enabled)
 This flag causes an error to emit if the start of a range is after the end, e.g. `3-1`.
 
 ```sh
-echo "boo hoo" | splitby -d " " 3-1
+echo "boo hoo" | splitby " " 3-1
 >
-echo "boo hoo" | splitby -d " " --strict-range-order 3-1
+echo "boo hoo" | splitby --strict-range-order " " 3-1
 > End index (1) is less than start index (3) in selection 3-1
 ```
 
@@ -479,6 +501,6 @@ This is particularly useful when processing binary data or when you need to ensu
 # Invalid UTF-8 sequence (example)
 echo -ne "hello\xFFworld" | splitby -c 1-5
 > helloworld # Replacement character used
-echo -ne "hello\xFFworld" | splitby -c 1-5 --strict-utf8
+echo -ne "hello\xFFworld" | splitby --strict-utf8 -c 1-5
 > Error: invalid UTF-8 sequence
 ```
