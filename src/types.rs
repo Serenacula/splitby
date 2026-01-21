@@ -75,3 +75,17 @@ pub enum ResultChunk {
         error: String,
     },
 }
+
+pub struct ReaderInstructions {
+    pub regex_engine: Option<RegexEngine>,
+    pub align: bool,
+    pub input_mode: InputMode,
+    pub input: Option<PathBuf>,
+    pub selections: Vec<(i32, i32)>,
+    pub skip_empty: bool,
+    pub invert: bool,
+    pub placeholder: Option<Vec<u8>>,
+    pub strict_bounds: bool,
+    pub strict_range_order: bool,
+    pub strict_utf8: bool,
+}

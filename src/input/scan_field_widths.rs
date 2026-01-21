@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 
-use crate::processing::process_records::worker_utilities::{
+use crate::transform::worker_utilities::{
     bytes_to_cow_string, invert_selections, normalise_selections, Field,
 };
-use crate::types::{InputMode, Record, RegexEngine};
-use crate::ReaderInstructions;
+use crate::types::{InputMode, Record, RegexEngine, ReaderInstructions};
 
 pub fn scan_field_widths(
     records: &[Record],

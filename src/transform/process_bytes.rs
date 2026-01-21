@@ -1,6 +1,4 @@
-use crate::processing::process_records::worker_utilities::{
-    invert_selections, normalise_selections,
-};
+use crate::transform::worker_utilities::*;
 use crate::types::*;
 
 pub fn process_bytes(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {

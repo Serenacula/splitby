@@ -1,10 +1,8 @@
 use std::borrow::Cow;
-
-use crate::processing::process_records::worker_utilities::{
-    bytes_to_cow_string, invert_selections, normalise_selections,
-};
-use crate::types::*;
 use unicode_segmentation::UnicodeSegmentation;
+
+use crate::transform::worker_utilities::*;
+use crate::types::*;
 
 pub fn process_chars(instructions: &Instructions, record: Record) -> Result<Vec<u8>, String> {
     let text: Cow<str> = match bytes_to_cow_string(&record.bytes, instructions.strict_utf8) {

@@ -4,8 +4,9 @@ use std::{
     io::{self, BufRead, BufReader},
 };
 
-use crate::ReaderInstructions;
-use crate::types::{InputMode, Record};
+use crate::types::{InputMode, Record, ReaderInstructions};
+
+pub mod scan_field_widths;
 
 fn read_record(
     reader: &mut Box<dyn BufRead>,
@@ -52,6 +53,7 @@ pub fn read_input(
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
         .unwrap_or(128 * 1024);
+
     let mut reader: Box<dyn BufRead> = match reader_instructions.input.as_ref() {
         Some(path) => {
             let file = File::open(path)
@@ -111,7 +113,7 @@ pub fn read_input(
         }
 
         // Scan field widths
-        use crate::processing::scan_field_widths::scan_field_widths;
+        use crate::input::scan_field_widths::scan_field_widths;
         let max_widths = scan_field_widths(&all_records, reader_instructions)?;
 
         // Attach field_widths to each record
