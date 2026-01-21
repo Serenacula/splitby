@@ -13,7 +13,7 @@ use validation::{validate_align, validate_join_mode};
 #[derive(Parser)]
 #[command(
     name = "splitby",
-    version,
+    version = "v1.0.0",
     about = "Split text by a regex delimiter, select parts of the result.",
     disable_help_subcommand = true
 )]
@@ -182,9 +182,8 @@ pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
 
     const SELECTION_TOKEN_PATTERN: &str =
         r"(?i)^(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$";
-    let selection_regex = SimpleRegex::new(SELECTION_TOKEN_PATTERN).map_err(|error| {
-        format!("internal error: failed to compile selection regex: {error}")
-    })?;
+    let selection_regex = SimpleRegex::new(SELECTION_TOKEN_PATTERN)
+        .map_err(|error| format!("internal error: failed to compile selection regex: {error}"))?;
 
     let mut delimiter: Option<String> = options.delimiter;
     let mut selections: Vec<(i32, i32)> = Vec::new();
@@ -245,9 +244,8 @@ pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
             match simple_regex {
                 Ok(regex) => Some(RegexEngine::Simple(regex)),
                 Err(_) => {
-                    let fancy_regex = FancyRegex::new(&delimiter).map_err(|error| {
-                        format!("failed to compile regex: {error}")
-                    })?;
+                    let fancy_regex = FancyRegex::new(&delimiter)
+                        .map_err(|error| format!("failed to compile regex: {error}"))?;
                     Some(RegexEngine::Fancy(fancy_regex))
                 }
             }

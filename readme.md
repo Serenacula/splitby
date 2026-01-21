@@ -1,6 +1,6 @@
 # splitby
 
-A bash script that splits each input line by a delimiter and returns a selection of the result.
+A high-performance Rust command-line tool that splits text by a regex delimiter and returns selected parts of the result. A powerful, multi-threaded alternative to `cut` with regex support.
 
 ## How to use
 
@@ -10,11 +10,13 @@ The usage format is:
 splitby [options] -d <delimiter> <index_or_range>
 ```
 
-The delimiter can be any regex string, e.g. `-d "\s+"`
+The delimiter can be any regex string, e.g. `-d "\s+"`. Note: The delimiter is only required when using fields mode (`-f, --fields`, which is the default).
 
 The index states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for bash.
 
 Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is greater than the ending index.
+
+You can also use special keywords: `start` or `first` (equivalent to `1`), and `end` or `last` (equivalent to `-1`). These can be used in ranges like `first-last` or `start-2`.
 
 Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be separated by a new line.
 
@@ -25,15 +27,22 @@ _Simple usecase_
 ```sh
 echo "boo hoo" | splitby -d " " 1
 > boo
-echo "boo,hoo" | splitby -d "," 2 # You can use any delimiter you want
+echo "boo,hoo" | splitby , 2 # you can skip the -d flag, in normal use
 > hoo
+```
+
+_Regex_
+
+```sh
+echo "boo hoo\n  foo" | splitby -d "\s+" 1 3
+> boo foo # by default, the delimiter after the previous selection is kept between selections
 ```
 
 _Range_
 
 ```sh
 echo "this,is,a,test" | splitby -d "," 2-4
-> is,a,test # Delimiters are kept within a range by default
+> is,a,test
 ```
 
 _Negative index_
@@ -55,24 +64,42 @@ echo "this is a test" | splitby -d " " 1 3-4
 _Whole-input mode_
 
 ```sh
-echo "this is\na test" | splitby -d " " 1 3-4
-> this
-> a test
+echo "this is\na test" | splitby -d " " 1 4
+> this test
+```
+
+_Character mode_
+
+```sh
+echo "café" | splitby -c 1 4
+> cé # Character mode selects specific characters, rather than fields
+```
+
+_Special keywords_
+
+```sh
+echo "this is a test" | splitby -d " " first-last
+> this is a test
+echo "this is a test" | splitby -d " " start-2
+> this is
+echo "this is a test" | splitby -d " " end
+> test
 ```
 
 ## Installation
 
-To install the command locally, paste the following into terminal:
+You can find binaries to install under [releases](https://github.com/Serenacula/splitby/releases).
 
-```sh
-curl https://raw.githubusercontent.com/Serenacula/splitby/refs/heads/main/splitby.sh > /usr/local/bin/splitby && chmod +x /usr/local/bin/splitby
-```
+Alternatively, you can build from source if you prefer:
 
-Add `sudo` if required.
+1. Install rust, e.g. `brew install rust`
+2. `git clone https://github.com/serenacula/splitby`
+3. `cargo build --release`
+4. `mv ./target/release/splitby /usr/local/bin/`
 
 ### Useful Aliases
 
-It's also suggested to add the following aliases, for some common usecases:
+It's also suggested to add the following aliases to your .bashrc or .zshrc, for some common usecases:
 
 ```sh
 alias getline="splitby -w -d '\n'" # Split on newline
@@ -92,9 +119,9 @@ Or quick table processing:
 file.csv:
 
 Item,Value
-Apple,1.50
-Pear,1.30
-Car,30,000
+Apple,1.5
+Pear,1.3
+Car,30000
 ```
 
 ```sh
@@ -106,36 +133,42 @@ cat file.csv | getword 1
 
 ## Options
 
-| Flag                                | Disable Flag            | Description                                                              | Default Value |
-| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------ | ------------- |
-| -h, --help                          |                         | Print help text                                                          |               |
-| -v, --version                       |                         | Print version number                                                     |               |
-| -d, --delimiter \<regex>            |                         | Specify the delimiter to use (required)                                  |               |
-| -i, --input \<input_file>           |                         | Provide an input file                                                    |               |
-| -j, --join \<string>                |                         | Join each selection with a given string                                  |               |
-| -w, --whole-string                  | -p, --per-line          | Processes the input as a single string, rather than each line separately | Per-line      |
-| --simple-ranges                     | --no-simple-ranges      | Treat ranges as a list of selections                                     | Disabled      |
-| --replace-range-delimiter \<string> |                         | Replace the delimiters within ranges                                     |               |
-| -c, --count                         |                         | Return the number of results after splitting                             |               |
-| --invert                            |                         | Inverts the chosen selection                                             |               |
-| -e, --skip-empty                    | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             | Disabled      |
-| --placeholder                       |                         | Inserts empty fields for invalid selections                              |               |
-| -s, --strict                        | -S, --no-strict         | Shorthand for all strict features                                        |               |
-| --strict-bounds                     | --no-strict-bounds      | Emit error if range is out of bounds                                     | Disabled      |
-| --strict-return                     | --no-strict-return      | Emit error if there is no result                                         | Disabled      |
-| --strict-range-order                | --no-strict-range-order | Emit error if start of a range is greater than the end                   | Enabled       |
+| Flag                         | Disable Flag            | Description                                                              | Default Value |
+| ---------------------------- | ----------------------- | ------------------------------------------------------------------------ | ------------- |
+| -h, --help                   |                         | Print help text                                                          |               |
+| -v, --version                |                         | Print version number                                                     |               |
+| -i, --input=\<input_file>    |                         | Provide an input file                                                    |               |
+| -o, --output=\<output_file>  |                         | Write output to a file                                                   |               |
+| -d, --delimiter \<regex>     |                         | Specify the delimiter to use (required for fields mode)                  |               |
+| -j, --join=\<string\|hex>    |                         | Join each selection with a given string                                  |               |
+| --placeholder=\<string\|hex> |                         | Inserts placeholder for invalid selections                               |               |
+| -p, --per-line               |                         | Processes the input line by line (default)                               | Enabled       |
+| -w, --whole-string           |                         | Processes the input as a single string, rather than each line separately |               |
+| -z, --zero-terminated        |                         | Processes the input as zero-terminated strings                           |               |
+| -f, --fields                 |                         | Select fields split by delimiter (default)                               | Enabled       |
+| -b, --bytes                  |                         | Select bytes from the input                                              |               |
+| -c, --characters             |                         | Select characters from the input                                         |               |
+| -a, --align                  |                         | Align output to a specific width                                         |               |
+| --count                      |                         | Return the number of results after splitting                             |               |
+| --invert                     |                         | Inverts the chosen selection                                             |               |
+| -e, --skip-empty             | -E, --no-skip-empty     | Skips empty fields when indexing or counting                             | Disabled      |
+| -s, --strict                 | --no-strict             | Shorthand for all strict features                                        |               |
+| --strict-bounds              | --no-strict-bounds      | Emit error if range is out of bounds                                     | Disabled      |
+| --strict-return              | --no-strict-return      | Emit error if there is no result                                         | Disabled      |
+| --strict-range-order         | --no-strict-range-order | Emit error if start of a range is greater than the end                   | Enabled       |
+| --strict-utf8                | --no-strict-utf8        | Emit error on invalid UTF-8 sequences                                    | Disabled      |
 
 By default the input string is taken from stdin, unless the `--input` flag is used.
 
-Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Whichever flag was set last will be the one respected.
+Disable flags are available for making aliasing easier, allowing you to specify your preferred settings. Flags respect last-flag-wins logic.
 
-### MODE: Per-line
+### Input Modes
+
+#### MODE: Per-line
 
 _-p, --per-line_ (default: enabled)
 
-This functionality will have the script run once per line. Useful for when dealing with a table of information.
-
-Note: By default, selections in this mode are joined with a space when not otherwise specified.
+This functionality will have the tool run once per line. Useful for when dealing with a table of information.
 
 For example:
 
@@ -150,12 +183,13 @@ Alex,35
 
 ```sh
 cat staff.csv | splitby -d "," 1 # Extract just the names
+> Name
 > Bob
 > Alice
 > Alex
 ```
 
-### MODE: Whole-string
+#### MODE: Whole-string
 
 _-w, --whole-string_
 
@@ -176,71 +210,164 @@ cat test-result.md | splitby --whole-string -d "\n" 2 # By using \n we can selec
 > 2. Error
 ```
 
-### Join
+#### MODE: Zero-terminated
 
-_-j, --join_
+_-z, --zero-terminated_
 
-Normally each selection is outputted with a space between in per-line mode, or a newline in whole-string mode. This allows you to override that behaviour, replacing the default joiner with a custom string.
+This mode treats the input as a sequence of zero-terminated strings. It runs once over the entire input. Useful for processing filenames from `find -print0` or other tools that output null-terminated strings.
 
-It does not affect delimiters within ranges unless simple-ranges is enabled.
+```sh
+find . -name "*.txt" -print0 | splitby -z -d "/" last
+> file1.txt
+> file2.txt
+> file3.txt
+```
 
-Per-line Behaviour:
+### Selection Modes
+
+#### MODE: Fields
+
+_-f, --fields_ (default: enabled)
+
+This mode treats the input as a sequence of fields, split by a delimiter.
+
+```sh
+echo "this is a test" | splitby -d " " 2
+> is
+```
+
+#### MODE: Chars
+
+_-c, --characters_
+
+This mode treats the input as a sequence of characters. It runs once over the entire input. Useful for situations where you need to work with a sequence of characters.
+
+Note: Unlike `cut`, this respects visible characters, rather than byte counts.
+
+```sh
+echo "café" | splitby -c 3-4
+> fé
+```
+
+#### MODE: Bytes
+
+_-b, --bytes_
+
+This mode treats the input as a sequence of bytes.
+
+Note: Join is not supported in bytes mode.
+
+```sh
+echo "this is a test" | splitby -b 2
+> is a test
+```
+
+### Selection Options
+
+#### Invert
+
+_--invert_
+
+The invert option selects everything _except_ what you choose.
+
+```sh
+echo "this is a test" | splitby -d " " 2
+> is
+echo "this is a test" | splitby -d " " --invert 2
+> this a test
+```
+
+#### Skip-empty
+
+_-e, --skip-empty_ | _-E, --no-skip-empty_ (default: disabled)
+
+By default the tool does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
+
+With indexes:
+
+```sh
+echo "boo,,hoo" | splitby -d "," 2
+>
+echo "boo,,hoo" | splitby --skip-empty -d "," 2
+> hoo
+```
+
+### Transform Options
+
+#### Align
+
+_-a, --align_
+
+This option allows you to align the output to a specific width.
+
+> A feature is planned to give more control over the alignment, but it is not yet implemented.
+
+```sh
+echo "apple,banana,cherry\na,b,c" | splitby -a 10 2
+> apple,banana,cherry
+> a,    b,     c
+```
+
+#### Join
+
+_-j \<STRING|HEX\>, --join=\<STRING|HEX\>_
+
+This flag lets you control how selections are joined together.
+
+By default, the joiner is the delimiter after the previous selection. If unavailable, the joiner is the delimiter before the next selection. If both are unavailable, the joiner is the first delimiter in the record.
 
 ```sh
 echo "this is\na test" | splitby -d " " 1 2
 > this is
 > a test
-echo "this is\na test" | splitby -d " " --join "," 1 2
+echo "this is\na test" | splitby -d " " --join="," 1 2
 > this,is
 > a,test
 ```
 
-Whole-string Behaviour:
+The join flag also accepts hex values (with `0x` or `0X` prefix) for multi-byte joiners or non-printable characters:
 
 ```sh
-echo "this is a test" | splitby --whole-string -d " " 1 2-3 4
-> this
-> is a
-> test
-echo "this is a test" | splitby --whole-string -d " " --join "," 1 2-3 4
-> this,is a,test
+echo "this is\na test" | splitby -d " " --join="0x2C20" 1 2
+> this, is
+> a, test
 ```
 
-### Simple Ranges
+There are also a number of useful keywords you can use (only in fields mode):
+| Keyword | Description |
+|-------------------|-----------------------------------------------------|
+| `--join=@auto` | Automatically tries `@after-previous`, then `@before-next`, then `@space` |
+| `--join=@after-previous` | Use the delimiter after the previous selection |
+| `--join=@before-next` | Use the delimiter before the next selection |
+| `--join=@first` | Use the first delimiter in the record |
+| `--join=@last` | Use the last delimiter in the record |
+| `--join=@space` | Use a space character |
+| `--join=@none` | No join (equivalent to "") |
 
-_--simple-ranges_ | _--no-simple-ranges_
+#### Placeholder
 
-By default, if you specify a range then it will treat that as a _single selection_, outputting the entire range with delimiters. This flag will change that behaviour, so that ranges are treated as a list of individual selections.
+_--placeholder=\<STRING|HEX\>_
 
-When used with the --join flag, it will be used between each selection.
+This is a useful flag for the situation where you need a reliable output format. Normally an invalid selection is skipped, however with this flag an invalid selection will output the given placeholder string instead.
 
-In per-line mode:
+The placeholder accepts both string values and hex values (with `0x` or `0X` prefix). Hex values are useful for multi-byte placeholders or non-printable characters.
 
-```sh
-echo "this,is,a,test" | splitby -d "," 1 3-4
-> this a,test
-echo "this,is,a,test" | splitby -d "," --simple-ranges 1 3-4
-> this a test
-```
-
-### Replace Range Delimiter
-
-_--replace-range-delimiter_
-
-Allows you to specify a different delimiter to use within ranges. It does not affect the functionality of --join, and is ignored when --simple-ranges is used.
+A join string is added here for clarity:
 
 ```sh
-echo "this is a test" | splitby -d " " 1 2-4
-> this
-> is a test
-echo "this is a test" | splitby -d " " --replace-range-delimiter "," 1 2-4
-> this
-> is,a,test
+echo "boo hoo foo" | splitby -d " " -j ":" 1 4 2 # Out of range value gets skipped
+> boo:hoo
+echo "boo hoo foo" | splitby -d " " -j ":" --placeholder="?" 1 4 2
+> boo:?:hoo
+echo "boo hoo foo" | splitby -d " " -j "," --placeholder="" 1 4 2
+> boo,,hoo # empty string placeholder
+echo "boo hoo foo" | splitby -d " " -j "," --placeholder="0x2C20" 1 4 2
+> boo, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
 ```
 
 ### Count
 
-_-c, --count_
+_--count_
 
 The count option allows you to get the number of results:
 
@@ -260,34 +387,6 @@ echo "boo;;hoo" | splitby --count -d ";" --skip-empty
 > 2
 ```
 
-### Invert
-
-_--invert_
-
-The invert option selects everything _except_ what you choose. Note that ranges are still in effect. You can use the --simple-ranges option if you wish each field to be treated as a single selection.
-
-```sh
-echo "this is a test" | splitby -d " " 2
-> is
-echo "this is a test" | splitby -d " " --invert 2
-> this a test
-```
-
-### Skip-empty
-
-_-e, --skip-empty_ | _-E, --no-skip-empty_ (default: disabled)
-
-By default the script does not skip empty values. --skip-empty tells it to ignore empty fields when counting and indexing.
-
-With indexes:
-
-```sh
-echo "boo,,hoo" | splitby -d "," 2
->
-echo "boo,,hoo" | splitby -d "," 2 --skip-empty
-> hoo
-```
-
 With count:
 
 ```sh
@@ -297,34 +396,19 @@ echo "boo,,hoo" | splitby -d "," --count --skip-empty
 > 2
 ```
 
-### Placeholder
+### Strictness Options
 
-_--placeholder_
-
-This is a somewhat niche flag for the situation where you need a reliable output format. Normally, an invalid selection is skipped, however with this flag an invalid selection will output an empty string instead.
-
-A join string is added here for clarity:
-
-```sh
-echo "boo hoo foo" | splitby -d " " -j ":" 1 4 2 # Out of range value gets skipped
-> boo:hoo
-echo "boo hoo foo" | splitby -d " " --placeholder 1 4 2
-> boo::hoo
-```
-
-### Strict
+#### Strict
 
 _-s, --strict_ | _-S, --no-strict_
 
-Strict controls whether the program will fail silently or explicitly when encountering errors. Both can be useful in different situations.
-
-There are several modes available:
+The plain `--strict` flag is shorthand for all strictness options listed below.
 
 #### Strict Bounds
 
 _--strict-bounds_ | _--no-strict-bounds_ (default: disabled)
 
-In normal operation, the script silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
+In normal operation, the tool silently limits the bounds to within the range. --strict-bounds tells it to emit an error instead.
 
 For example, this is silently corrected to `2-3`. With strict mode, it emits an error to stderr instead:
 
@@ -335,7 +419,7 @@ echo "boo hoo foo" | splitby -d " " --strict-bounds 2-5
 > End index (5) out of bounds. Must be between 1 and 3
 ```
 
-This also applies to single indexes out of bounds. By default, they emit an empty line:
+This also applies to single indexes out of bounds.
 
 ```sh
 echo "boo hoo foo" | splitby -d " " 4
@@ -344,18 +428,18 @@ echo "boo hoo foo" | splitby -d " " --strict-bounds 4
 > Index (4) out of bounds. Must be between 1 and 3
 ```
 
-#### Strict Result
+#### Strict Return
 
 _--strict-return_ | _--no-strict-return_ (default: disabled)
 
-In situations where the selected result would be empty, the script defaults to emitting nothing. --strict-return tells it to emit an error instead.
+In situations where the selected result would be empty, the tool defaults to emitting nothing. --strict-return tells it to emit an error instead.
 
 For example:
 
 ```sh
 echo ",boo" | splitby -d "," 1
 >
-echo ",boo" | splitby -d "," --strict-return 1
+echo ",boo" | splitby --strict-return -d "," 1
 > strict return check failed: No valid fields available
 ```
 
@@ -381,4 +465,20 @@ echo "boo hoo" | splitby -d " " 3-1
 >
 echo "boo hoo" | splitby -d " " --strict-range-order 3-1
 > End index (1) is less than start index (3) in selection 3-1
+```
+
+#### Strict UTF-8
+
+_--strict-utf8_ | _--no-strict-utf8_ (default: disabled)
+
+By default, when the tool encounters invalid UTF-8 sequences, it replaces them with the Unicode replacement character (U+FFFD). When `--strict-utf8` is enabled, the tool will emit an error instead of silently replacing invalid sequences.
+
+This is particularly useful when processing binary data or when you need to ensure data integrity.
+
+```sh
+# Invalid UTF-8 sequence (example)
+echo -ne "hello\xFFworld" | splitby -c 1-5
+> helloworld # Replacement character used
+echo -ne "hello\xFFworld" | splitby -c 1-5 --strict-utf8
+> Error: invalid UTF-8 sequence
 ```
