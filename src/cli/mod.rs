@@ -22,20 +22,10 @@ pub struct Options {
     #[arg(short = 'v', long = "version", action = clap::ArgAction::Version, help = "Print version")]
     pub version: Option<bool>,
 
-    #[arg(
-        short = 'i',
-        long = "input",
-        value_name = "FILE",
-        require_equals = true
-    )]
+    #[arg(short = 'i', long = "input", value_name = "FILE")]
     pub input: Option<PathBuf>,
 
-    #[arg(
-        short = 'o',
-        long = "output",
-        value_name = "FILE",
-        require_equals = true
-    )]
+    #[arg(short = 'o', long = "output", value_name = "FILE")]
     pub output: Option<PathBuf>,
 
     #[arg(long = "per-line")]
@@ -92,18 +82,15 @@ pub struct Options {
     #[arg(
         short = 'j',
         long = "join",
-        num_args = 1,
         value_name = "STRING|HEX",
-        require_equals = true,
         allow_hyphen_values = true
     )]
     pub join: Option<String>,
 
     #[arg(
+        short = 'p',
         long = "placeholder",
-        num_args = 1,
         value_name = "STRING|HEX",
-        require_equals = true,
         allow_hyphen_values = true,
         action = clap::ArgAction::Append,
     )]
