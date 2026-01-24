@@ -1,12 +1,12 @@
+mod get_largest_field_widths;
+
+use crate::types::{InputMode, ReaderInstructions, Record};
+
 use crossbeam::channel;
 use std::{
     fs::File,
     io::{self, BufRead, BufReader},
 };
-
-use crate::types::{InputMode, Record, ReaderInstructions};
-
-pub mod scan_field_widths;
 
 fn read_record(
     reader: &mut Box<dyn BufRead>,
@@ -113,8 +113,8 @@ pub fn read_input(
         }
 
         // Scan field widths
-        use crate::input::scan_field_widths::scan_field_widths;
-        let max_widths = scan_field_widths(&all_records, reader_instructions)?;
+        use crate::input::get_largest_field_widths::get_largest_field_widths;
+        let max_widths = get_largest_field_widths(&all_records, reader_instructions)?;
 
         // Attach field_widths to each record
         for record in &mut all_records {

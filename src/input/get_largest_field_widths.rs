@@ -1,11 +1,12 @@
 use std::borrow::Cow;
 
 use crate::transform::worker_utilities::{
-    bytes_to_cow_string, invert_selections, normalise_selections, Field,
+    Field, bytes_to_cow_string, invert_selections, normalise_selections,
 };
-use crate::types::{InputMode, Record, RegexEngine, ReaderInstructions};
+use crate::types::{InputMode, ReaderInstructions, Record, RegexEngine};
 
-pub fn scan_field_widths(
+/// This is used when the --align flag is used, to get the largest field widths for each record.
+pub fn get_largest_field_widths(
     records: &[Record],
     reader_instructions: &ReaderInstructions,
 ) -> Result<Vec<usize>, String> {
@@ -21,10 +22,11 @@ pub fn scan_field_widths(
     let mut max_widths: Vec<usize> = Vec::new();
 
     for record in records {
-        let text: Cow<str> = match bytes_to_cow_string(&record.bytes, reader_instructions.strict_utf8) {
-            Ok(string) => string,
-            Err(e) => return Err(e),
-        };
+        let text: Cow<str> =
+            match bytes_to_cow_string(&record.bytes, reader_instructions.strict_utf8) {
+                Ok(string) => string,
+                Err(e) => return Err(e),
+            };
 
         // Extract fields using regex
         let mut fields: Vec<Field> = Vec::new();

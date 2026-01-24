@@ -1,14 +1,14 @@
 mod parse;
 mod validation;
 
+use self::parse::{parse_hex, parse_selection_token};
+use self::validation::{validate_align, validate_join_mode};
+use crate::types::*;
+
 use clap::Parser;
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
 use std::path::PathBuf;
-
-use crate::types::*;
-use parse::{parse_hex, parse_selection_token};
-use validation::{validate_align, validate_join_mode};
 
 #[derive(Parser)]
 #[command(
