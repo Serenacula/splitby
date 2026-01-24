@@ -1,84 +1,86 @@
+@font-face {
+    font-family: "Anta";
+    src: url("/fonts/Anta/Anta-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Theme tokens for easy adjustments */
 :root {
-    --font-system: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial,
-        sans-serif;
-
-    --color-ink: #14111a;
-    --color-ink-muted: #3c334b;
-    --color-surface: #ffffff;
-    --color-surface-soft: #f7f4fb;
-
-    --color-accent: #6f3cc9;
-    --color-accent-soft: #f3ecff;
-    --color-accent-strong: #4f24a5;
-
-    --color-highlight: #f6d36b;
-
-    --radius-md: 10px;
-    --radius-lg: 16px;
-
-    --sl-color-accent: var(--color-accent);
-    --sl-color-accent-low: var(--color-accent-soft);
-    --sl-color-accent-high: var(--color-accent-strong);
-    --sl-color-text: var(--color-ink);
-    --sl-color-text-accent: var(--color-accent);
-    --sl-color-bg: var(--color-surface);
+    --yellow: rgb(255, 217, 0);
+    --purple: blueviolet;
+    --yellow-hover: rgb(255, 229, 82);
+    --grey: hsl(0, 0%, 16%);
+    /* --grey-light: hsl(0, 0%, 16%); */
+    --sl-color-text-accent: var(--yellow); /* Dark theme styles */
+    --sl-color-bg-nav: var(--grey);
+    --sl-color-bg-sidebar: var(--grey);
+    header {
+        background-color: black;
+        .site-title {
+            color: var(--yellow);
+            font-family: "Anta";
+        }
+        .social-icons {
+            a {
+                color: white;
+            }
+        }
+    }
+    .sidebar-pane {
+        a:hover {
+            &[aria-current="page"] {
+                color: black;
+                background-color: var(--yellow-hover);
+            }
+            /* text-decoration-line: underline;
+            text-decoration-color: var(--purple); */
+            /* color: var(--purple); */
+        }
+    }
+    main {
+        color: hsl(224, 10, 23);
+        #_top {
+            font-family: "Anta";
+            font-size: 5rem;
+            color: var(--yellow);
+        }
+        .sl-link-button {
+            &.primary {
+                border: none;
+                background-color: var(--yellow);
+                &:hover {
+                    /* background-color: var(--yellow-hover); */
+                    background-color: var(--purple);
+                    color: white;
+                }
+            }
+            &.minimal {
+                background-color: var(--grey);
+            }
+        }
+    }
 }
 
-:root[data-theme="dark"] {
-    --color-ink: #efe9ff;
-    --color-ink-muted: #c8b9e6;
-    --color-surface: #0f0b16;
-    --color-surface-soft: #1a1227;
-
-    --color-accent: #b08cff;
-    --color-accent-soft: #24163d;
-    --color-accent-strong: #d2b7ff;
-
-    --color-highlight: #f3c95c;
-
-    --sl-color-accent: var(--color-accent);
-    --sl-color-accent-low: var(--color-accent-soft);
-    --sl-color-accent-high: var(--color-accent-strong);
-    --sl-color-text: var(--color-ink);
-    --sl-color-text-accent: var(--color-accent);
-    --sl-color-bg: var(--color-surface);
-}
-
-body {
-    font-family: var(--font-system);
-    color: var(--color-ink);
-}
-
-a {
-    color: var(--color-accent);
-}
-
-:is(h1, h2, h3, h4, h5, h6) {
-    letter-spacing: -0.01em;
-}
-
-.sl-markdown-content a:hover {
-    color: var(--color-accent-strong);
-}
-
-.sl-badge {
-    border-radius: var(--radius-md);
-}
-
-.sl-hero {
-    border-radius: var(--radius-lg);
-    background: linear-gradient(
-        135deg,
-        var(--color-surface-soft),
-        transparent 65%
-    );
-}
-
-.sl-markdown-content code {
-    border-radius: 6px;
-}
-
-.sl-markdown-content blockquote {
-    border-left-color: var(--color-accent);
+:root[data-theme="light"] {
+    /* Light theme styles */
+    --yellow: rgb(255, 217, 0);
+    --purple: blueviolet;
+    --grey: hsl(224, 10, 23);
+    --sl-color-text-accent: blueviolet; /* Dark theme styles */
+    header {
+        background-color: black;
+        .site-title {
+            color: var(--yellow);
+        }
+        .social-icons {
+            a {
+                color: white;
+            }
+        }
+    }
+    main {
+        color: hsl(224, 10, 23);
+    }
 }
