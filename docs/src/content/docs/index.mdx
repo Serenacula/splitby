@@ -3,52 +3,21 @@ title: splitby
 description: A fast, friendly tool for slicing text by delimiters.
 template: splash
 hero:
-  tagline: Clean, readable text selection without memorizing cut flags.
-  actions:
-    - text: Install
-      link: /install/
-      icon: download
-    - text: Basics
-      link: /basics/
-      icon: right-arrow
-    - text: GitHub
-      link: https://github.com/Serenacula/splitby
-      icon: external
-      variant: minimal
+    tagline: Clean, readable text selection without memorizing cut flags.
+    actions:
+        - text: Install
+          link: /install/
+          icon: download
+        - text: Basics
+          link: /basics/
+          icon: right-arrow
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components"
 
 ## Quick start
 
 ```sh
 echo "name,age,city" | splitby , 1 3
-# name city
+# name,city
 ```
-
-If you prefer explicit flags:
-
-```sh
-echo "name,age,city" | splitby -d "," 1 3
-```
-
-splitby uses readable selections like `1`, `2-4`, and `-1`, and it works just as well on whitespace:
-
-```sh
-ls -l | splitby "\\s+" 9
-```
-
-<CardGrid stagger>
-	<Card title="Install in minutes" icon="download">
-		Get a binary from GitHub Releases or build from source.
-	</Card>
-	<Card title="Understand selections" icon="list">
-		One-based indexes, ranges, and comma-separated lists.
-	</Card>
-	<Card title="Pick a mode" icon="switch">
-		Per-line, whole-string, zero-terminated, bytes, and characters.
-	</Card>
-	<Card title="Explore flags" icon="settings">
-		Each flag has a dedicated page with examples and gotchas.
-	</Card>
-</CardGrid>
