@@ -1,0 +1,26 @@
+---
+title: Align
+description: Align output fields to a consistent width.
+---
+
+## Syntax
+
+```sh
+splitby --align [selection...]
+```
+
+## What it does
+
+Aligns the start of each field across records by padding shorter fields with spaces. This is useful for creating columnar output that's easier to read.
+
+## Examples
+
+```sh
+echo "apple,banana,cherry\na,b,c" | splitby -d "," --align 1 2
+# apple,banana
+# a,    b
+```
+
+## Gotchas
+
+- Only works in per-line mode with field mode.
