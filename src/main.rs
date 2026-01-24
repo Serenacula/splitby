@@ -4,15 +4,15 @@ mod output;
 mod transform;
 mod types;
 
-use clap::Parser;
-use crossbeam::channel;
-use std::{cmp::max, sync::Arc};
-
 use cli::{Options, parse_options};
 use input::read_input;
 use output::get_results;
 use transform::process_records;
 use types::*;
+
+use clap::Parser;
+use crossbeam::channel;
+use std::{cmp::max, sync::Arc};
 
 fn main() {
     let options = Options::parse();

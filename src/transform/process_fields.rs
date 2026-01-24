@@ -141,57 +141,54 @@ pub fn process_fields(
                     b""
                 };
 
-                match &instructions.join {
-                    Some(JoinMode::String(join_bytes)) => {
-                        output.extend_from_slice(join_bytes);
-                    }
+                let join: &[u8] = match &instructions.join {
+                    Some(JoinMode::String(join_bytes)) => join_bytes,
                     Some(JoinMode::AfterPrevious) => {
                         if !current_delimiter.is_empty() {
-                            output.extend_from_slice(current_delimiter);
+                            current_delimiter
                         } else {
-                            output.push(b' '); // Fallback to space if no delimiter
+                            b" " // Fallback to space if no delimiter
                         }
                     }
                     Some(JoinMode::BeforeNext) => {
                         if !next_delimiter.is_empty() {
-                            output.extend_from_slice(next_delimiter);
+                            next_delimiter
                         } else {
-                            output.push(b' '); // Fallback to space if no delimiter
+                            b" " // Fallback to space if no delimiter
                         }
                     }
                     Some(JoinMode::First) => {
                         if !first_delimiter.is_empty() {
-                            output.extend_from_slice(first_delimiter);
+                            first_delimiter
                         } else {
-                            output.push(b' '); // Fallback to space if no delimiter
+                            b" " // Fallback to space if no delimiter
                         }
                     }
                     Some(JoinMode::Last) => {
                         if !last_delimiter.is_empty() {
-                            output.extend_from_slice(last_delimiter);
+                            last_delimiter
                         } else {
-                            output.push(b' '); // Fallback to space if no delimiter
+                            b" " // Fallback to space if no delimiter
                         }
                     }
-                    Some(JoinMode::Space) => {
-                        output.push(b' ');
-                    }
+                    Some(JoinMode::Space) => b" ",
                     Some(JoinMode::None) => {
-                        // No join - do nothing
+                        b"" // No join - do nothing
                     }
                     None | Some(JoinMode::Auto) => {
                         // Default behavior
                         if !current_delimiter.is_empty() {
-                            output.extend_from_slice(current_delimiter);
+                            current_delimiter
                         } else if !next_delimiter.is_empty() {
-                            output.extend_from_slice(next_delimiter);
+                            next_delimiter
                         } else if !first_delimiter.is_empty() {
-                            output.extend_from_slice(first_delimiter);
+                            first_delimiter
                         } else {
-                            output.push(b' ');
+                            b" "
                         }
                     }
-                }
+                };
+                output.extend_from_slice(join);
 
                 // Add alignment padding after delimiter (not after final field)
                 // Padding aligns the start of the next field
@@ -205,52 +202,6 @@ pub fn process_fields(
                             placeholder.len()
                         } else {
                             0
-                        };
-
-                        // Calculate delimiter/join width that was just output
-                        let delimiter_width = match &instructions.join {
-                            Some(JoinMode::String(join_bytes)) => join_bytes.len(),
-                            Some(JoinMode::AfterPrevious) => {
-                                if !current_delimiter.is_empty() {
-                                    current_delimiter.len()
-                                } else {
-                                    1 // space fallback
-                                }
-                            }
-                            Some(JoinMode::BeforeNext) => {
-                                if !next_delimiter.is_empty() {
-                                    next_delimiter.len()
-                                } else {
-                                    1 // space fallback
-                                }
-                            }
-                            Some(JoinMode::First) => {
-                                if !first_delimiter.is_empty() {
-                                    first_delimiter.len()
-                                } else {
-                                    1 // space fallback
-                                }
-                            }
-                            Some(JoinMode::Last) => {
-                                if !last_delimiter.is_empty() {
-                                    last_delimiter.len()
-                                } else {
-                                    1 // space fallback
-                                }
-                            }
-                            Some(JoinMode::Space) => 1,
-                            Some(JoinMode::None) => 0,
-                            None | Some(JoinMode::Auto) => {
-                                if !current_delimiter.is_empty() {
-                                    current_delimiter.len()
-                                } else if !next_delimiter.is_empty() {
-                                    next_delimiter.len()
-                                } else if !first_delimiter.is_empty() {
-                                    first_delimiter.len()
-                                } else {
-                                    1 // space fallback
-                                }
-                            }
                         };
 
                         // Padding aligns the start of the next field
