@@ -21,9 +21,10 @@ export default defineConfig({
                 {
                     label: "Start Here",
                     items: [
-                        { label: "Home", link: "/" },
-                        { label: "Install", link: "/install/" },
-                        { label: "Basics", link: "/basics/" },
+                        // { label: "Home", link: "/" },
+                        { label: "Install", link: "/install" },
+                        { label: "Basics", link: "/basics" },
+                        { label: "Modes", link: "/modes" },
                     ],
                 },
                 {
@@ -35,11 +36,11 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Input",
-                                    link: "/flags/file_flags/input",
+                                    link: "/flags/input",
                                 },
                                 {
                                     label: "Output",
-                                    link: "/flags/file_flags/output",
+                                    link: "/flags/output",
                                 },
                             ],
                         },
@@ -48,15 +49,15 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Per line",
-                                    link: "/flags/input_modes/per-line",
+                                    link: "/flags/per-line",
                                 },
                                 {
                                     label: "Whole string",
-                                    link: "/flags/input_modes/whole-string",
+                                    link: "/flags/whole-string",
                                 },
                                 {
                                     label: "Zero terminated",
-                                    link: "/flags/input_modes/zero-terminated",
+                                    link: "/flags/zero-terminated",
                                 },
                             ],
                         },
@@ -65,15 +66,15 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Fields",
-                                    link: "/flags/selection_modes/fields",
+                                    link: "/flags/fields",
                                 },
                                 {
                                     label: "Bytes",
-                                    link: "/flags/selection_modes/bytes",
+                                    link: "/flags/bytes",
                                 },
                                 {
                                     label: "Characters",
-                                    link: "/flags/selection_modes/characters",
+                                    link: "/flags/characters",
                                 },
                             ],
                         },
@@ -82,15 +83,15 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Delimiter",
-                                    link: "/flags/selection_flags/delimiter",
+                                    link: "/flags/delimiter",
                                 },
                                 {
                                     label: "Invert",
-                                    link: "/flags/selection_flags/invert",
+                                    link: "/flags/invert",
                                 },
                                 {
                                     label: "Skip empty",
-                                    link: "/flags/selection_flags/skip-empty",
+                                    link: "/flags/skip-empty",
                                 },
                             ],
                         },
@@ -99,19 +100,19 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Align",
-                                    link: "/flags/transform_flags/align",
+                                    link: "/flags/align",
                                 },
                                 {
                                     label: "Count",
-                                    link: "/flags/transform_flags/count",
+                                    link: "/flags/count",
                                 },
                                 {
                                     label: "Join",
-                                    link: "/flags/transform_flags/join",
+                                    link: "/flags/join",
                                 },
                                 {
                                     label: "Placeholder",
-                                    link: "/flags/transform_flags/placeholder",
+                                    link: "/flags/placeholder",
                                 },
                             ],
                         },
@@ -120,23 +121,23 @@ export default defineConfig({
                             items: [
                                 {
                                     label: "Strict",
-                                    link: "/flags/strict_flags/strict",
+                                    link: "/flags/strict",
                                 },
                                 {
                                     label: "Strict bounds",
-                                    link: "/flags/strict_flags/strict-bounds",
+                                    link: "/flags/strict-bounds",
                                 },
                                 {
                                     label: "Strict return",
-                                    link: "/flags/strict_flags/strict-return",
+                                    link: "/flags/strict-return",
                                 },
                                 {
                                     label: "Strict range order",
-                                    link: "/flags/strict_flags/strict-range-order",
+                                    link: "/flags/strict-range-order",
                                 },
                                 {
                                     label: "Strict UTF-8",
-                                    link: "/flags/strict_flags/strict-utf8",
+                                    link: "/flags/strict-utf8",
                                 },
                             ],
                         },
@@ -144,7 +145,7 @@ export default defineConfig({
                 },
                 {
                     label: "FAQ",
-                    items: [{ label: "FAQ", link: "/faq/" }],
+                    items: [{ label: "FAQ", link: "/faq" }],
                 },
             ],
         }),

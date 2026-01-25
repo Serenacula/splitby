@@ -3,9 +3,17 @@ title: Modes
 description: Input modes, selection modes, and how they change behavior.
 ---
 
+Splitby works with two important mode types: an input mode (how to read the data) and a selection mode (what to extract from it).
+
+**Input mode:** This defines how you want to read the input. Unix tools by default split their input by line, processing each individually. Splitby also offers the ability to process the input as a single string, or to split it by zero-terminators instead.
+
+**Selection mode:** This tells splitby what you want to select from the input. Typically you'd split text by a delimiter: this is `fields` mode. But you can also choose to select specific characters, or even specific bytes
+
 ## Input modes
 
-### Per-line (default)
+### Per-line (`--per-line`)
+
+_Default_
 
 splitby reads one line at a time and applies selections to each line.
 
@@ -36,13 +44,15 @@ printf "name,age\0alice,30\0" | splitby -z -d "," 1
 
 ## Selection modes
 
-### Fields (default)
+### Fields (`-f`, `--fields`)
 
 Splits by a regex delimiter and selects fields. This is the most common mode.
 
+Note: This mode requires a delimiter to function properly, or it won't know how to split the text.
+
 ### Characters (`-c`, `--characters`)
 
-Selects by visible characters (grapheme clusters), not bytes.
+Selects by visible characters (grapheme clusters).
 
 ```sh
 echo "café" | splitby -c 1-3
@@ -56,15 +66,4 @@ Selects raw byte offsets. Useful for binary or fixed-width data.
 ```sh
 echo "abc" | splitby -b 1-2
 # ab
-```
-
-## Selection modifiers
-
-### Invert (`--invert`)
-
-Outputs everything except the selections you specify.
-
-```sh
-echo "a b c d" | splitby -d " " --invert 2
-# a c d
 ```

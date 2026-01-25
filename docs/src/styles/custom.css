@@ -1,6 +1,6 @@
 @font-face {
-    font-family: "Anta";
-    src: url("/fonts/Anta/Anta-Regular.ttf") format("truetype");
+    font-family: "BalooDa2";
+    src: url("/fonts/Baloo_Da_2/static/BalooDa2-Regular.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -20,7 +20,8 @@
         background-color: black;
         .site-title {
             color: var(--yellow);
-            font-family: "Anta";
+            font-family: "BalooDa2";
+            letter-spacing: -0.02em;
         }
         .social-icons {
             a {
@@ -42,9 +43,10 @@
     main {
         color: hsl(224, 10, 23);
         #_top {
-            font-family: "Anta";
+            font-family: "BalooDa2";
             font-size: 5rem;
             color: var(--yellow);
+            letter-spacing: -0.03em;
         }
         .sl-link-button {
             &.primary {
@@ -58,6 +60,11 @@
             }
             &.minimal {
                 background-color: var(--grey);
+            }
+        }
+        .sl-markdown-content {
+            a:hover {
+                color: rgb(169, 107, 227);
             }
         }
     }

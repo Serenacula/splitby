@@ -24,3 +24,4 @@ echo "apple,banana,cherry\na,b,c" | splitby -d "," --align 1 2
 ## Gotchas
 
 - Only works in per-line mode with field mode.
+- Because it must do a first-pass to work out column widths before processing, this flag can limit efficiency in large datasets.
