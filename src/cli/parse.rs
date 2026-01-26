@@ -146,11 +146,11 @@ pub fn parse_flags(
 
     // Handle non-consuming flags
     match arg {
-        "--version" => {
+        "-v" | "--version" => {
             print_version();
             return Ok(ParseResult::Finished);
         }
-        "--help" => {
+        "-h" | "--help" => {
             print_help();
             return Ok(ParseResult::Finished);
         }
