@@ -75,20 +75,55 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
             }
         }
 
-        let split: Vec<&str> = split_regex
-            .find_iter(&arg)
-            .map(|token| token.as_str())
-            .collect();
-        // If first item is a selection, parse all items as selections
-        if selection_regex.is_match(split[0]) {
-            for token in split {
-                let parse = parse_selection_token(token, &selection_regex);
-                match parse {
-                    Ok(selection) => cliArguments.selections.push(selection),
-                    Err(error) => return Err(error),
+        // First, check if the whole arg is a single selection token (e.g., "2" or "1-3")
+        if selection_regex.is_match(&arg) {
+            let parse = parse_selection_token(&arg, &selection_regex);
+            match parse {
+                Ok(selection) => {
+                    cliArguments.selections.push(selection);
+                    continue;
+                }
+                Err(_) => {
+                    // This should never happen, but just in case
+                    return Err(format!("invalid selection: {}", arg));
                 }
             }
-            continue;
+        }
+
+        // If it contains commas or spaces, split and check each part
+        if arg.contains(',') || arg.contains(' ') {
+            let tokens: Vec<&str> = arg.split(|c| c == ',' || c == ' ').collect();
+            let mut first_non_empty: Option<&str> = None;
+            for token in &tokens {
+                let trimmed = token.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if first_non_empty.is_none() {
+                    first_non_empty = Some(trimmed);
+                }
+            }
+
+            // If first non-empty part is a selection, all parts must be selections
+            if let Some(first) = first_non_empty {
+                if selection_regex.is_match(first) {
+                    for token in &tokens {
+                        let trimmed = token.trim();
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        if !selection_regex.is_match(trimmed) {
+                            return Err(format!("invalid selection: {}", trimmed));
+                        }
+                        let parse = parse_selection_token(trimmed, &selection_regex);
+                        match parse {
+                            Ok(selection) => cliArguments.selections.push(selection),
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    continue;
+                }
+            }
         }
         // The only possibility left is a bad flag or implicit delimiter
         // First, make sure it isn't a bad flag
