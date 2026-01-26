@@ -70,14 +70,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            if value.starts_with("\"") && value.ends_with("\"") {
-                raw_instructions.input = Some(PathBuf::from(&value[1..value.len() - 1]));
-            } else if value.starts_with("\'") && value.ends_with("\'") {
-                raw_instructions.input = Some(PathBuf::from(&value[1..value.len() - 1]));
-            } else {
-                raw_instructions.input = Some(PathBuf::from(value));
-            }
-            raw_instructions.input = Some(PathBuf::from(value));
+            raw_instructions.input = Some(PathBuf::from(trim_quotes(value)));
         } else {
             return Err(format!("empty input value"));
         }

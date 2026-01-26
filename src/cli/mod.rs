@@ -65,14 +65,23 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         r"^(?i)(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$",
     )
     .unwrap();
+
+    let mut flags_finished = false;
     for arg in args {
-        match parse_flags(&arg, &mut consuming, &mut cli_arguments) {
-            Ok(ParseResult::FlagParsed) => continue,
-            Ok(ParseResult::Finished) => return Ok(None),
-            Err(e) => return Err(e),
-            _ => {
-                // No flag parsed, keep going
+        if !flags_finished {
+            match parse_flags(&arg, &mut consuming, &mut cli_arguments) {
+                Ok(ParseResult::FlagParsed) => continue,
+                Ok(ParseResult::Finished) => return Ok(None),
+                Err(e) => return Err(e),
+                _ => {
+                    // No flag parsed, keep going
+                }
             }
+        }
+
+        if arg == "--" {
+            flags_finished = true;
+            continue;
         }
 
         // First, check if the whole arg is a single selection token (e.g., "2" or "1-3")
@@ -127,7 +136,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         }
         // The only possibility left is a bad flag or implicit delimiter
         // First, make sure it isn't a bad flag
-        if arg.starts_with("-") {
+        if !flags_finished && arg.starts_with("-") {
             return Err(format!("invalid flag: {}", arg));
         }
         // If it's not a selection or flag and we have no delimiter yet, assume it's an implicit
