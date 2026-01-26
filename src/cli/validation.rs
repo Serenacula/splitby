@@ -1,7 +1,11 @@
-use crate::types::{InputMode, SelectionMode};
+use crate::types::{Align, InputMode, SelectionMode};
 
-pub fn validate_align(align: bool, input_mode: InputMode, selection_mode: SelectionMode) -> Result<(), String> {
-    if !align {
+pub fn validate_align(
+    align: Align,
+    input_mode: InputMode,
+    selection_mode: SelectionMode,
+) -> Result<(), String> {
+    if matches!(align, Align::None) {
         return Ok(());
     }
 
@@ -16,16 +20,17 @@ pub fn validate_align(align: bool, input_mode: InputMode, selection_mode: Select
     Ok(())
 }
 
-pub fn validate_join_mode(join_str: &str, selection_mode: SelectionMode) -> Result<(), String> {
-    if join_str.starts_with('@') {
+pub fn validate_join_mode(join_str: &[u8], selection_mode: SelectionMode) -> Result<(), String> {
+    if join_str.starts_with(b"@") {
         if selection_mode != SelectionMode::Fields {
             return Err(
-                "join flags (@auto, @after-previous, etc.) are only supported in fields mode".to_string()
+                "join flags (@auto, @after-previous, etc.) are only supported in fields mode"
+                    .to_string(),
             );
         }
     }
 
-    if !join_str.starts_with('@') && selection_mode == SelectionMode::Bytes {
+    if !join_str.starts_with(b"@") && selection_mode == SelectionMode::Bytes {
         return Err("join is not supported in byte mode".to_string());
     }
 

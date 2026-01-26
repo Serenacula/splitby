@@ -28,13 +28,35 @@ pub enum JoinMode {
     None,            // @none: no join (equivalent to "")
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Align {
+    Left,
+    Right,
+    Squash,
+    None,
+}
+
 #[derive(Clone)]
 pub enum RegexEngine {
     Simple(SimpleRegex),
     Fancy(FancyRegex),
 }
 
-pub struct Instructions {
+pub struct InputInstructions {
+    pub regex_engine: Option<RegexEngine>,
+    pub align: Align,
+    pub input_mode: InputMode,
+    pub input: Option<PathBuf>,
+    pub selections: Vec<(i32, i32)>,
+    pub skip_empty: bool,
+    pub invert: bool,
+    pub placeholder: Option<Vec<u8>>,
+    pub strict_bounds: bool,
+    pub strict_range_order: bool,
+    pub strict_utf8: bool,
+}
+
+pub struct TransformInstructions {
     pub input_mode: InputMode,
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
@@ -45,11 +67,25 @@ pub struct Instructions {
     pub strict_bounds: bool,
     pub strict_range_order: bool,
     pub strict_utf8: bool,
-    pub output: Option<PathBuf>,
     pub count: bool,
     pub join: Option<JoinMode>,
     pub regex_engine: Option<RegexEngine>,
-    pub align: bool,
+    pub align: Align,
+}
+
+pub struct OutputInstructions {
+    pub count: bool,
+    pub strict_return: bool,
+    pub strict_bounds: bool,
+    pub input_mode: InputMode,
+    pub selections: Vec<(i32, i32)>,
+    pub output: Option<PathBuf>,
+}
+
+pub struct Instructions {
+    pub input_instructions: InputInstructions,
+    pub transform_instructions: TransformInstructions,
+    pub output_instructions: OutputInstructions,
 }
 
 pub struct Record {
@@ -63,7 +99,6 @@ pub struct OutputRecord {
     pub bytes: Vec<u8>,
     pub has_terminator: bool,
 }
-
 pub enum ResultChunk {
     Ok {
         start_index: usize,
@@ -73,18 +108,4 @@ pub enum ResultChunk {
         index: usize,
         error: String,
     },
-}
-
-pub struct ReaderInstructions {
-    pub regex_engine: Option<RegexEngine>,
-    pub align: bool,
-    pub input_mode: InputMode,
-    pub input: Option<PathBuf>,
-    pub selections: Vec<(i32, i32)>,
-    pub skip_empty: bool,
-    pub invert: bool,
-    pub placeholder: Option<Vec<u8>>,
-    pub strict_bounds: bool,
-    pub strict_range_order: bool,
-    pub strict_utf8: bool,
 }

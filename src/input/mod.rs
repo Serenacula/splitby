@@ -1,6 +1,6 @@
 mod get_largest_field_widths;
 
-use crate::types::{InputMode, ReaderInstructions, Record};
+use crate::types::*;
 
 use crossbeam::channel;
 use std::{
@@ -45,7 +45,7 @@ fn read_record(
 }
 
 pub fn read_input(
-    reader_instructions: &ReaderInstructions,
+    input_instructions: &InputInstructions,
     record_sender: channel::Sender<Vec<Record>>,
 ) -> Result<(), String> {
     let batch_byte_quota = std::env::var("SPLITBY_BATCH_QUOTA")
@@ -54,7 +54,7 @@ pub fn read_input(
         .filter(|value| *value > 0)
         .unwrap_or(128 * 1024);
 
-    let mut reader: Box<dyn BufRead> = match reader_instructions.input.as_ref() {
+    let mut reader: Box<dyn BufRead> = match input_instructions.input.as_ref() {
         Some(path) => {
             let file = File::open(path)
                 .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
@@ -100,7 +100,9 @@ pub fn read_input(
     };
 
     // Handle align mode: read all records, scan widths, then stream
-    if reader_instructions.align && reader_instructions.input_mode == InputMode::PerLine {
+    if !matches!(input_instructions.align, Align::None)
+        && input_instructions.input_mode == InputMode::PerLine
+    {
         let mut all_records: Vec<Record> = Vec::new();
         let mut buffer: Vec<u8> = Vec::new();
 
@@ -114,7 +116,7 @@ pub fn read_input(
 
         // Scan field widths
         use crate::input::get_largest_field_widths::get_largest_field_widths;
-        let max_widths = get_largest_field_widths(&all_records, reader_instructions)?;
+        let max_widths = get_largest_field_widths(&all_records, input_instructions)?;
 
         // Attach field_widths to each record
         for record in &mut all_records {
@@ -137,7 +139,7 @@ pub fn read_input(
     }
 
     // Normal streaming behavior
-    match reader_instructions.input_mode {
+    match input_instructions.input_mode {
         InputMode::PerLine => {
             let mut buffer: Vec<u8> = Vec::new();
             loop {

@@ -4,14 +4,15 @@ use crate::transform::worker_utilities::*;
 use crate::types::*;
 
 pub fn process_fields(
-    instructions: &Instructions,
+    transform_instructions: &TransformInstructions,
     engine: &RegexEngine,
     record: Record,
 ) -> Result<Vec<u8>, String> {
-    let text: Cow<str> = match bytes_to_cow_string(&record.bytes, instructions.strict_utf8) {
-        Ok(string) => string,
-        Err(e) => return Err(e),
-    };
+    let text: Cow<str> =
+        match bytes_to_cow_string(&record.bytes, transform_instructions.strict_utf8) {
+            Ok(string) => string,
+            Err(e) => return Err(e),
+        };
 
     let delimiter_len = match engine {
         RegexEngine::Simple(regex) => regex.as_str().len(),
@@ -51,21 +52,21 @@ pub fn process_fields(
 
     // Don't add an empty field at the end for whole-string
     let final_text = text[cursor..text.len()].as_bytes();
-    if !final_text.is_empty() || instructions.input_mode != InputMode::WholeString {
+    if !final_text.is_empty() || transform_instructions.input_mode != InputMode::WholeString {
         fields.push(Field {
             text: text[cursor..text.len()].as_bytes(),
             delimiter: b"",
         });
     }
 
-    if instructions.skip_empty {
+    if transform_instructions.skip_empty {
         fields = fields
             .into_iter()
             .filter(|field| !field.text.is_empty())
             .collect();
     }
 
-    if instructions.count {
+    if transform_instructions.count {
         let count = fields.len();
         return Ok(count.to_string().into_bytes());
     }
@@ -75,19 +76,19 @@ pub fn process_fields(
     }
 
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-        &instructions.selections,
+        &transform_instructions.selections,
         fields.len(),
-        instructions.placeholder.is_some(),
-        instructions.strict_bounds,
-        instructions.strict_range_order,
+        transform_instructions.placeholder.is_some(),
+        transform_instructions.strict_bounds,
+        transform_instructions.strict_range_order,
     ) {
         Ok(result) => result,
         Err(error) => return Err(error),
     };
 
-    let selections = if instructions.selections.is_empty() {
+    let selections = if transform_instructions.selections.is_empty() {
         vec![(0, fields.len().saturating_sub(1))]
-    } else if !instructions.invert {
+    } else if !transform_instructions.invert {
         normalised_selections
     } else {
         invert_selections(normalised_selections, fields.len())
@@ -116,7 +117,7 @@ pub fn process_fields(
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
             let has_data = field_index < fields.len()
-                || (instructions.placeholder.is_some() && !instructions.invert);
+                || (transform_instructions.placeholder.is_some() && !transform_instructions.invert);
 
             if !has_data {
                 continue;
@@ -127,7 +128,7 @@ pub fn process_fields(
                     output.extend_from_slice(fields[field_index].text);
                     strict_return_passed = true;
                 }
-            } else if let Some(placeholder) = &instructions.placeholder {
+            } else if let Some(placeholder) = &transform_instructions.placeholder {
                 output.extend_from_slice(placeholder);
                 strict_return_passed = true;
             }
@@ -141,7 +142,7 @@ pub fn process_fields(
                     b""
                 };
 
-                let join: &[u8] = match &instructions.join {
+                let join: &[u8] = match &transform_instructions.join {
                     Some(JoinMode::String(join_bytes)) => join_bytes,
                     Some(JoinMode::AfterPrevious) => {
                         if !current_delimiter.is_empty() {
@@ -198,7 +199,7 @@ pub fn process_fields(
                         // Current field text width
                         let current_field_width = if field_index < fields.len() {
                             fields[field_index].text.len()
-                        } else if let Some(placeholder) = &instructions.placeholder {
+                        } else if let Some(placeholder) = &transform_instructions.placeholder {
                             placeholder.len()
                         } else {
                             0
@@ -221,7 +222,7 @@ pub fn process_fields(
         }
     }
 
-    if instructions.strict_return && !strict_return_passed {
+    if transform_instructions.strict_return && !strict_return_passed {
         Err("strict returns error: no valid output".to_string())
     } else {
         Ok(output)

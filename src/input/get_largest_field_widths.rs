@@ -3,18 +3,18 @@ use std::borrow::Cow;
 use crate::transform::worker_utilities::{
     Field, bytes_to_cow_string, invert_selections, normalise_selections,
 };
-use crate::types::{InputMode, ReaderInstructions, Record, RegexEngine};
+use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
 
 /// This is used when the --align flag is used, to get the largest field widths for each record.
 pub fn get_largest_field_widths(
     records: &[Record],
-    reader_instructions: &ReaderInstructions,
+    input_instructions: &InputInstructions,
 ) -> Result<Vec<usize>, String> {
     if records.is_empty() {
         return Ok(Vec::new());
     }
 
-    let engine = reader_instructions
+    let engine = input_instructions
         .regex_engine
         .as_ref()
         .ok_or_else(|| "internal error: missing regex engine".to_string())?;
@@ -23,7 +23,7 @@ pub fn get_largest_field_widths(
 
     for record in records {
         let text: Cow<str> =
-            match bytes_to_cow_string(&record.bytes, reader_instructions.strict_utf8) {
+            match bytes_to_cow_string(&record.bytes, input_instructions.strict_utf8) {
                 Ok(string) => string,
                 Err(e) => return Err(e),
             };
@@ -62,7 +62,7 @@ pub fn get_largest_field_widths(
 
         // Don't add an empty field at the end for whole-string
         let final_text = text[cursor..text.len()].as_bytes();
-        if !final_text.is_empty() || reader_instructions.input_mode != InputMode::WholeString {
+        if !final_text.is_empty() || input_instructions.input_mode != InputMode::WholeString {
             fields.push(Field {
                 text: final_text,
                 delimiter: b"",
@@ -70,7 +70,7 @@ pub fn get_largest_field_widths(
         }
 
         // Apply skip_empty filter
-        if reader_instructions.skip_empty {
+        if input_instructions.skip_empty {
             fields = fields
                 .into_iter()
                 .filter(|field| !field.text.is_empty())
@@ -83,20 +83,20 @@ pub fn get_largest_field_widths(
 
         // Normalize selections
         let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-            &reader_instructions.selections,
+            &input_instructions.selections,
             fields.len(),
-            reader_instructions.placeholder.is_some(),
-            reader_instructions.strict_bounds,
-            reader_instructions.strict_range_order,
+            input_instructions.placeholder.is_some(),
+            input_instructions.strict_bounds,
+            input_instructions.strict_range_order,
         ) {
             Ok(result) => result,
             Err(_) => continue, // Skip records with invalid selections
         };
 
         // Apply invert if needed
-        let selections = if reader_instructions.selections.is_empty() {
+        let selections = if input_instructions.selections.is_empty() {
             vec![(0, fields.len().saturating_sub(1))]
-        } else if !reader_instructions.invert {
+        } else if !input_instructions.invert {
             normalised_selections
         } else {
             invert_selections(normalised_selections, fields.len())
@@ -108,7 +108,7 @@ pub fn get_largest_field_widths(
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
                     fields[field_index].text.len()
-                } else if let Some(placeholder) = &reader_instructions.placeholder {
+                } else if let Some(placeholder) = &input_instructions.placeholder {
                     placeholder.len()
                 } else {
                     continue; // Skip if no placeholder and out of bounds

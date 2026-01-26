@@ -1,7 +1,206 @@
+use std::path::PathBuf;
+
 use regex::Regex as SimpleRegex;
 
-pub fn parse_hex(hex_str: &str) -> Option<Vec<u8>> {
-    if !hex_str.starts_with("0x") && !hex_str.starts_with("0X") {
+use crate::cli::help_version::*;
+use crate::cli::types::*;
+use crate::cli::validation::validate_join_mode;
+use crate::types::{Align, JoinMode};
+
+pub fn arg_matches(arg: &str, flags: &[&str]) -> bool {
+    for &flag in flags {
+        if arg == flag {
+            return true;
+        }
+    }
+    return false;
+}
+
+pub enum ParseResult {
+    FlagParsed,
+    FlagNotParsed,
+    Finished,
+}
+
+pub fn parse_flags(
+    arg: &str,
+    consuming: &mut Consuming,
+    raw_instructions: &mut CLIArguments,
+) -> Result<ParseResult, String> {
+    if consuming.input {
+        raw_instructions.input = Some(PathBuf::from(arg));
+        consuming.input = false;
+        return Ok(ParseResult::FlagParsed);
+    }
+    if consuming.output {
+        raw_instructions.output = Some(PathBuf::from(arg));
+        consuming.output = false;
+        return Ok(ParseResult::FlagParsed);
+    }
+    if consuming.delim {
+        raw_instructions.delimiter = Some(arg.to_string());
+        consuming.delim = false;
+        return Ok(ParseResult::FlagParsed);
+    }
+    if consuming.join {
+        raw_instructions.join = Some(arg.as_bytes().to_vec());
+        consuming.join = false;
+        return Ok(ParseResult::FlagParsed);
+    }
+    if consuming.placeholder {
+        raw_instructions.placeholder = Some(arg.as_bytes().to_vec());
+        consuming.placeholder = false;
+        return Ok(ParseResult::FlagParsed);
+    }
+    if consuming.align {
+        // Our valid align possibilities:
+        // - Normal align flags -> set the align
+        // - anything else -> assume we're not consuming and set to default
+        if let Some(align_result) = parse_align(&arg) {
+            match align_result {
+                Align::Left => raw_instructions.align = Align::Left,
+                Align::Right => raw_instructions.align = Align::Right,
+                Align::Squash => raw_instructions.align = Align::Squash,
+                Align::None => raw_instructions.align = Align::None,
+            }
+            consuming.align = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        // No valid align flag detected, assume default and continue
+        raw_instructions.align = Align::Left;
+        consuming.align = false;
+        return Ok(ParseResult::FlagNotParsed);
+    }
+    match arg {
+        "--version" => {
+            print_version();
+            return Ok(ParseResult::Finished);
+        }
+        "--help" => {
+            print_help();
+            return Ok(ParseResult::Finished);
+        }
+        "--input" | "-i" => {
+            consuming.input = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--output" | "-o" => {
+            consuming.output = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--delimiter" | "-d" => {
+            consuming.delim = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--join" | "-j" => {
+            consuming.join = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--placeholder" | "-p" => {
+            consuming.placeholder = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--align" | "-a" => {
+            consuming.align = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--count" => {
+            raw_instructions.count = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--invert" => {
+            raw_instructions.invert = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--strict" => {
+            raw_instructions.strict_bounds = true;
+            raw_instructions.strict_range_order = true;
+            raw_instructions.strict_return = true;
+            raw_instructions.strict_utf8 = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-strict" => {
+            raw_instructions.strict_bounds = false;
+            raw_instructions.strict_range_order = false;
+            raw_instructions.strict_return = false;
+            raw_instructions.strict_utf8 = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--strict-bounds" => {
+            raw_instructions.strict_bounds = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-strict-bounds" => {
+            raw_instructions.strict_bounds = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--strict-return" => {
+            raw_instructions.strict_return = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-strict-return" => {
+            raw_instructions.strict_return = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--strict-range-order" => {
+            raw_instructions.strict_range_order = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-strict-range-order" => {
+            raw_instructions.strict_range_order = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--strict-utf8" => {
+            raw_instructions.strict_utf8 = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-strict-utf8" => {
+            raw_instructions.strict_utf8 = false;
+            return Ok(ParseResult::FlagParsed);
+        }
+        _ => return Ok(ParseResult::FlagNotParsed),
+    }
+}
+
+pub fn parse_align(arg: &str) -> Option<Align> {
+    match arg.to_lowercase().as_str() {
+        "left" => Some(Align::Left),
+        "right" => Some(Align::Right),
+        "squash" => Some(Align::Squash),
+        "none" => Some(Align::None),
+        _ => None,
+    }
+}
+
+pub fn parse_join(arg: &[u8]) -> Option<JoinMode> {
+    match arg {
+        b"@auto" => Some(JoinMode::Auto),
+        b"@after-previous" => Some(JoinMode::AfterPrevious),
+        b"@before-next" => Some(JoinMode::BeforeNext),
+        b"@first" => Some(JoinMode::First),
+        b"@last" => Some(JoinMode::Last),
+        b"@space" => Some(JoinMode::Space),
+        b"@none" => Some(JoinMode::None),
+        // Regular string join or hex
+        _ => {
+            // Try parsing as hex first
+            match parse_hex(&arg) {
+                Some(hex_bytes) => Some(JoinMode::String(hex_bytes)),
+                None => Some(JoinMode::String(arg.to_vec())),
+            }
+        }
+    }
+}
+
+pub fn parse_placeholder(arg: &[u8]) -> Option<Vec<u8>> {
+    match parse_hex(&arg) {
+        Some(hex_bytes) => Some(hex_bytes),
+        None => Some(arg.to_vec()),
+    }
+}
+
+pub fn parse_hex(hex_str: &[u8]) -> Option<Vec<u8>> {
+    if !hex_str.starts_with(b"0x") && !hex_str.starts_with(b"0X") {
         return None;
     }
 
@@ -15,7 +214,7 @@ pub fn parse_hex(hex_str: &str) -> Option<Vec<u8>> {
     }
 
     let mut bytes = Vec::with_capacity(hex_digits.len() / 2);
-    for chunk in hex_digits.as_bytes().chunks(2) {
+    for chunk in hex_digits.chunks(2) {
         let hex_pair = std::str::from_utf8(chunk).ok()?;
         match u8::from_str_radix(hex_pair, 16) {
             Ok(byte_value) => bytes.push(byte_value),

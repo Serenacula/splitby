@@ -1,226 +1,134 @@
+mod help_version;
 mod parse;
+mod types;
 mod validation;
 
-use self::parse::{parse_hex, parse_selection_token};
-use self::validation::{validate_align, validate_join_mode};
+use self::parse::*;
+use self::types::*;
+use self::validation::*;
 use crate::types::*;
 
-use clap::Parser;
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
-use std::path::PathBuf;
+use std::env;
 
-#[derive(Parser)]
-#[command(
-    name = "splitby",
-    version = "v1.0.0",
-    about = "Split text by a regex delimiter, select parts of the result.",
-    disable_help_subcommand = true,
-    disable_version_flag = true
-)]
-pub struct Options {
-    #[arg(short = 'v', long = "version", action = clap::ArgAction::Version, help = "Print version")]
-    pub version: Option<bool>,
+/// Parse command line arguments and return Instructions
+pub fn get_instructions() -> Result<Option<Instructions>, String> {
+    let args: Vec<String> = env::args().skip(1).collect();
 
-    #[arg(short = 'i', long = "input", value_name = "FILE")]
-    pub input: Option<PathBuf>,
+    // So the logic here is this:
+    // - If previous token was consuming flag, treat arg as input for that flag
+    //     - join flag
+    //     - placeholder flag
+    //     - delimiter flag
+    //     - align flag
+    //         - if it isn't a specific align flag, assume NO FLAG and keep parsing
+    // - If is known flag, assume it's a flag
+    // - Check if selection:
+    //     - selection regex only works on single item, so we need to break it up first with split_regex
+    //     - if first arg isn't selection, continue
+    //     - check each item with selection_regex. If a subsequent selection fails, error
+    //     - put selections into selection list
+    // - If delimiter is not set, assume it is a delimiter
+    // - Otherwise error: "Invalid argument: {arg}"
 
-    #[arg(short = 'o', long = "output", value_name = "FILE")]
-    pub output: Option<PathBuf>,
+    let mut cliArguments = CLIArguments {
+        output: None,
+        input: None,
+        join: None,
+        delimiter: None,
+        placeholder: None,
+        align: Align::None,
+        input_mode: InputMode::PerLine,
+        selection_mode: SelectionMode::Fields,
+        count: false,
+        invert: false,
+        skip_empty: false,
+        strict_utf8: false,
+        strict_return: false,
+        strict_bounds: false,
+        strict_range_order: true,
+        selections: Vec::new(),
+    };
 
-    #[arg(long = "per-line")]
-    pub per_line: bool,
+    let mut consuming = Consuming {
+        input: false,
+        output: false,
+        delim: false,
+        join: false,
+        placeholder: false,
+        align: false,
+    };
 
-    #[arg(short = 'w', long = "whole-string")]
-    pub whole_string: bool,
-
-    #[arg(short = 'z', long = "zero-terminated")]
-    pub zero_terminated: bool,
-
-    #[arg(short = 'e', long = "skip-empty")]
-    pub skip_empty: bool,
-
-    #[arg(short = 'E', long = "no-skip-empty")]
-    pub no_skip_empty: bool,
-
-    #[arg(long = "invert")]
-    pub invert: bool,
-
-    #[arg(long = "count")]
-    pub count: bool,
-
-    #[arg(long = "strict")]
-    pub strict: bool,
-
-    #[arg(long = "no-strict")]
-    pub no_strict: bool,
-
-    #[arg(long = "strict-bounds")]
-    pub strict_bounds: bool,
-
-    #[arg(long = "no-strict-bounds")]
-    pub no_strict_bounds: bool,
-
-    #[arg(long = "strict-return")]
-    pub strict_return: bool,
-
-    #[arg(long = "no-strict-return")]
-    pub no_strict_return: bool,
-
-    #[arg(long = "strict-range-order")]
-    pub strict_range_order: bool,
-
-    #[arg(long = "no-strict-range-order")]
-    pub no_strict_range_order: bool,
-
-    #[arg(long = "strict-utf8")]
-    pub strict_utf8: bool,
-
-    #[arg(long = "no-strict-utf8")]
-    pub no_strict_utf8: bool,
-
-    #[arg(
-        short = 'j',
-        long = "join",
-        value_name = "STRING|HEX",
-        allow_hyphen_values = true
-    )]
-    pub join: Option<String>,
-
-    #[arg(
-        short = 'p',
-        long = "placeholder",
-        value_name = "STRING|HEX",
-        allow_hyphen_values = true,
-        action = clap::ArgAction::Append,
-    )]
-    pub placeholder: Vec<String>,
-
-    #[arg(short = 'f', long = "fields")]
-    pub fields: bool,
-
-    #[arg(short = 'b', long = "bytes")]
-    pub bytes: bool,
-
-    #[arg(short = 'c', long = "characters")]
-    pub chars: bool,
-
-    #[arg(short = 'd', long = "delimiter", value_name = "REGEX")]
-    pub delimiter: Option<String>,
-
-    #[arg(long = "align")]
-    pub align: bool,
-
-    #[arg(value_name = "SELECTION", num_args = 0.., allow_hyphen_values = true)]
-    pub selection_list: Vec<String>,
-}
-
-pub struct ParsedConfig {
-    pub instructions: Instructions,
-    pub reader_instructions: ReaderInstructions,
-}
-
-pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
-    // Sorting out our last-flag-wins, since clap doesn't do this automatically
-    let mut input_mode: InputMode = InputMode::PerLine;
-    let mut selection_mode: SelectionMode = SelectionMode::Fields;
-    let mut skip_empty = false;
-    let mut strict_return = false;
-    let mut strict_bounds = false;
-    let mut strict_range_order = true;
-    let mut strict_utf8 = false;
-    for arg in std::env::args_os() {
-        match arg.to_string_lossy().as_ref() {
-            "--per-line" => input_mode = InputMode::PerLine,
-            "-w" | "--whole-string" => input_mode = InputMode::WholeString,
-            "-z" | "--zero-terminated" => input_mode = InputMode::ZeroTerminated,
-
-            "-b" | "--bytes" => selection_mode = SelectionMode::Bytes,
-            "-f" | "--fields" => selection_mode = SelectionMode::Fields,
-            "-c" | "--characters" => selection_mode = SelectionMode::Chars,
-
-            "-e" | "--skip-empty" => skip_empty = true,
-            "-E" | "--no-skip-empty" => skip_empty = false,
-
-            "--strict-return" => strict_return = true,
-            "--no-strict-return" => strict_return = false,
-
-            "--strict-bounds" => strict_bounds = true,
-            "--no-strict-bounds" => strict_bounds = false,
-
-            "--strict-range-order" => strict_range_order = true,
-            "--no-strict-range-order" => strict_range_order = false,
-
-            "--strict-utf8" => strict_utf8 = true,
-            "--no-strict-utf8" => strict_utf8 = false,
-
-            "--strict" => {
-                strict_return = true;
-                strict_bounds = true;
-                strict_range_order = true;
-                strict_utf8 = true;
-            }
-            "--no-strict" => {
-                strict_return = false;
-                strict_bounds = false;
-                strict_range_order = false;
-                strict_utf8 = false
-            }
-
-            _ => {}
-        }
-    }
-
-    const SELECTION_TOKEN_PATTERN: &str =
-        r"(?i)^(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$";
-    let selection_regex = SimpleRegex::new(SELECTION_TOKEN_PATTERN)
-        .map_err(|error| format!("internal error: failed to compile selection regex: {error}"))?;
-
-    let mut delimiter: Option<String> = options.delimiter;
-    let mut selections: Vec<(i32, i32)> = Vec::new();
-    for (index, string_raw) in options.selection_list.iter().enumerate() {
-        let parts: Vec<&str> = string_raw.split(",").map(|part| part.trim()).collect();
-
-        if index == 0 && delimiter.is_none() {
-            let has_number = parts.iter().any(|part| {
-                !part.is_empty() && parse_selection_token(part, &selection_regex).is_ok()
-            });
-
-            // if not a selection
-            if string_raw.trim() == "," || !has_number {
-                delimiter = Some(string_raw.clone());
-                continue;
+    let split_regex = SimpleRegex::new(r"[, ]").unwrap();
+    let selection_regex = SimpleRegex::new(
+        r"^(?i)(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$",
+    )
+    .unwrap();
+    for arg in args {
+        match parse_flags(&arg, &mut consuming, &mut cliArguments) {
+            Ok(ParseResult::FlagParsed) => continue,
+            Ok(ParseResult::Finished) => return Ok(None),
+            Err(e) => return Err(e),
+            _ => {
+                // No flag parsed, keep going
             }
         }
 
-        for part in &parts {
-            let trimmed_part = part.trim();
-            if trimmed_part.is_empty() {
-                continue;
-            }
-
-            let token = trimmed_part.to_string();
-            match parse_selection_token(&token, &selection_regex) {
-                Ok(range) => selections.push(range),
-                Err(error) => {
-                    eprintln!("{error}");
-                    std::process::exit(2);
+        let split: Vec<&str> = split_regex
+            .find_iter(&arg)
+            .map(|token| token.as_str())
+            .collect();
+        // If first item is a selection, parse all items as selections
+        if selection_regex.is_match(split[0]) {
+            for token in split {
+                let parse = parse_selection_token(token, &selection_regex);
+                match parse {
+                    Ok(selection) => cliArguments.selections.push(selection),
+                    Err(error) => return Err(error),
                 }
             }
+            continue;
         }
+        // The only possibility left is a bad flag or implicit delimiter
+        // First, make sure it isn't a bad flag
+        if arg.starts_with("-") {
+            return Err(format!("invalid flag: {}", arg));
+        }
+        // If it's not a selection or flag and we have no delimiter yet, assume it's an implicit
+        if cliArguments.delimiter.is_none() {
+            cliArguments.delimiter = Some(arg);
+            continue;
+        }
+        // We already have a delimiter, nothing left for it to be
+        return Err(format!("invalid argument: {}", arg));
     }
 
-    if selection_mode == SelectionMode::Fields && delimiter.is_none() {
-        eprintln!(
-            "delimiter required: you can provide one with the -d <REGEX> flag or as the first argument"
-        );
-        std::process::exit(2);
-    }
+    // Handle validations
+    let join: Option<JoinMode> = match cliArguments.join {
+        Some(join) => {
+            validate_join_mode(&join, cliArguments.selection_mode).map_err(|e| e.to_string())?;
+            parse_join(&join)
+        }
+        None => None,
+    };
 
-    let regex_engine: Option<RegexEngine> = match selection_mode {
+    let placeholder: Option<Vec<u8>> = match cliArguments.placeholder {
+        Some(placeholder) => parse_placeholder(&placeholder),
+        None => None,
+    };
+
+    validate_align(
+        cliArguments.align,
+        cliArguments.input_mode,
+        cliArguments.selection_mode,
+    )
+    .map_err(|e| e.to_string())?;
+
+    let regex_engine: Option<RegexEngine> = match cliArguments.selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            let delimiter: String = delimiter.unwrap_or_else(|| {
+            let delimiter: String = cliArguments.delimiter.unwrap_or_else(|| {
                 eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
                 std::process::exit(2)
             });
@@ -243,79 +151,61 @@ pub fn parse_options(options: Options) -> Result<ParsedConfig, String> {
         }
     };
 
-    let placeholder_value: Option<Vec<u8>> =
-        if let Some(placeholder_str) = options.placeholder.last() {
-            match parse_hex(placeholder_str) {
-                Some(hex_bytes) => Some(hex_bytes),
-                None => Some(placeholder_str.as_bytes().to_vec()),
-            }
-        } else {
-            None
-        };
+    // TODO: Parse arguments and build Instructions
+    // - Classify each arg as flag, delimiter, or selection
+    // - Handle flag values
+    // - Build Instructions struct
 
-    let join = match options.join {
-        Some(join_str) => {
-            validate_join_mode(&join_str, selection_mode)?;
+    // TODO: Parse arguments and build Instructions
+    // - Classify each arg as flag, delimiter, or selection
+    // - Handle flag values
+    // - Build Instructions struct
 
-            // Check if it's a special flag
-            match join_str.as_str() {
-                "@auto" => Some(JoinMode::Auto),
-                "@after-previous" => Some(JoinMode::AfterPrevious),
-                "@before-next" => Some(JoinMode::BeforeNext),
-                "@first" => Some(JoinMode::First),
-                "@last" => Some(JoinMode::Last),
-                "@space" => Some(JoinMode::Space),
-                "@none" => Some(JoinMode::None),
-                // Regular string join or hex
-                _ => {
-                    // Try parsing as hex first
-                    match parse_hex(&join_str) {
-                        Some(hex_bytes) => Some(JoinMode::String(hex_bytes)),
-                        None => Some(JoinMode::String(join_str.as_bytes().to_vec())),
-                    }
-                }
-            }
-        }
-        None => None,
-    };
+    // Placeholder - replace with actual parsing logic
 
-    // Validate --align flag
-    validate_align(options.align, input_mode, selection_mode)?;
-
-    let reader_instructions = ReaderInstructions {
+    let input_instructions = InputInstructions {
         regex_engine: regex_engine.clone(),
-        align: options.align,
-        input_mode: input_mode,
-        input: options.input.clone(),
-        selections: selections.clone(),
-        skip_empty: skip_empty,
-        invert: options.invert,
-        placeholder: placeholder_value.clone(),
-        strict_bounds: strict_bounds,
-        strict_range_order: strict_range_order,
-        strict_utf8: strict_utf8,
+        align: cliArguments.align,
+        input_mode: cliArguments.input_mode,
+        input: cliArguments.input,
+        selections: cliArguments.selections.clone(),
+        skip_empty: cliArguments.skip_empty,
+        invert: cliArguments.invert,
+        placeholder: placeholder.clone(),
+        strict_bounds: cliArguments.strict_bounds,
+        strict_range_order: cliArguments.strict_range_order,
+        strict_utf8: cliArguments.strict_utf8,
     };
 
-    let instructions = Instructions {
-        input_mode: input_mode,
-        selection_mode: selection_mode,
-        selections: selections,
-        invert: options.invert,
-        skip_empty: skip_empty,
-        placeholder: placeholder_value,
-        strict_return: strict_return,
-        strict_bounds: strict_bounds,
-        strict_range_order: strict_range_order,
-        strict_utf8: strict_utf8,
-        output: options.output,
-        count: options.count,
+    let transform_instructions = TransformInstructions {
+        input_mode: cliArguments.input_mode,
+        selection_mode: cliArguments.selection_mode,
+        selections: cliArguments.selections.clone(),
+        invert: cliArguments.invert,
+        skip_empty: cliArguments.skip_empty,
+        placeholder: placeholder.clone(),
+        strict_return: cliArguments.strict_return,
+        strict_bounds: cliArguments.strict_bounds,
+        strict_range_order: cliArguments.strict_range_order,
+        strict_utf8: cliArguments.strict_utf8,
+        count: cliArguments.count,
         join: join,
         regex_engine: regex_engine,
-        align: options.align,
+        align: cliArguments.align,
     };
 
-    Ok(ParsedConfig {
-        instructions,
-        reader_instructions,
-    })
+    let output_instructions = OutputInstructions {
+        output: cliArguments.output,
+        input_mode: cliArguments.input_mode,
+        selections: cliArguments.selections.clone(),
+        strict_bounds: cliArguments.strict_bounds,
+        strict_return: cliArguments.strict_return,
+        count: cliArguments.count,
+    };
+
+    Ok(Some(Instructions {
+        input_instructions,
+        transform_instructions,
+        output_instructions,
+    }))
 }

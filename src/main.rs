@@ -4,36 +4,35 @@ mod output;
 mod transform;
 mod types;
 
-use cli::{Options, parse_options};
 use input::read_input;
 use output::get_results;
 use transform::process_records;
 use types::*;
 
-use clap::Parser;
 use crossbeam::channel;
 use std::{cmp::max, sync::Arc};
 
+use crate::cli::get_instructions;
+
 fn main() {
-    let options = Options::parse();
-    let config = match parse_options(options) {
-        Ok(config) => config,
+    let instructions = match get_instructions() {
+        Ok(Some(instructions)) => instructions,
+        Ok(None) => return,
         Err(error) => {
             eprintln!("{error}");
             std::process::exit(2);
         }
     };
 
-    let instructions = Arc::new(config.instructions);
-    let reader_instructions = config.reader_instructions;
+    let input_instructions = instructions.input_instructions;
+    let transform_instructions = Arc::new(instructions.transform_instructions);
+    let output_instructions = instructions.output_instructions;
 
-    let (record_sender, record_receiver) = channel::bounded::<Vec<Record>>(1024);
-    let (result_sender, result_receiver) = channel::bounded::<ResultChunk>(1024);
+    let (input_sender, input_receiver) = channel::bounded::<Vec<Record>>(1024);
+    let (output_sender, output_receiver) = channel::bounded::<ResultChunk>(1024);
 
     // Setting up our Reader worker
-    let reader_sender = record_sender.clone();
-    let reader_handle = std::thread::spawn(move || read_input(&reader_instructions, reader_sender));
-    drop(record_sender);
+    let input_handle = std::thread::spawn(move || read_input(&input_instructions, input_sender));
 
     // Working out how much memory we need
     let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
@@ -46,20 +45,20 @@ fn main() {
 
     // Setting up our main processing workers
     for _worker_index in 0..max(worker_count - 1, 1) {
-        let worker_instructions = Arc::clone(&instructions);
-        let worker_receiver = record_receiver.clone();
-        let worker_sender = result_sender.clone();
+        let worker_instructions = Arc::clone(&transform_instructions);
+        let worker_receiver = input_receiver.clone();
+        let worker_sender = output_sender.clone();
         std::thread::spawn(move || {
             let _ = process_records(worker_instructions, worker_receiver, worker_sender)
                 .map_err(|error| eprintln!("{error}"));
         });
     }
-    drop(result_sender);
+    drop(output_sender);
 
-    let results_status = get_results(instructions, result_receiver);
+    let results_status = get_results(output_instructions, output_receiver);
 
-    // Check if read_input thread encountered an I/O error
-    if let Err(error) = reader_handle.join().unwrap() {
+    // Check if input thread encountered an I/O error
+    if let Err(error) = input_handle.join().unwrap() {
         eprintln!("{}", error);
         // Exit with code 2 for I/O errors
         let exit_code = if error.contains("failed to open") || error.contains("failed to create") {

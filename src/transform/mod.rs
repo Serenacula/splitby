@@ -12,7 +12,7 @@ use self::process_fields::process_fields;
 use crate::types::*;
 
 pub fn process_records(
-    instructions: Arc<Instructions>,
+    transform_instructions: Arc<TransformInstructions>,
     record_receiver: channel::Receiver<Vec<Record>>,
     result_sender: channel::Sender<ResultChunk>,
 ) -> Result<(), String> {
@@ -33,21 +33,22 @@ pub fn process_records(
             let record_index = record.index;
             let has_terminator = record.has_terminator;
 
-            let processed_result: Result<Vec<u8>, String> = match instructions.selection_mode {
-                SelectionMode::Bytes => process_bytes(&instructions, record),
-                SelectionMode::Chars => process_chars(&instructions, record),
-                SelectionMode::Fields => {
-                    let engine = instructions
-                        .regex_engine
-                        .as_ref()
-                        .ok_or_else(|| "internal error: missing regex engine".to_string())?;
-                    process_fields(&instructions, engine, record)
-                }
-            };
+            let processed_result: Result<Vec<u8>, String> =
+                match transform_instructions.selection_mode {
+                    SelectionMode::Bytes => process_bytes(&transform_instructions, record),
+                    SelectionMode::Chars => process_chars(&transform_instructions, record),
+                    SelectionMode::Fields => {
+                        let engine = transform_instructions
+                            .regex_engine
+                            .as_ref()
+                            .ok_or_else(|| "internal error: missing regex engine".to_string())?;
+                        process_fields(&transform_instructions, engine, record)
+                    }
+                };
 
             match processed_result {
                 Ok(bytes) => {
-                    if instructions.strict_return && bytes.is_empty() {
+                    if transform_instructions.strict_return && bytes.is_empty() {
                         let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
                             error: "strict return error: empty field".to_string(),
