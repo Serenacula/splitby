@@ -108,7 +108,9 @@ pub fn get_largest_field_widths(
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
                     fields[field_index].text.len()
-                } else if let Some(placeholder) = &input_instructions.placeholder {
+                } else if let Some(placeholder) = &input_instructions.placeholder
+                    && !input_instructions.invert
+                {
                     placeholder.len()
                 } else {
                     continue; // Skip if no placeholder and out of bounds

@@ -123,6 +123,30 @@ pub fn process_fields(
                 continue;
             }
 
+            let max_field_width = if let Some(max_widths) = &record.field_widths {
+                if field_position < max_widths.len() {
+                    max_widths[field_position]
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            let current_field_width = if field_index < fields.len() {
+                fields[field_index].text.len()
+            } else if let Some(placeholder) = &transform_instructions.placeholder {
+                placeholder.len()
+            } else {
+                0
+            };
+            let padding_needed = max_field_width.saturating_sub(current_field_width);
+
+            if transform_instructions.align == Align::Right {
+                for _ in 0..padding_needed {
+                    output.push(b' ');
+                }
+            }
+
             if field_index < fields.len() {
                 if !fields[field_index].text.is_empty() {
                     output.extend_from_slice(fields[field_index].text);
@@ -141,6 +165,12 @@ pub fn process_fields(
                 } else {
                     b""
                 };
+
+                if transform_instructions.align == Align::Left {
+                    for _ in 0..padding_needed {
+                        output.push(b' ');
+                    }
+                }
 
                 let join: &[u8] = match &transform_instructions.join {
                     Some(JoinMode::String(join_bytes)) => join_bytes,
@@ -193,32 +223,14 @@ pub fn process_fields(
 
                 // Add alignment padding after delimiter (not after final field)
                 // Padding aligns the start of the next field
-                if let Some(max_widths) = &record.field_widths {
-                    if field_position < max_widths.len() {
-                        let max_field_width = max_widths[field_position];
-                        // Current field text width
-                        let current_field_width = if field_index < fields.len() {
-                            fields[field_index].text.len()
-                        } else if let Some(placeholder) = &transform_instructions.placeholder {
-                            placeholder.len()
-                        } else {
-                            0
-                        };
-
-                        // Padding aligns the start of the next field
-                        // After max-width field + delimiter, next field starts at: max_field_width + delimiter_width + 1
-                        // After current field + delimiter, next field starts at: current_field_width + delimiter_width + 1
-                        // Padding needed = (max_field_width + delimiter_width + 1) - (current_field_width + delimiter_width + 1)
-                        //                = max_field_width - current_field_width
-                        let padding_needed = max_field_width.saturating_sub(current_field_width);
-                        for _ in 0..padding_needed {
-                            output.push(b' ');
-                        }
+                if transform_instructions.align == Align::Squash {
+                    for _ in 0..padding_needed {
+                        output.push(b' ');
                     }
                 }
-
-                field_position += 1;
             }
+
+            field_position += 1;
         }
     }
 
