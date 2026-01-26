@@ -63,6 +63,105 @@ pub fn parse_flags(
         consuming.align = false;
         return Ok(ParseResult::FlagNotParsed);
     }
+    // Handle consuming flags
+    if arg.starts_with("--input") && arg != "--input" {
+        if !arg.starts_with("--input=") {
+            return Err(format!("invalid input flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.input = Some(PathBuf::from(value));
+        } else {
+            return Err(format!("empty input value"));
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--output") && arg != "--output" {
+        if !arg.starts_with("--output=") {
+            return Err(format!("invalid output flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.output = Some(PathBuf::from(value));
+        } else {
+            return Err(format!("empty output value"));
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--delimiter") && arg != "--delimiter" {
+        if !arg.starts_with("--delimiter=") {
+            return Err(format!("invalid delimiter flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.delimiter = Some(value.to_string());
+        } else {
+            raw_instructions.delimiter = Some("".to_string());
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--join") && arg != "--join" {
+        if !arg.starts_with("--join=") {
+            return Err(format!("invalid join flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.join = Some(value.as_bytes().to_vec());
+        } else {
+            raw_instructions.join = Some("".as_bytes().to_vec());
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--placeholder") && arg != "--placeholder" {
+        if !arg.starts_with("--placeholder=") {
+            return Err(format!("invalid placeholder flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.placeholder = Some(value.as_bytes().to_vec());
+        } else {
+            raw_instructions.placeholder = Some("".as_bytes().to_vec());
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--align") && arg != "--align" {
+        if !arg.starts_with("--align=") {
+            return Err(format!("invalid align flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.align = parse_align(&value).unwrap_or(Align::Left);
+        } else {
+            return Err(format!("empty align value"));
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+
+    if arg.starts_with("-d") && arg != "-d" {
+        // Support -d, -d',' and -d","
+        let delim_value = &arg[2..]; // characters after -d
+        if delim_value.starts_with('\'') && delim_value.ends_with('\'') {
+            // -d',' -> delimiter is ','
+            if delim_value.len() == 2 {
+                return Err(format!("empty delimiter value"));
+            }
+            let trimmed = &delim_value[1..delim_value.len() - 1];
+            raw_instructions.delimiter = Some(trimmed.to_string());
+        } else if delim_value.starts_with('\"') && delim_value.ends_with('\"') {
+            // -d"," -> delimiter is ","
+            if delim_value.len() == 2 {
+                return Err(format!("empty delimiter value"));
+            }
+            let trimmed = &delim_value[1..delim_value.len() - 1];
+            raw_instructions.delimiter = Some(trimmed.to_string());
+        } else {
+            // -d, or -d. etc -> use everything after -d as delimiter
+            raw_instructions.delimiter = Some(delim_value.to_string());
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+
+    // Handle non-consuming flags
     match arg {
         "--version" => {
             print_version();
