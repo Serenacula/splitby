@@ -4,6 +4,7 @@ use regex::Regex as SimpleRegex;
 
 use crate::cli::help_version::*;
 use crate::cli::types::*;
+use crate::cli::utilities::*;
 use crate::types::InputMode;
 use crate::types::SelectionMode;
 use crate::types::{Align, JoinMode};
@@ -61,7 +62,6 @@ pub fn parse_flags(
         // No valid align flag detected, assume default and continue
         raw_instructions.align = Align::Left;
         consuming.align = false;
-        return Ok(ParseResult::FlagNotParsed);
     }
     // Handle consuming flags
     if arg.starts_with("--input") && arg != "--input" {
@@ -70,6 +70,13 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
+            if value.starts_with("\"") && value.ends_with("\"") {
+                raw_instructions.input = Some(PathBuf::from(&value[1..value.len() - 1]));
+            } else if value.starts_with("\'") && value.ends_with("\'") {
+                raw_instructions.input = Some(PathBuf::from(&value[1..value.len() - 1]));
+            } else {
+                raw_instructions.input = Some(PathBuf::from(value));
+            }
             raw_instructions.input = Some(PathBuf::from(value));
         } else {
             return Err(format!("empty input value"));
@@ -82,7 +89,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.output = Some(PathBuf::from(value));
+            raw_instructions.output = Some(PathBuf::from(trim_quotes(value)));
         } else {
             return Err(format!("empty output value"));
         }
@@ -94,7 +101,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.delimiter = Some(value.to_string());
+            raw_instructions.delimiter = Some(trim_quotes(value));
         } else {
             raw_instructions.delimiter = Some("".to_string());
         }
@@ -106,7 +113,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.join = Some(value.as_bytes().to_vec());
+            raw_instructions.join = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
             raw_instructions.join = Some("".as_bytes().to_vec());
         }
@@ -118,7 +125,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.placeholder = Some(value.as_bytes().to_vec());
+            raw_instructions.placeholder = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
             raw_instructions.placeholder = Some("".as_bytes().to_vec());
         }
@@ -130,7 +137,7 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.align = parse_align(&value).unwrap_or(Align::Left);
+            raw_instructions.align = parse_align(&trim_quotes(value)).unwrap_or(Align::Left);
         } else {
             return Err(format!("empty align value"));
         }
@@ -140,24 +147,7 @@ pub fn parse_flags(
     if arg.starts_with("-d") && arg != "-d" {
         // Support -d, -d',' and -d","
         let delim_value = &arg[2..]; // characters after -d
-        if delim_value.starts_with('\'') && delim_value.ends_with('\'') {
-            // -d',' -> delimiter is ','
-            if delim_value.len() == 2 {
-                return Err(format!("empty delimiter value"));
-            }
-            let trimmed = &delim_value[1..delim_value.len() - 1];
-            raw_instructions.delimiter = Some(trimmed.to_string());
-        } else if delim_value.starts_with('\"') && delim_value.ends_with('\"') {
-            // -d"," -> delimiter is ","
-            if delim_value.len() == 2 {
-                return Err(format!("empty delimiter value"));
-            }
-            let trimmed = &delim_value[1..delim_value.len() - 1];
-            raw_instructions.delimiter = Some(trimmed.to_string());
-        } else {
-            // -d, or -d. etc -> use everything after -d as delimiter
-            raw_instructions.delimiter = Some(delim_value.to_string());
-        }
+        raw_instructions.delimiter = Some(trim_quotes(delim_value));
         return Ok(ParseResult::FlagParsed);
     }
 

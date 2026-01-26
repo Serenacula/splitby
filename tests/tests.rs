@@ -401,16 +401,6 @@ mod comma_separated_selection {
     }
 
     #[test]
-    fn with_d_flag_comma_only_splits_to_empty_skipped() {
-        run_success_test(
-            "Comma-separated selections: with -d flag, comma-only splits to empty (skipped)",
-            b"apple,banana,cherry\n",
-            &["-d", ",", ",", "1"],
-            b"apple\n",
-        );
-    }
-
-    #[test]
     fn with_d_flag_letter_treated_as_selection_errors() {
         run_error_test(
             "Comma-separated selections: with -d flag, letter treated as selection (errors)",

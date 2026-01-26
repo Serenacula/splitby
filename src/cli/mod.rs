@@ -1,6 +1,7 @@
 mod help_version;
 mod parse;
 mod types;
+mod utilities;
 mod validation;
 
 use self::parse::*;
