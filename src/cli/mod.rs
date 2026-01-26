@@ -32,7 +32,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
     // - If delimiter is not set, assume it is a delimiter
     // - Otherwise error: "Invalid argument: {arg}"
 
-    let mut cliArguments = CLIArguments {
+    let mut cli_arguments = CLIArguments {
         output: None,
         input: None,
         join: None,
@@ -60,13 +60,12 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         align: false,
     };
 
-    let split_regex = SimpleRegex::new(r"[, ]").unwrap();
     let selection_regex = SimpleRegex::new(
         r"^(?i)(?P<start>start|first|end|last|-?\d+)(?:-(?P<end>start|first|end|last|-?\d+))?$",
     )
     .unwrap();
     for arg in args {
-        match parse_flags(&arg, &mut consuming, &mut cliArguments) {
+        match parse_flags(&arg, &mut consuming, &mut cli_arguments) {
             Ok(ParseResult::FlagParsed) => continue,
             Ok(ParseResult::Finished) => return Ok(None),
             Err(e) => return Err(e),
@@ -80,7 +79,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
             let parse = parse_selection_token(&arg, &selection_regex);
             match parse {
                 Ok(selection) => {
-                    cliArguments.selections.push(selection);
+                    cli_arguments.selections.push(selection);
                     continue;
                 }
                 Err(_) => {
@@ -117,7 +116,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
                         }
                         let parse = parse_selection_token(trimmed, &selection_regex);
                         match parse {
-                            Ok(selection) => cliArguments.selections.push(selection),
+                            Ok(selection) => cli_arguments.selections.push(selection),
                             Err(error) => return Err(error),
                         }
                     }
@@ -131,8 +130,8 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
             return Err(format!("invalid flag: {}", arg));
         }
         // If it's not a selection or flag and we have no delimiter yet, assume it's an implicit
-        if cliArguments.delimiter.is_none() {
-            cliArguments.delimiter = Some(arg);
+        if cli_arguments.delimiter.is_none() {
+            cli_arguments.delimiter = Some(arg);
             continue;
         }
         // We already have a delimiter, nothing left for it to be
@@ -140,30 +139,30 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
     }
 
     // Handle validations
-    let join: Option<JoinMode> = match cliArguments.join {
+    let join: Option<JoinMode> = match cli_arguments.join {
         Some(join) => {
-            validate_join_mode(&join, cliArguments.selection_mode).map_err(|e| e.to_string())?;
+            validate_join_mode(&join, cli_arguments.selection_mode).map_err(|e| e.to_string())?;
             parse_join(&join)
         }
         None => None,
     };
 
-    let placeholder: Option<Vec<u8>> = match cliArguments.placeholder {
+    let placeholder: Option<Vec<u8>> = match cli_arguments.placeholder {
         Some(placeholder) => parse_placeholder(&placeholder),
         None => None,
     };
 
     validate_align(
-        cliArguments.align,
-        cliArguments.input_mode,
-        cliArguments.selection_mode,
+        cli_arguments.align,
+        cli_arguments.input_mode,
+        cli_arguments.selection_mode,
     )
     .map_err(|e| e.to_string())?;
 
-    let regex_engine: Option<RegexEngine> = match cliArguments.selection_mode {
+    let regex_engine: Option<RegexEngine> = match cli_arguments.selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            let delimiter: String = cliArguments.delimiter.unwrap_or_else(|| {
+            let delimiter: String = cli_arguments.delimiter.unwrap_or_else(|| {
                 eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
                 std::process::exit(2)
             });
@@ -200,42 +199,42 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
 
     let input_instructions = InputInstructions {
         regex_engine: regex_engine.clone(),
-        align: cliArguments.align,
-        input_mode: cliArguments.input_mode,
-        input: cliArguments.input,
-        selections: cliArguments.selections.clone(),
-        skip_empty: cliArguments.skip_empty,
-        invert: cliArguments.invert,
+        align: cli_arguments.align,
+        input_mode: cli_arguments.input_mode,
+        input: cli_arguments.input,
+        selections: cli_arguments.selections.clone(),
+        skip_empty: cli_arguments.skip_empty,
+        invert: cli_arguments.invert,
         placeholder: placeholder.clone(),
-        strict_bounds: cliArguments.strict_bounds,
-        strict_range_order: cliArguments.strict_range_order,
-        strict_utf8: cliArguments.strict_utf8,
+        strict_bounds: cli_arguments.strict_bounds,
+        strict_range_order: cli_arguments.strict_range_order,
+        strict_utf8: cli_arguments.strict_utf8,
     };
 
     let transform_instructions = TransformInstructions {
-        input_mode: cliArguments.input_mode,
-        selection_mode: cliArguments.selection_mode,
-        selections: cliArguments.selections.clone(),
-        invert: cliArguments.invert,
-        skip_empty: cliArguments.skip_empty,
+        input_mode: cli_arguments.input_mode,
+        selection_mode: cli_arguments.selection_mode,
+        selections: cli_arguments.selections.clone(),
+        invert: cli_arguments.invert,
+        skip_empty: cli_arguments.skip_empty,
         placeholder: placeholder.clone(),
-        strict_return: cliArguments.strict_return,
-        strict_bounds: cliArguments.strict_bounds,
-        strict_range_order: cliArguments.strict_range_order,
-        strict_utf8: cliArguments.strict_utf8,
-        count: cliArguments.count,
+        strict_return: cli_arguments.strict_return,
+        strict_bounds: cli_arguments.strict_bounds,
+        strict_range_order: cli_arguments.strict_range_order,
+        strict_utf8: cli_arguments.strict_utf8,
+        count: cli_arguments.count,
         join: join,
         regex_engine: regex_engine,
-        align: cliArguments.align,
+        align: cli_arguments.align,
     };
 
     let output_instructions = OutputInstructions {
-        output: cliArguments.output,
-        input_mode: cliArguments.input_mode,
-        selections: cliArguments.selections.clone(),
-        strict_bounds: cliArguments.strict_bounds,
-        strict_return: cliArguments.strict_return,
-        count: cliArguments.count,
+        output: cli_arguments.output,
+        input_mode: cli_arguments.input_mode,
+        selections: cli_arguments.selections.clone(),
+        strict_bounds: cli_arguments.strict_bounds,
+        strict_return: cli_arguments.strict_return,
+        count: cli_arguments.count,
     };
 
     Ok(Some(Instructions {

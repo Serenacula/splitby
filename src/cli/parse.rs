@@ -4,17 +4,9 @@ use regex::Regex as SimpleRegex;
 
 use crate::cli::help_version::*;
 use crate::cli::types::*;
-use crate::cli::validation::validate_join_mode;
+use crate::types::InputMode;
+use crate::types::SelectionMode;
 use crate::types::{Align, JoinMode};
-
-pub fn arg_matches(arg: &str, flags: &[&str]) -> bool {
-    for &flag in flags {
-        if arg == flag {
-            return true;
-        }
-    }
-    return false;
-}
 
 pub enum ParseResult {
     FlagParsed,
@@ -80,6 +72,30 @@ pub fn parse_flags(
             print_help();
             return Ok(ParseResult::Finished);
         }
+        "--per-line" => {
+            raw_instructions.input_mode = InputMode::PerLine;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--whole-string" | "-w" => {
+            raw_instructions.input_mode = InputMode::WholeString;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--zero-terminated" | "-z" => {
+            raw_instructions.input_mode = InputMode::ZeroTerminated;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--bytes" | "-b" => {
+            raw_instructions.selection_mode = SelectionMode::Bytes;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--characters" | "-c" => {
+            raw_instructions.selection_mode = SelectionMode::Chars;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--fields" | "-f" => {
+            raw_instructions.selection_mode = SelectionMode::Fields;
+            return Ok(ParseResult::FlagParsed);
+        }
         "--input" | "-i" => {
             consuming.input = true;
             return Ok(ParseResult::FlagParsed);
@@ -102,6 +118,14 @@ pub fn parse_flags(
         }
         "--align" | "-a" => {
             consuming.align = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--skip-empty" | "-e" => {
+            raw_instructions.skip_empty = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-skip-empty" | "-E" => {
+            raw_instructions.skip_empty = false;
             return Ok(ParseResult::FlagParsed);
         }
         "--count" => {
