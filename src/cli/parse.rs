@@ -280,13 +280,13 @@ pub fn parse_align(arg: &str) -> Option<Align> {
 
 pub fn parse_join(arg: &[u8]) -> Option<JoinMode> {
     match arg {
-        b"@auto" => Some(JoinMode::Auto),
-        b"@after-previous" => Some(JoinMode::AfterPrevious),
-        b"@before-next" => Some(JoinMode::BeforeNext),
-        b"@first" => Some(JoinMode::First),
-        b"@last" => Some(JoinMode::Last),
-        b"@space" => Some(JoinMode::Space),
-        b"@none" => Some(JoinMode::None),
+        b"auto" => Some(JoinMode::Auto),
+        b"after-previous" => Some(JoinMode::AfterPrevious),
+        b"before-next" => Some(JoinMode::BeforeNext),
+        b"first" => Some(JoinMode::First),
+        b"last" => Some(JoinMode::Last),
+        b"space" => Some(JoinMode::Space),
+        b"none" => Some(JoinMode::None),
         // Regular string join or hex
         _ => {
             // Try parsing as hex first
