@@ -53,10 +53,6 @@ jobs:
                       label: linux-arm64-musl
                       os: ubuntu-latest
                       archive: tar.gz
-                    - target: x86_64-unknown-freebsd
-                      label: freebsd-x86_64-experimental
-                      os: ubuntu-latest
-                      archive: tar.gz
                     # Windows
                     - target: x86_64-pc-windows-msvc
                       label: windows-x86_64
@@ -122,57 +118,7 @@ jobs:
                     echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
                   fi
 
-            - name: Install FreeBSD cross-compilation tools
-              if: matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64-unknown-freebsd'
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y clang llvm lld xz-utils
-                  rustup target add ${{ matrix.target }}
-                  
-                  # Download FreeBSD base system for sysroot
-                  FREEBSD_VERSION="14.1"
-                  FREEBSD_ARCH="amd64"
-                  SYSROOT_DIR="$HOME/freebsd-sysroot"
-                  mkdir -p "$SYSROOT_DIR"
-                  
-                  # Download and extract FreeBSD base tarball
-                  wget -q "https://download.freebsd.org/ftp/releases/${FREEBSD_ARCH}/${FREEBSD_VERSION}-RELEASE/base.txz" -O /tmp/base.txz
-                  cd "$SYSROOT_DIR"
-                  sudo tar -xf /tmp/base.txz
-                  cd "$GITHUB_WORKSPACE"
-                  
-                  # Create wrapper script to force clang usage with FreeBSD sysroot
-                  mkdir -p "$HOME/.local/bin"
-                  cat > "$HOME/.local/bin/x86_64-unknown-freebsd-clang" << WRAPPER_EOF
-                  #!/bin/bash
-                  exec clang --sysroot="$SYSROOT_DIR" -L"$SYSROOT_DIR/usr/lib" -L"$SYSROOT_DIR/lib" "\$@"
-                  WRAPPER_EOF
-                  chmod +x "$HOME/.local/bin/x86_64-unknown-freebsd-clang"
-                  
-                  # Set up environment variables for cross-compilation
-                  echo "FREEBSD_SYSROOT=$SYSROOT_DIR" >> $GITHUB_ENV
-                  echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
-                  echo "CC_x86_64_unknown_freebsd=$HOME/.local/bin/x86_64-unknown-freebsd-clang" >> $GITHUB_ENV
-                  echo "CXX_x86_64_unknown_freebsd=clang++" >> $GITHUB_ENV
-                  echo "AR_x86_64_unknown_freebsd=llvm-ar" >> $GITHUB_ENV
-                  
-                  # Create .cargo/config.toml for FreeBSD target (in repo root)
-                  mkdir -p .cargo
-                  cat > .cargo/config.toml << EOF
-                  [target.x86_64-unknown-freebsd]
-                  linker = "$HOME/.local/bin/x86_64-unknown-freebsd-clang"
-                  rustflags = [
-                      "-C", "link-arg=--sysroot=$SYSROOT_DIR",
-                      "-C", "link-arg=-L$SYSROOT_DIR/usr/lib",
-                      "-C", "link-arg=-L$SYSROOT_DIR/lib",
-                      "-C", "link-arg=-fuse-ld=lld"
-                  ]
-                  EOF
-
             - name: Build
-              env:
-                CC_x86_64_unknown_freebsd: clang
-                CXX_x86_64_unknown_freebsd: clang++
               run: cargo build --release --target ${{ matrix.target }}
 
             - name: Strip binary (Linux/macOS)
@@ -185,12 +131,16 @@ jobs:
               shell: bash
               run: |
                   mkdir -p release
+                  BINARY_NAME="splitby"
                   if [ "${{ matrix.os }}" = "windows-latest" ]; then
+                    BINARY_NAME="splitby.exe"
+                  fi
+                  if [ "${{ matrix.archive }}" = "zip" ]; then
                     cd target/${{ matrix.target }}/release
-                    7z a ../../../release/splitby-${{ env.TAG_NAME }}-${{ matrix.label }}.zip splitby.exe
+                    7z a ../../../release/splitby-${{ env.TAG_NAME }}-${{ matrix.label }}.zip "$BINARY_NAME"
                   else
-                    tar czf release/splitby-${{ env.TAG_NAME }}-${{ matrix.label }}.tar.gz \
-                      -C target/${{ matrix.target }}/release splitby
+                    tar czf release/splitby-${{ env.TAG_NAME }}-${{ matrix.label }}.${{ matrix.archive }} \
+                      -C target/${{ matrix.target }}/release "$BINARY_NAME"
                   fi
 
             - name: Upload artifact
