@@ -7,7 +7,7 @@ const devMode = process.env.CONTEXT === "dev"
 const site = devMode
     ? "https://localhost:4321/"
     : "https://serenacula.github.io/splitby/"
-const ogUrl = new URL("og.jpg?v=1", site).href
+const ogUrl = new URL("og.webp", site).href
 const ogImageAlt = "Splitby CLI tool: the modern cut alternative"
 
 // https://astro.build/config
