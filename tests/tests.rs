@@ -447,8 +447,18 @@ mod optional_delimiter {
         run_success_test(
             "Optional delimiter: regex pattern as first argument",
             b"this is a test\n",
-            &["\\s+", "1", "2"],
+            &["/\\s+/", "1", "2"],
             b"this is\n",
+        );
+    }
+
+    #[test]
+    fn literal_pattern_as_first_argument() {
+        run_success_test(
+            "Optional delimiter: literal pattern as first argument",
+            b"apple,banana;cherry\n",
+            &["[,;]", "1"],
+            b"apple,banana;cherry\n",
         );
     }
 
@@ -477,6 +487,46 @@ mod optional_delimiter {
             b"apple,banana,cherry\n",
             &["a", "2"],
             b"pple,b\n",
+        );
+    }
+
+    #[test]
+    fn regex_delimiter_with_d_flag() {
+        run_success_test(
+            "Optional delimiter: regex delimiter with -d flag",
+            b"apple,banana;cherry\n",
+            &["-d", "/[,;]/", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn literal_pipe_with_d_flag() {
+        run_success_test(
+            "Optional delimiter: literal pipe with -d flag",
+            b"apple|banana|cherry\n",
+            &["-d", "|", "1", "3"],
+            b"apple|cherry\n",
+        );
+    }
+
+    #[test]
+    fn regex_delimiter_implicit() {
+        run_success_test(
+            "Optional delimiter: regex delimiter implicit",
+            b"apple,banana;cherry\n",
+            &["/[,;]/", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn regex_delimiter_literal_slash() {
+        run_success_test(
+            "Optional delimiter: regex delimiter for literal slash",
+            b"apple/banana/cherry\n",
+            &["/\\//", "1", "3"],
+            b"apple/cherry\n",
         );
     }
 }
@@ -603,7 +653,7 @@ mod join_and_trim {
         run_success_test(
             "Join with first (mixed delimiters, uses first)",
             b"apple;banana,cherry\n",
-            &["-d", "[,;]", "--join=first", "1", "2", "3"],
+            &["-d", "/[,;]/", "--join=first", "1", "2", "3"],
             b"apple;banana;cherry\n",
         );
     }
@@ -613,7 +663,7 @@ mod join_and_trim {
         run_success_test(
             "Join with last (mixed delimiters, uses last)",
             b"apple;banana,cherry\n",
-            &["-d", "[,;]", "--join=last", "1", "2", "3"],
+            &["-d", "/[,;]/", "--join=last", "1", "2", "3"],
             b"apple,banana,cherry\n",
         );
     }
@@ -929,7 +979,7 @@ mod join_and_trim {
         run_success_test(
             "Join: before-next vs after-previous (shows difference with mixed delimiters)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=before-next", "1", "3"],
+            &["-d", "/[,;:]/", "--join=before-next", "1", "3"],
             b"apple;cherry\n",
         );
     }

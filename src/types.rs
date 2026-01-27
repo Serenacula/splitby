@@ -36,6 +36,12 @@ pub enum Align {
     None,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub enum Delimiter {
+    Literal(String),
+    Regex(String),
+}
+
 #[derive(Clone)]
 pub enum RegexEngine {
     Simple(SimpleRegex),

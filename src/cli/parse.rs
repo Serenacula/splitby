@@ -31,7 +31,7 @@ pub fn parse_flags(
         return Ok(ParseResult::FlagParsed);
     }
     if consuming.delim {
-        raw_instructions.delimiter = Some(arg.to_string());
+        raw_instructions.delimiter = Some(parse_delimiter_token(arg));
         consuming.delim = false;
         return Ok(ParseResult::FlagParsed);
     }
@@ -94,9 +94,9 @@ pub fn parse_flags(
         }
         let value = arg.split("=").nth(1);
         if let Some(value) = value {
-            raw_instructions.delimiter = Some(trim_quotes(value));
+            raw_instructions.delimiter = Some(parse_delimiter_token(value));
         } else {
-            raw_instructions.delimiter = Some("".to_string());
+            raw_instructions.delimiter = Some(parse_delimiter_token(""));
         }
         return Ok(ParseResult::FlagParsed);
     }
@@ -144,7 +144,7 @@ pub fn parse_flags(
     if arg.starts_with("-d") && arg != "-d" {
         // Support -d, -d',' and -d","
         let delim_value = &arg[2..]; // characters after -d
-        raw_instructions.delimiter = Some(trim_quotes(delim_value));
+        raw_instructions.delimiter = Some(parse_delimiter_token(delim_value));
         return Ok(ParseResult::FlagParsed);
     }
 

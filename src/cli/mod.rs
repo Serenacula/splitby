@@ -6,6 +6,7 @@ mod validation;
 
 use self::parse::*;
 use self::types::*;
+use self::utilities::parse_delimiter_token;
 use self::validation::*;
 use crate::types::*;
 
@@ -141,7 +142,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         }
         // If it's not a selection or flag and we have no delimiter yet, assume it's an implicit
         if cli_arguments.delimiter.is_none() {
-            cli_arguments.delimiter = Some(arg);
+            cli_arguments.delimiter = Some(parse_delimiter_token(&arg));
             continue;
         }
         // We already have a delimiter, nothing left for it to be
@@ -172,22 +173,33 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
     let regex_engine: Option<RegexEngine> = match cli_arguments.selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
         SelectionMode::Fields => {
-            let delimiter: String = cli_arguments.delimiter.unwrap_or_else(|| {
+            let delimiter = cli_arguments.delimiter.unwrap_or_else(|| {
                 eprintln!("delimiter is required in fields mode (use -d or --delimiter)");
                 std::process::exit(2)
             });
+            let delimiter_pattern = match delimiter {
+                Delimiter::Literal(value) => {
+                    if value.is_empty() {
+                        eprintln!("empty string is not a valid delimiter");
+                        std::process::exit(2)
+                    }
+                    regex::escape(&value)
+                }
+                Delimiter::Regex(value) => {
+                    if value.is_empty() {
+                        eprintln!("empty string is not a valid delimiter");
+                        std::process::exit(2)
+                    }
+                    value
+                }
+            };
 
-            if delimiter.is_empty() {
-                eprintln!("empty string is not a valid delimiter");
-                std::process::exit(2)
-            }
-
-            let simple_regex = SimpleRegex::new(&delimiter);
+            let simple_regex = SimpleRegex::new(&delimiter_pattern);
 
             match simple_regex {
                 Ok(regex) => Some(RegexEngine::Simple(regex)),
                 Err(_) => {
-                    let fancy_regex = FancyRegex::new(&delimiter)
+                    let fancy_regex = FancyRegex::new(&delimiter_pattern)
                         .map_err(|error| format!("failed to compile regex: {error}"))?;
                     Some(RegexEngine::Fancy(fancy_regex))
                 }

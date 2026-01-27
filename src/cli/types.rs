@@ -16,7 +16,7 @@ pub struct CLIArguments {
     pub input: Option<PathBuf>,
     pub join: Option<Vec<u8>>, // This is a string because we want to do validation AFTER parsing
     pub align: Align,
-    pub delimiter: Option<String>, // Needs to be a string for the regex engine
+    pub delimiter: Option<Delimiter>,
     pub placeholder: Option<Vec<u8>>,
     pub input_mode: InputMode,
     pub selection_mode: SelectionMode,
