@@ -51,6 +51,18 @@
             }
         }
     }
+    nav {
+        starlight-menu-button {
+            button {
+                background-color: var(--yellow);
+                color: black;
+                &:hover {
+                    background-color: var(--purple);
+                    color: white;
+                }
+            }
+        }
+    }
     .sidebar-pane {
         a:hover {
             &[aria-current="page"] {
@@ -119,6 +131,11 @@
         /* background-color: var(--yellow); */
         .site-title {
             color: black;
+            img {
+                background-color: var(--grey);
+                border-radius: 4px;
+                padding: 4px;
+            }
         }
         site-search {
             kbd {
@@ -161,6 +178,17 @@
     }
     nav {
         background-color: var(--sidebar-background);
+        starlight-menu-button {
+            button {
+                border: 1px solid black;
+                background-color: lightgrey;
+                color: black;
+                &:hover {
+                    background-color: var(--purple);
+                    color: white;
+                }
+            }
+        }
     }
     aside {
         background-color: var(--sidebar-background);
@@ -200,6 +228,14 @@
 
         figcaption {
             background: lightgrey;
+        }
+
+        img {
+            /* background-color: white; */
+            background-color: var(--grey);
+            padding: 10px;
+            border: 2px solid black;
+            border-radius: 20px;
         }
     }
 }
