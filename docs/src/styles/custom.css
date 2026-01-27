@@ -124,6 +124,7 @@
     /* --sl-color-gray-9: black; */
     /* --sl-icon-color: var(--purple); */
     --sl-color-text-accent: blueviolet;
+    --sl-color-bg-inline-code: var(--yellow);
 
     html,
     body {
@@ -243,6 +244,10 @@
             padding: 10px;
             border: 2px solid black;
             border-radius: 20px;
+        }
+        code[dir="auto"] {
+            background-color: var(--yellow);
+            border: 1px solid black;
         }
     }
 }
