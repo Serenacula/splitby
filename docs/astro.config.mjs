@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from "astro/config"
+import { defineConfig, passthroughImageService } from "astro/config"
 import starlight from "@astrojs/starlight"
 
 const devMode = process.env.CONTEXT === "dev"
@@ -13,6 +13,9 @@ const ogImageAlt = "Splitby CLI tool: the modern cut alternative"
 // https://astro.build/config
 export default defineConfig({
     site: "https://serenacula.github.io/splitby/",
+    image: {
+        service: passthroughImageService(),
+    },
     integrations: [
         starlight({
             // plugins: [starlightAutoSidebar()],
