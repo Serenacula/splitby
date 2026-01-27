@@ -272,14 +272,14 @@ pub fn parse_flags(
     }
 }
 
-pub fn parse_align(arg: &str, allowAny: bool) -> Result<Option<Align>, String> {
+pub fn parse_align(arg: &str, allow_any: bool) -> Result<Option<Align>, String> {
     match arg.to_lowercase().as_str() {
         "left" => Ok(Some(Align::Left)),
         "right" => Ok(Some(Align::Right)),
         "squash" => Ok(Some(Align::Squash)),
         "none" => Ok(Some(Align::None)),
         _ => {
-            if allowAny {
+            if allow_any {
                 Ok(None)
             } else {
                 Err(format!(
