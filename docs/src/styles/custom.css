@@ -21,17 +21,17 @@
             letter-spacing: -0.02em;
             font-size: 2rem;
         }
-        .social-icons {
-            a {
-                /* color: white; */
-            }
-        }
     }
     main {
         #_top {
             font-family: "BalooDa2";
             font-size: 5rem;
             letter-spacing: -0.03em;
+        }
+        img {
+            object-position: 0 -5px;
+            object-fit: cover;
+            height: calc(100% + 5px);
         }
     }
 }

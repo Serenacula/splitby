@@ -9,6 +9,11 @@ export default defineConfig({
         starlight({
             // plugins: [starlightAutoSidebar()],
             title: "splitby",
+            favicon: "/favicon.ico",
+            logo: {
+                light: "/public/splitby-honeycomb.webp",
+                dark: "/public/splitby-honeycomb.webp",
+            },
             social: [
                 {
                     icon: "github",
