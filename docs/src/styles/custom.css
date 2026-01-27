@@ -157,12 +157,12 @@
                 color: black;
                 &:hover {
                     color: var(--purple);
+                    opacity: 1;
                 }
             }
         }
         starlight-theme-select {
             label {
-                /* color: white; */
                 &:hover {
                     color: var(--purple);
                 }
