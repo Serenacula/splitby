@@ -2,6 +2,14 @@
 import { defineConfig } from "astro/config"
 import starlight from "@astrojs/starlight"
 
+const devMode = process.env.CONTEXT !== "production"
+
+const site = devMode
+    ? "https://localhost:4321/"
+    : "https://serenacula.github.io/splitby/"
+const ogUrl = new URL("og.jpg?v=1", site).href
+const ogImageAlt = "Splitby CLI tool: the modern cut alternative"
+
 // https://astro.build/config
 export default defineConfig({
     site: "https://serenacula.github.io/splitby/",
@@ -19,6 +27,16 @@ export default defineConfig({
                     icon: "github",
                     label: "GitHub",
                     href: "https://github.com/Serenacula/splitby",
+                },
+            ],
+            head: [
+                {
+                    tag: "meta",
+                    attrs: { property: "og:image", content: ogUrl },
+                },
+                {
+                    tag: "meta",
+                    attrs: { property: "og:image:alt", content: ogImageAlt },
                 },
             ],
             customCss: ["./src/styles/custom.css"],
