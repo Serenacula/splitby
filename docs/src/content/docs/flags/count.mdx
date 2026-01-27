@@ -14,14 +14,17 @@ splitby --count
 Returns the count of items in the current selection mode:
 
 - fields in field mode
-- grapheme clusters in character mode
+- characters in character mode
 - bytes in byte mode
+
+The count is performed per record, so by default it will count for each line. If you wish to count across a document, you can use `--whole-string` mode.
 
 ## Examples
 
 ```sh
-echo "a,b,c" | splitby -d "," --count
-# 3
+echo "a,b,c\napple,banana" | splitby "," --count
+> 3
+> 2
 ```
 
 ```sh
@@ -29,6 +32,11 @@ echo "café" | splitby -c --count
 # 4
 ```
 
+```sh
+echo "a,b,c\napple,banana" | splitby --whole-string "," --count
+> 4
+```
+
 ## Gotchas
 
-- Selection-altering flags like `--invert` and `--placeholder` are ignored for counts.
+- Selections and selection-altering flags like `--invert` and `--placeholder` are ignored for counts.

@@ -5,27 +5,11 @@ description: Common questions and pitfalls.
 
 ## Why does `\s+` not work?
 
-Most shells treat backslashes as escapes. Use single quotes or double-escape:
+Some shells treat backslashes as escapes. Use single quotes or double-escape:
 
 ```sh
-splitby -d '\\s+' 1
+splitby -d '\s+' 1
 splitby -d "\\s+" 1
-```
-
-If you pass the delimiter as the first argument, quoting still applies:
-
-```sh
-splitby '\\s+' 1
-```
-
-## Why did splitby treat my delimiter as a selection?
-
-If the first argument looks like a selection (`1`, `2-4`, `-1`, or `1,3`), splitby assumes it is a selection and expects `-d` for the delimiter.
-
-To force a delimiter, use `-d`:
-
-```sh
-splitby -d "," 1
 ```
 
 ## Why are selections joined with spaces sometimes?

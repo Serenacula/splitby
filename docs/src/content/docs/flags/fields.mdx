@@ -11,11 +11,13 @@ splitby --fields [selection...]
 
 ## What it does
 
-Forces field mode even when other selection modes are available. This is the default if no other selection mode is specified.
+Splits the input into fields, using a delimiter. This is the default if no other selection mode is specified.
+
+This flag is only useful when changing the default behaviour or using aliases.
 
 ## Examples
 
 ```sh
-echo "a,b,c" | splitby -f -d "," 2
+echo "a,b,c" | splitby --characters --fields -d "," 2
 # b
 ```

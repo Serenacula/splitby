@@ -9,7 +9,7 @@ description: Choose how fields are separated in field mode.
 splitby -d "<REGEX>" [selection...]
 ```
 
-In field mode, you can also provide the delimiter as the first argument:
+By default, splitby will assume the first unrecognised argument it comes across is a delimiter. This is called an implicit delimiter.
 
 ```sh
 splitby "<REGEX>" [selection...]
@@ -38,4 +38,4 @@ echo "a   b   c" | splitby -d "\\s+" 3
 ## Gotchas
 
 - Shells often eat backslashes. Use single quotes or double-escape (`'\\s+'`).
-- If the first argument is a valid selection, splitby treats it as a selection and expects `-d`.
+- If a delimiter has already been set, implicit delimiters will instead error.

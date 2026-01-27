@@ -11,7 +11,7 @@ description: Install splitby from a release or build it locally.
 
 ```sh
 chmod +x ./splitby
-sudo mv ./splitby /usr/local/bin/splitby
+mv ./splitby /usr/local/bin/splitby
 ```
 
 ## Build from source
@@ -22,7 +22,7 @@ If you have Rust installed:
 git clone https://github.com/Serenacula/splitby.git
 cd splitby
 cargo build --release
-./target/release/splitby --version
+mv ./target/release/splitby /usr/local/bin/splitby
 ```
 
 ## Verify the install

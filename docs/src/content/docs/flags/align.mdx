@@ -11,9 +11,33 @@ splitby --align [selection...]
 
 ## What it does
 
-Aligns the start of each field across records by padding shorter fields with spaces. This is useful for creating columnar output that's easier to read.
+Aligns the start of each field across records by padding shorter fields with spaces.
+
+Align optionally accepts several different modes:
+
+- `left`: The default, delimiters are aligned and fields at the left of their column.
+- `right`: Delimiters are aligned and fields at the right of their column.
+- `squash`: Padding is placed after the delimiter, so the first letter of each field is aligned.
 
 ## Examples
+
+### Left (the default mode)
+
+```sh
+echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align 1 2
+# apple|banana
+# a    |b
+```
+
+### Right
+
+```sh
+echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align 1 2
+# apple|banana
+#     a|     b
+```
+
+### Squash
 
 ```sh
 echo "apple,banana,cherry\na,b,c" | splitby -d "," --align 1 2

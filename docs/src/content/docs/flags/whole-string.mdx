@@ -19,3 +19,7 @@ Processes the full input as one record, which is useful when your delimiter is a
 printf "a\nb\nc\n" | splitby -w -d "\n" 2
 # b
 ```
+
+# Gotchas
+
+- Because the input is treated as a single record, this mode does not take advantage of multithreading.

@@ -13,14 +13,108 @@ splitby --join "<STRING>" [selection...]
 
 By default, splitby tries to preserve the original delimiter between selections in field mode. `--join` replaces that behavior with your custom string.
 
+Join also accepts a number of special keywords.
+
+- `auto`: Apply the default behaviour of trying `after-previous`, then trying `before-next` then falling back to a space.
+- `first`: Use the first delimiter in the record
+- `last`: Use the last delimiter in the record
+- `after-previous`: Use the delimiter after the previously printed field
+- `before-next`: Use the delimiter before the next printed field
+- `space`: Use a single space, equivalent to `" "`
+- `none`: Use an empty join, equivalent to `""`
+
 ## Examples
+
+### Custom string join
+
+Join selections with a custom string:
 
 ```sh
 echo "a,b,c" | splitby -d "," --join " | " 1 3
 # a | c
 ```
 
+```sh
+echo "apple,banana,cherry" | splitby -d "," -j " -> " 1-3
+# apple -> banana -> cherry
+```
+
+### Join keywords
+
+Use special keywords:
+
+#### `auto` (default behavior)
+
+Tries to preserve original delimiters, falling back to space when no delimiter is available:
+
+```sh
+# When delimiters exist between selections, preserves them
+echo "apple,banana,cherry" | splitby -d "," --join auto 1 3
+# apple,cherry
+
+# Falls back to space when no delimiter is available
+echo "apple" | splitby -d "," --join auto 1 1
+# apple apple
+```
+
+#### `first` (first delimiter)
+
+Uses the first delimiter found in the record:
+
+```sh
+echo "apple,banana;cherry:date" | splitby -d "[,;:]" --join first 3 4
+# cherry,date
+```
+
+#### `last` (last delimiter)
+
+Uses the last delimiter found in the record:
+
+```sh
+# Multiple delimiter types - uses the last one found
+echo "apple,banana;cherry:date" | splitby -d "[,;:]" --join last 1 2
+# apple:banana
+```
+
+#### `after-previous` (delimiter after previous field)
+
+Uses the delimiter that immediately follows the previously selected field:
+
+```sh
+# Uses the comma after "apple" (field 1)
+echo "apple,banana;cherry:date" | splitby -d "[,;:]" --join after-previous 1 3 1
+# apple,cherry:apple
+```
+
+#### `before-next` (delimiter before next field)
+
+Uses the delimiter that immediately precedes the next selected field:
+
+```sh
+# Uses the comma before "cherry" (field 3)
+echo "apple,banana;cherry:date" | splitby -d "[,;:]" --join before-next 1 4 2
+# apple:date,banana
+```
+
+#### `none` (no separator)
+
+Concatenates selections with no separator between them:
+
+```sh
+echo "apple,banana,cherry" | splitby -d "," --join none 1 3
+# applecherry
+```
+
+#### `space` (single space)
+
+Always uses a single space, regardless of original delimiters:
+
+```sh
+# Original delimiter is comma, but output uses space
+echo "apple,banana,cherry" | splitby -d "," --join space 1 3
+# apple cherry
+```
+
 ## Gotchas
 
-- `--join` affects separators between selections, not within ranges.
-- In whole-string mode, the default separator is a newline. `--join` replaces it.
+- `after-previous` and `before-next` fallback to a space, if there is no delimiter available. I might change this depending on feedback.
