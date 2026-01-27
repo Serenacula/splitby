@@ -2,7 +2,7 @@
 import { defineConfig } from "astro/config"
 import starlight from "@astrojs/starlight"
 
-const devMode = process.env.CONTEXT !== "production"
+const devMode = process.env.CONTEXT === "dev"
 
 const site = devMode
     ? "https://localhost:4321/"
