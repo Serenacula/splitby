@@ -1,5 +1,7 @@
 # splitby
 
+![Splitby](/docs/src/assets/og.jpg)
+
 A high-performance Rust command-line tool that splits text by a regex delimiter and returns selected parts of the result. A powerful, multi-threaded alternative to `cut` with regex support.
 
 ## How to use
