@@ -32,7 +32,7 @@ echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align 1 2
 ### Right
 
 ```sh
-echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align 1 2
+echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align=right 1 2
 # apple|banana
 #     a|     b
 ```
@@ -40,7 +40,7 @@ echo "apple|banana|cherry\na|b|c" | splitby -d "|" --align 1 2
 ### Squash
 
 ```sh
-echo "apple,banana,cherry\na,b,c" | splitby -d "," --align 1 2
+echo "apple,banana,cherry\na,b,c" | splitby -d "," --align=squash 1 2
 # apple,banana
 # a,    b
 ```

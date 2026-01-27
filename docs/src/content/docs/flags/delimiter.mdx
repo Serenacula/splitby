@@ -6,7 +6,9 @@ description: Choose how fields are separated in field mode.
 ## Syntax
 
 ```sh
-splitby -d "<REGEX>" [selection...]
+splitby -d "< /REGEX/ | LITERAL >" [selection...]
+# or
+splitby -d "< /REGEX/ | LITERAL >" [selection...]
 ```
 
 By default, splitby will assume the first unrecognised argument it comes across is a delimiter. This is called an implicit delimiter.
@@ -21,17 +23,17 @@ Splits each record into fields using a regular expression. The delimiter is requ
 
 ## Examples
 
-Split on commas:
+Split on a literal comma:
 
 ```sh
 echo "a,b,c" | splitby -d "," 2
 # b
 ```
 
-Split on whitespace:
+Split on regex whitespace:
 
 ```sh
-echo "a   b   c" | splitby -d "\\s+" 3
+echo "a   b   c" | splitby -d "/\\s+/" 3
 # c
 ```
 

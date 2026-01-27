@@ -5,11 +5,11 @@ description: Common questions and pitfalls.
 
 ## Why does `\s+` not work?
 
-Some shells treat backslashes as escapes. Use single quotes or double-escape:
+Some shells treat backslashes as escapes. Try using single quotes or double-escape:
 
 ```sh
-splitby -d '\s+' 1
-splitby -d "\\s+" 1
+splitby -d '/\s+/' 1
+splitby -d "/\\s+/" 1
 ```
 
 ## Why are selections joined with spaces sometimes?

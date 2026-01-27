@@ -14,18 +14,27 @@ echo "apple,banana,cherry" | splitby , 2
 
 ## Delimiters
 
-Delimiters are regular expressions. You can pass one explicitly:
+Delimiters are search strings that we split the text by. You can pass one explicitly:
 
 ```sh
-echo "a   b   c" | splitby -d "\\s+" 2
+echo "a b c" | splitby -d " " 2
 # b
 ```
 
-Or implicitly, splitby will detect it:
+Or implicitly drop the flag, and splitby will detect it:
 
 ```sh
 echo "a,b,c" | splitby , 1 3
-# a c
+# a,c
+```
+
+## Regex delimiters
+
+Regex delimiters are also supported, by surrounding the string with forward slashes:
+
+```sh
+echo "a   b   c" | splitby -d "/\\s+/" 2
+# b
 ```
 
 ## Selections
