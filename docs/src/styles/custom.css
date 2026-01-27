@@ -40,6 +40,12 @@
     --sl-color-text-accent: var(--yellow);
     --sl-color-bg-nav: black;
     --sl-color-bg-sidebar: black;
+
+    html,
+    body {
+        scrollbar-color: var(--yellow) black;
+    }
+
     header {
         background-color: black;
         .site-title {
@@ -122,6 +128,7 @@
     html,
     body {
         background-color: var(--yellow);
+        scrollbar-color: blueviolet black;
     }
 
     header {
