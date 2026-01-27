@@ -107,7 +107,7 @@ mod basic_usage {
         run_success_test(
             "Split by space",
             b"this is a test\n",
-            &["-d", "\\s+", "1"],
+            &["-d", "/\\s+/", "1"],
             b"this\n",
         );
     }
@@ -147,7 +147,7 @@ mod basic_usage {
         run_success_test(
             "Test with newline delimiter",
             b"this\nis\na\ntest\n",
-            &["--whole-string", "-d", "\\n", "2"],
+            &["--whole-string", "-d", "/\\n/", "2"],
             b"is",
         );
     }
@@ -569,7 +569,7 @@ mod edge_case {
         run_success_test(
             "Multiple delimiters with spaces and commas",
             b"apple, orange  banana, pear\n",
-            &["-d", "[, ]+", "1-3"],
+            &["-d", "/[, ]+/", "1-3"],
             b"apple, orange  banana\n",
         );
     }
@@ -743,7 +743,7 @@ mod join_and_trim {
         run_success_test(
             "Join with after-previous (mixed delimiters)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=after-previous", "1", "3"],
+            &["-d", "/[,;:]/", "--join=after-previous", "1", "3"],
             b"apple,cherry\n",
         );
     }
@@ -763,7 +763,7 @@ mod join_and_trim {
         run_success_test(
             "Join with after-previous (multiple selections)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=after-previous", "1", "3", "1"],
+            &["-d", "/[,;:]/", "--join=after-previous", "1", "3", "1"],
             b"apple,cherry:apple\n",
         );
     }
@@ -793,7 +793,7 @@ mod join_and_trim {
         run_success_test(
             "Join with before-next (mixed delimiters)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=before-next", "1", "4", "2"],
+            &["-d", "/[,;:]/", "--join=before-next", "1", "4", "2"],
             b"apple:date,banana\n",
         );
     }
@@ -813,7 +813,7 @@ mod join_and_trim {
         run_success_test(
             "Join with before-next (multiple selections)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=before-next", "1", "4", "2"],
+            &["-d", "/[,;:]/", "--join=before-next", "1", "4", "2"],
             b"apple:date,banana\n",
         );
     }
@@ -853,7 +853,7 @@ mod join_and_trim {
         run_success_test(
             "Join with auto (mixed delimiters)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=auto", "1", "3"],
+            &["-d", "/[,;:]/", "--join=auto", "1", "3"],
             b"apple,cherry\n",
         );
     }
@@ -969,7 +969,7 @@ mod join_and_trim {
         run_success_test(
             "Join: after-previous vs before-next (shows difference with mixed delimiters)",
             b"apple,banana;cherry:date\n",
-            &["-d", "[,;:]", "--join=after-previous", "1", "3"],
+            &["-d", "/[,;:]/", "--join=after-previous", "1", "3"],
             b"apple,cherry\n",
         );
     }
@@ -1047,7 +1047,7 @@ mod count_and_invert {
         run_success_test(
             "Using --count with newline delimiter whole-string",
             b"this\nis\na\ntest\n",
-            &["--whole-string", "-d", "\\n", "--count"],
+            &["--whole-string", "-d", "/\\n/", "--count"],
             b"4",
         );
     }
@@ -1057,7 +1057,7 @@ mod count_and_invert {
         run_success_test(
             "Using --count with extra newline",
             b"this\nis\na\ntest\n\n",
-            &["-d", "\\n", "--count"],
+            &["-d", "/\\n/", "--count"],
             b"1\n1\n1\n1\n1\n",
         );
     }
@@ -1067,7 +1067,7 @@ mod count_and_invert {
         run_success_test(
             "Using --count with extra newline whole-string",
             b"this\nis\na\ntest\n\n",
-            &["--whole-string", "-d", "\\n", "--count"],
+            &["--whole-string", "-d", "/\\n/", "--count"],
             b"5",
         );
     }
@@ -1535,7 +1535,7 @@ mod invalid_input {
         run_error_test(
             "Invalid delimiter regex",
             b"this is a test\n",
-            &["-d", "[[", "1"],
+            &["-d", "/[[/", "1"],
         );
     }
 
