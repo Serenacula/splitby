@@ -249,5 +249,22 @@
             background-color: var(--yellow);
             border: 1px solid black;
         }
+
+        .copy {
+            button {
+                &:hover {
+                    background-color: var(--yellow-hover);
+                }
+                div::before {
+                    opacity: 1;
+                }
+                div {
+                    opacity: 0;
+                }
+                div::after {
+                    opacity: 1;
+                }
+            }
+        }
     }
 }
