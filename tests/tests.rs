@@ -2014,6 +2014,106 @@ mod hex_parsing {
     }
 
     #[test]
+    fn placeholder_multiple_out_of_bounds_fields() {
+        run_success_test(
+            "Placeholder: multiple out-of-bounds field indices",
+            b"a,b\n",
+            &["-d", ",", "--placeholder=N/A", "1", "4", "2"],
+            b"a,N/A,b\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_out_of_bounds_with_join() {
+        run_success_test(
+            "Placeholder: out-of-bounds fields with join",
+            b"a,b\n",
+            &["-d", ",", "--placeholder=X", "--join", " | ", "1", "5", "2"],
+            b"a | X | b\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_out_of_bounds_range() {
+        run_success_test(
+            "Placeholder: out-of-bounds range selection",
+            b"a,b\n",
+            &["-d", ",", "--placeholder=?", "3-5"],
+            b"?,?,?\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_partial_range_out_of_bounds() {
+        run_success_test(
+            "Placeholder: range partially out-of-bounds",
+            b"a,b,c\n",
+            &["-d", ",", "--placeholder=X", "2-5"],
+            b"b,c,X,X\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_all_out_of_bounds() {
+        run_success_test(
+            "Placeholder: all selections out-of-bounds",
+            b"a,b\n",
+            &["-d", ",", "--placeholder=Z", "10", "20", "30"],
+            b"Z,Z,Z\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_negative_index_out_of_bounds() {
+        run_success_test(
+            "Placeholder: negative index out-of-bounds",
+            b"a,b\n",
+            &["-d", ",", "--placeholder=?", "-10"],
+            b"\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_mixed_valid_and_invalid() {
+        run_success_test(
+            "Placeholder: mixed valid and invalid field indices",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--placeholder=?", "1", "10", "2", "5", "3"],
+            b"apple,?,banana,?,cherry\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_with_align() {
+        run_success_test(
+            "Placeholder: out-of-bounds with align (should not panic)",
+            b"apple,banana\na,b\n",
+            &["-d", ",", "--align", "--placeholder=X", "1", "2", "5"],
+            b"apple,banana,X\na    ,b     ,X\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_empty_input() {
+        run_success_test(
+            "Placeholder: empty input with out-of-bounds",
+            b"\n",
+            &["-d", ",", "--placeholder=X", "1", "5"],
+            b" X\n",
+        );
+    }
+
+    #[test]
+    fn placeholder_single_field_out_of_bounds() {
+        run_success_test(
+            "Placeholder: single field completely out-of-bounds",
+            b"a\n",
+            &["-d", ",", "--placeholder=?", "10"],
+            b"?\n",
+        );
+    }
+
+    #[test]
     fn join_hex_in_char_mode() {
         run_success_test(
             "Join: hex in char mode",

@@ -23,8 +23,8 @@ The count is performed per record, so by default it will count for each line. If
 
 ```sh
 echo "a,b,c\napple,banana" | splitby "," --count
-> 3
-> 2
+# 3
+# 2
 ```
 
 ```sh
@@ -34,7 +34,7 @@ echo "café" | splitby -c --count
 
 ```sh
 echo "a,b,c\napple,banana" | splitby --whole-string "," --count
-> 4
+# 4
 ```
 
 ## Gotchas

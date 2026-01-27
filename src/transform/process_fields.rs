@@ -159,7 +159,11 @@ pub fn process_fields(
 
             let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
             if !is_last {
-                let current_delimiter = fields[field_index].delimiter;
+                let current_delimiter = if field_index < fields.len() {
+                    fields[field_index].delimiter
+                } else {
+                    b""
+                };
                 let next_delimiter = if field_index < fields.len() - 1 {
                     fields[field_index + 1].delimiter
                 } else {
