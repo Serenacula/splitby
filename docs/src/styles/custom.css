@@ -12,16 +12,40 @@
     --purple: blueviolet;
     --yellow-hover: rgb(255, 229, 82);
     --grey: hsl(0, 0%, 16%);
-    /* --grey-light: hsl(0, 0%, 16%); */
-    --sl-color-text-accent: var(--yellow); /* Dark theme styles */
-    --sl-color-bg-nav: var(--grey);
-    --sl-color-bg-sidebar: var(--grey);
+
+    html,
+    body {
+        background-color: var(--yellow);
+    }
+    header {
+        /* background-color: black; */
+        .site-title {
+            /* color: var(--yellow); */
+            font-family: "BalooDa2";
+            letter-spacing: -0.02em;
+            font-size: 2rem;
+        }
+        .social-icons {
+            a {
+                /* color: white; */
+            }
+        }
+    }
+    main {
+        #_top {
+            font-family: "BalooDa2";
+            font-size: 5rem;
+            color: var(--yellow);
+            letter-spacing: -0.03em;
+        }
+    }
+}
+
+:root[data-theme="dark"] {
     header {
         background-color: black;
         .site-title {
             color: var(--yellow);
-            font-family: "BalooDa2";
-            letter-spacing: -0.02em;
         }
         .social-icons {
             a {
@@ -71,23 +95,110 @@
 }
 
 :root[data-theme="light"] {
-    /* Light theme styles */
-    --yellow: rgb(255, 217, 0);
-    --purple: blueviolet;
-    --grey: hsl(224, 10, 23);
-    --sl-color-text-accent: blueviolet; /* Dark theme styles */
+    --yellow: #eec50f;
+    --purple-hover: rgb(176, 92, 255);
+    --sidebar-background: var(--yellow);
+
+    --sl-color-hairline: black;
+    /* --sl-color-gray-1: black; */
+    /* --sl-color-gray-2: black; */
+    /* --sl-color-gray-3: black; */
+    /* --sl-color-gray-4: black; */
+    --sl-color-gray-5: black;
+    --sl-color-gray-6: black;
+    /* --sl-color-gray-7: black; */
+    /* --sl-color-gray-8: black; */
+    /* --sl-color-gray-9: black; */
+    /* --sl-icon-color: var(--purple); */
+    --sl-color-text-accent: blueviolet;
     header {
-        background-color: black;
+        /* border-bottom: 2px solid black; */
+        /* border: none; */
+        background-color: var(--yellow);
+        /* background-color: var(--yellow); */
         .site-title {
-            color: var(--yellow);
+            color: black;
+        }
+        site-search {
+            kbd {
+                background-color: lightgrey;
+            }
+            dialog {
+                background-color: lightgrey;
+            }
         }
         .social-icons {
             a {
-                color: white;
+                color: black;
+                &:hover {
+                    color: var(--purple);
+                }
+            }
+        }
+        starlight-theme-select {
+            label {
+                /* color: white; */
+                &:hover {
+                    color: var(--purple);
+                }
             }
         }
     }
+    .sidebar-pane {
+        background-color: var(--sidebar-background);
+        a[aria-current="page"] {
+            color: white;
+            background-color: var(--purple);
+            &:hover {
+                color: white;
+                background-color: var(--purple-hover);
+            }
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    }
+    nav {
+        background-color: var(--sidebar-background);
+    }
+    aside {
+        background-color: var(--sidebar-background);
+    }
     main {
-        color: hsl(224, 10, 23);
+        /* color: hsl(224, 10, 23); */
+        background-color: var(--yellow);
+        color: black;
+        border-color: black;
+
+        #_top {
+            font-family: "BalooDa2";
+            font-size: 5rem;
+            color: black;
+            letter-spacing: -0.03em;
+        }
+        .sl-link-button {
+            &.primary {
+                border: 2px solid black;
+                background-color: lightgrey;
+                color: black;
+                &:hover {
+                    /* background-color: var(--yellow-hover); */
+                    background-color: var(--purple);
+                    color: white;
+                }
+            }
+            &.minimal {
+                background-color: var(--grey);
+            }
+        }
+        .sl-markdown-content {
+            a:hover {
+                color: rgb(169, 107, 227);
+            }
+        }
+
+        figcaption {
+            background: lightgrey;
+        }
     }
 }
