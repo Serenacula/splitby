@@ -13,10 +13,6 @@
     --yellow-hover: rgb(255, 229, 82);
     --grey: hsl(0, 0%, 16%);
 
-    html,
-    body {
-        background-color: var(--yellow);
-    }
     header {
         /* background-color: black; */
         .site-title {
@@ -35,13 +31,15 @@
         #_top {
             font-family: "BalooDa2";
             font-size: 5rem;
-            color: var(--yellow);
             letter-spacing: -0.03em;
         }
     }
 }
 
 :root[data-theme="dark"] {
+    --sl-color-text-accent: var(--yellow);
+    --sl-color-bg-nav: black;
+    --sl-color-bg-sidebar: black;
     header {
         background-color: black;
         .site-title {
@@ -67,10 +65,7 @@
     main {
         color: hsl(224, 10, 23);
         #_top {
-            font-family: "BalooDa2";
-            font-size: 5rem;
             color: var(--yellow);
-            letter-spacing: -0.03em;
         }
         .sl-link-button {
             &.primary {
@@ -111,6 +106,12 @@
     /* --sl-color-gray-9: black; */
     /* --sl-icon-color: var(--purple); */
     --sl-color-text-accent: blueviolet;
+
+    html,
+    body {
+        background-color: var(--yellow);
+    }
+
     header {
         /* border-bottom: 2px solid black; */
         /* border: none; */
