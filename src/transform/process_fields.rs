@@ -116,6 +116,7 @@ pub fn process_fields(
 
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
+            // Skip if there's no data in this field
             let has_data = field_index < fields.len()
                 || (transform_instructions.placeholder.is_some() && !transform_instructions.invert);
 
@@ -123,6 +124,7 @@ pub fn process_fields(
                 continue;
             }
 
+            // Padding setup for align
             let max_field_width = if let Some(max_widths) = &record.field_widths {
                 if field_position < max_widths.len() {
                     max_widths[field_position]
@@ -147,6 +149,7 @@ pub fn process_fields(
                 }
             }
 
+            // Add the field text or placeholder
             if field_index < fields.len() {
                 if !fields[field_index].text.is_empty() {
                     output.extend_from_slice(fields[field_index].text);
@@ -157,19 +160,9 @@ pub fn process_fields(
                 strict_return_passed = true;
             }
 
+            // Add the delimiter
             let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
             if !is_last {
-                let current_delimiter = if field_index < fields.len() {
-                    fields[field_index].delimiter
-                } else {
-                    b""
-                };
-                let next_delimiter = if field_index < fields.len() - 1 {
-                    fields[field_index + 1].delimiter
-                } else {
-                    b""
-                };
-
                 if transform_instructions.align == Align::Left {
                     for _ in 0..padding_needed {
                         output.push(b' ');
@@ -179,6 +172,7 @@ pub fn process_fields(
                 let join: &[u8] = match &transform_instructions.join {
                     Some(JoinMode::String(join_bytes)) => join_bytes,
                     Some(JoinMode::AfterPrevious) => {
+                        let current_delimiter = get_current_delimiter(field_index, &fields);
                         if !current_delimiter.is_empty() {
                             current_delimiter
                         } else {
@@ -186,6 +180,14 @@ pub fn process_fields(
                         }
                     }
                     Some(JoinMode::BeforeNext) => {
+                        let next_delimiter = get_next_delimiter(
+                            field_index,
+                            selection_index,
+                            &selections,
+                            &fields,
+                            transform_instructions.placeholder.is_some(),
+                            transform_instructions.invert,
+                        );
                         if !next_delimiter.is_empty() {
                             next_delimiter
                         } else {
@@ -212,14 +214,25 @@ pub fn process_fields(
                     }
                     None | Some(JoinMode::Auto) => {
                         // Default behavior
+                        let current_delimiter = get_current_delimiter(field_index, &fields);
                         if !current_delimiter.is_empty() {
                             current_delimiter
-                        } else if !next_delimiter.is_empty() {
-                            next_delimiter
-                        } else if !first_delimiter.is_empty() {
-                            first_delimiter
                         } else {
-                            b" "
+                            let next_delimiter = get_next_delimiter(
+                                field_index,
+                                selection_index,
+                                &selections,
+                                &fields,
+                                transform_instructions.placeholder.is_some(),
+                                transform_instructions.invert,
+                            );
+                            if !next_delimiter.is_empty() {
+                                next_delimiter
+                            } else if !first_delimiter.is_empty() {
+                                first_delimiter
+                            } else {
+                                b" "
+                            }
                         }
                     }
                 };

@@ -190,3 +190,65 @@ pub struct Field<'a> {
     pub text: &'a [u8],
     pub delimiter: &'a [u8],
 }
+
+pub fn get_current_delimiter<'a>(field_index: usize, fields: &'a [Field<'a>]) -> &'a [u8] {
+    if field_index < fields.len() {
+        fields[field_index].delimiter
+    } else {
+        b""
+    }
+}
+
+pub fn get_next_delimiter<'a>(
+    field_index: usize,
+    selection_index: usize,
+    selections: &[(usize, usize)],
+    fields: &'a [Field<'a>],
+    placeholder_is_some: bool,
+    invert: bool,
+) -> &'a [u8] {
+    let next_field_index = {
+        let mut found = None;
+        // This shouldn't fire inside the main loop
+        let selection = if selection_index < selections.len() {
+            selections[selection_index]
+        } else {
+            return b"";
+        };
+        for next_index in (field_index + 1)..=selection.1 {
+            let has_next_data = next_index < fields.len() || (placeholder_is_some && !invert);
+            if has_next_data {
+                found = Some(next_index);
+                break;
+            }
+        }
+        // If not found in current selection, check subsequent selections
+        if found.is_none() {
+            for next_selection in selections.iter().skip(selection_index + 1) {
+                for next_index in next_selection.0..=next_selection.1 {
+                    let has_next_data =
+                        next_index < fields.len() || (placeholder_is_some && !invert);
+                    if has_next_data {
+                        found = Some(next_index);
+                        break;
+                    }
+                }
+                if found.is_some() {
+                    break;
+                }
+            }
+        }
+        found
+    };
+
+    // For before-next, use delimiter before the next selected field
+    let next_delimiter = if let Some(next_selected_idx) = next_field_index
+        && next_selected_idx > 0
+        && next_selected_idx <= fields.len()
+    {
+        fields[next_selected_idx - 1].delimiter
+    } else {
+        b""
+    };
+    next_delimiter
+}

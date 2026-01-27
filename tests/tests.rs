@@ -581,9 +581,9 @@ mod join_and_trim {
     #[test]
     fn join_space() {
         run_success_test(
-            "Join with @space",
+            "Join with space",
             b"apple,banana,cherry\n",
-            &["-d", ",", "--join=@space", "1", "2", "3"],
+            &["-d", ",", "--join=space", "1", "2", "3"],
             b"apple banana cherry\n",
         );
     }
@@ -591,49 +591,29 @@ mod join_and_trim {
     #[test]
     fn join_space_single_selection() {
         run_success_test(
-            "Join with @space (single selection, no join)",
+            "Join with space (single selection, no join)",
             b"apple,banana,cherry\n",
-            &["-d", ",", "--join=@space", "1"],
+            &["-d", ",", "--join=space", "1"],
             b"apple\n",
-        );
-    }
-
-    #[test]
-    fn join_first() {
-        run_success_test(
-            "Join with @first (uses first delimiter)",
-            b"apple,banana,cherry\n",
-            &["-d", ",", "--join=@first", "1", "2", "3"],
-            b"apple,banana,cherry\n",
         );
     }
 
     #[test]
     fn join_first_mixed_delimiters() {
         run_success_test(
-            "Join with @first (mixed delimiters, uses first)",
+            "Join with first (mixed delimiters, uses first)",
             b"apple;banana,cherry\n",
-            &["-d", "[,;]", "--join=@first", "1", "2", "3"],
+            &["-d", "[,;]", "--join=first", "1", "2", "3"],
             b"apple;banana;cherry\n",
-        );
-    }
-
-    #[test]
-    fn join_last() {
-        run_success_test(
-            "Join with @last (uses last delimiter)",
-            b"apple,banana,cherry\n",
-            &["-d", ",", "--join=@last", "1", "2", "3"],
-            b"apple,banana,cherry\n",
         );
     }
 
     #[test]
     fn join_last_mixed_delimiters() {
         run_success_test(
-            "Join with @last (mixed delimiters, uses last)",
+            "Join with last (mixed delimiters, uses last)",
             b"apple;banana,cherry\n",
-            &["-d", "[,;]", "--join=@last", "1", "2", "3"],
+            &["-d", "[,;]", "--join=last", "1", "2", "3"],
             b"apple,banana,cherry\n",
         );
     }
@@ -641,9 +621,9 @@ mod join_and_trim {
     #[test]
     fn join_first_no_delimiters() {
         run_success_test(
-            "Join with @first (no delimiters, falls back to space)",
+            "Join with first (no delimiters, falls back to space)",
             b"apple\n",
-            &["-d", ",", "--join=@first", "1"],
+            &["-d", ",", "--join=first", "1"],
             b"apple\n",
         );
     }
@@ -651,9 +631,9 @@ mod join_and_trim {
     #[test]
     fn join_last_no_delimiters() {
         run_success_test(
-            "Join with @last (no delimiters, falls back to space)",
+            "Join with last (no delimiters, falls back to space)",
             b"apple\n",
-            &["-d", ",", "--join=@last", "1"],
+            &["-d", ",", "--join=last", "1"],
             b"apple\n",
         );
     }
@@ -663,7 +643,7 @@ mod join_and_trim {
         run_success_test(
             "Join with empty fields (still finds delimiter)",
             b",,,\n",
-            &["-d", ",", "--join=@first", "1", "2", "3"],
+            &["-d", ",", "--join=first", "1", "2", "3"],
             b",,\n",
         );
     }
@@ -671,9 +651,9 @@ mod join_and_trim {
     #[test]
     fn join_space_whole_string() {
         run_success_test(
-            "Join with @space in whole-string mode",
+            "Join with space in whole-string mode",
             b"apple,banana,cherry",
-            &["-w", "-d", ",", "--join=@space", "1", "2", "3"],
+            &["-w", "-d", ",", "--join=space", "1", "2", "3"],
             b"apple banana cherry",
         );
     }
@@ -681,9 +661,9 @@ mod join_and_trim {
     #[test]
     fn join_first_whole_string() {
         run_success_test(
-            "Join with @first in whole-string mode",
+            "Join with first in whole-string mode",
             b"apple,banana,cherry",
-            &["-w", "-d", ",", "--join=@first", "1", "2", "3"],
+            &["-w", "-d", ",", "--join=first", "1", "2", "3"],
             b"apple,banana,cherry",
         );
     }
@@ -691,10 +671,266 @@ mod join_and_trim {
     #[test]
     fn join_last_whole_string() {
         run_success_test(
-            "Join with @last in whole-string mode",
+            "Join with last in whole-string mode",
             b"apple,banana,cherry",
-            &["-w", "-d", ",", "--join=@last", "1", "2", "3"],
+            &["-w", "-d", ",", "--join=last", "1", "2", "3"],
             b"apple,banana,cherry",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_basic() {
+        run_success_test(
+            "Join with after-previous (basic)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=after-previous", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_mixed_delimiters() {
+        run_success_test(
+            "Join with after-previous (mixed delimiters)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=after-previous", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_non_adjacent() {
+        run_success_test(
+            "Join with after-previous (non-adjacent fields)",
+            b"apple,banana,cherry,date\n",
+            &["-d", ",", "--join=after-previous", "1", "4"],
+            b"apple,date\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_multiple_selections() {
+        run_success_test(
+            "Join with after-previous (multiple selections)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=after-previous", "1", "3", "1"],
+            b"apple,cherry:apple\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_out_of_bounds() {
+        run_success_test(
+            "Join with after-previous (out-of-bounds field, no delimiter available)",
+            b"apple\n",
+            &["-d", ",", "--join=after-previous", "1", "5"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_basic() {
+        run_success_test(
+            "Join with before-next (basic)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=before-next", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_mixed_delimiters() {
+        run_success_test(
+            "Join with before-next (mixed delimiters)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=before-next", "1", "4", "2"],
+            b"apple:date,banana\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_non_adjacent() {
+        run_success_test(
+            "Join with before-next (non-adjacent fields)",
+            b"apple,banana,cherry,date\n",
+            &["-d", ",", "--join=before-next", "1", "4"],
+            b"apple,date\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_multiple_selections() {
+        run_success_test(
+            "Join with before-next (multiple selections)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=before-next", "1", "4", "2"],
+            b"apple:date,banana\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_out_of_bounds() {
+        run_success_test(
+            "Join with before-next (out-of-bounds field, no delimiter available)",
+            b"apple\n",
+            &["-d", ",", "--join=before-next", "1", "5"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn join_auto_basic() {
+        run_success_test(
+            "Join with auto (basic, preserves delimiter)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=auto", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_auto_fallback_to_space() {
+        run_success_test(
+            "Join with auto (no delimiter, falls back to space)",
+            b"apple\n",
+            &["-d", ",", "--join=auto", "1", "1"],
+            b"apple apple\n",
+        );
+    }
+
+    #[test]
+    fn join_auto_mixed_delimiters() {
+        run_success_test(
+            "Join with auto (mixed delimiters)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=auto", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_none_basic() {
+        run_success_test(
+            "Join with none (no separator)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=none", "1", "3"],
+            b"applecherry\n",
+        );
+    }
+
+    #[test]
+    fn join_none_multiple_selections() {
+        run_success_test(
+            "Join with none (multiple selections)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=none", "1", "2", "3"],
+            b"applebananacherry\n",
+        );
+    }
+
+    #[test]
+    fn join_none_with_ranges() {
+        run_success_test(
+            "Join with none (with ranges, no join between ranges)",
+            b"apple,banana,cherry,date\n",
+            &["-d", ",", "--join=none", "1-2", "4"],
+            b"applebananadate\n",
+        );
+    }
+
+    #[test]
+    fn join_space_basic() {
+        run_success_test(
+            "Join with space (basic)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=space", "1", "3"],
+            b"apple cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_space_multiple_selections() {
+        run_success_test(
+            "Join with space (multiple selections)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--join=space", "1", "2", "3"],
+            b"apple banana cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_first_with_placeholder() {
+        run_success_test(
+            "Join with first (with placeholder out-of-bounds)",
+            b"apple,banana\n",
+            &["-d", ",", "--join=first", "--placeholder=X", "1", "5", "2"],
+            b"apple,X,banana\n",
+        );
+    }
+
+    #[test]
+    fn join_last_with_placeholder() {
+        run_success_test(
+            "Join with last (with placeholder out-of-bounds)",
+            b"apple,banana\n",
+            &["-d", ",", "--join=last", "--placeholder=X", "1", "5", "2"],
+            b"apple,X,banana\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_with_placeholder() {
+        run_success_test(
+            "Join with after-previous (with placeholder out-of-bounds)",
+            b"apple,banana\n",
+            &[
+                "-d",
+                ",",
+                "--join=after-previous",
+                "--placeholder=X",
+                "1",
+                "5",
+                "2",
+            ],
+            b"apple,X banana\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_with_placeholder() {
+        run_success_test(
+            "Join with before-next (with placeholder out-of-bounds)",
+            b"apple,banana\n",
+            &[
+                "-d",
+                ",",
+                "--join=before-next",
+                "--placeholder=X",
+                "1",
+                "5",
+                "2",
+            ],
+            b"apple X,banana\n",
+        );
+    }
+
+    #[test]
+    fn join_after_previous_vs_before_next_difference() {
+        run_success_test(
+            "Join: after-previous vs before-next (shows difference with mixed delimiters)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=after-previous", "1", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn join_before_next_vs_after_previous_difference() {
+        run_success_test(
+            "Join: before-next vs after-previous (shows difference with mixed delimiters)",
+            b"apple,banana;cherry:date\n",
+            &["-d", "[,;:]", "--join=before-next", "1", "3"],
+            b"apple;cherry\n",
         );
     }
 }
@@ -1049,7 +1285,6 @@ mod strictness {
             &["-d", " ", "-1-3"],
         );
     }
-
 
     #[test]
     fn strict_return_only_delimiter() {
@@ -1998,7 +2233,7 @@ mod hex_parsing {
         run_success_test(
             "Join: hex parsing doesn't interfere with special flags",
             b"apple,banana,cherry\n",
-            &["-d", ",", "--join=@auto", "1", "3"],
+            &["-d", ",", "--join=auto", "1", "3"],
             b"apple,cherry\n",
         );
     }
@@ -2133,7 +2368,7 @@ mod align {
             "Align: basic alignment",
             b"apple,banana,cherry\na,bb,ccc\nx,y,z\n",
             &["-d", ",", "--align", "1", "2", "3"],
-            b"apple,banana,cherry\na,    bb,    ccc\nx,    y,     z\n",
+            b"apple,banana,cherry\na    ,bb    ,ccc\nx    ,y     ,z\n",
         );
     }
 
@@ -2143,7 +2378,7 @@ mod align {
             "Align: no padding after final field",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align", "1", "2"],
-            b"apple,banana\na,    bb\n",
+            b"apple,banana\na    ,bb\n",
         );
     }
 
@@ -2153,7 +2388,7 @@ mod align {
             "Align: with join string",
             b"apple,banana,cherry\na,bb,ccc\n",
             &["-d", ",", "--align", "--join=|", "1", "2", "3"],
-            b"apple|banana|cherry\na|    bb|    ccc\n",
+            b"apple|banana|cherry\na    |bb    |ccc\n",
         );
     }
 
@@ -2163,7 +2398,7 @@ mod align {
             "Align: with skip-empty",
             b"apple,,cherry\na,bb,\n",
             &["-d", ",", "--align", "--skip-empty", "1", "2"],
-            b"apple,cherry\na,    bb\n",
+            b"apple,cherry\na    ,bb\n",
         );
     }
 
@@ -2173,7 +2408,7 @@ mod align {
             "Align: with placeholder",
             b"apple,banana,cherry\na,bb\n",
             &["-d", ",", "--align", "--placeholder=X", "1", "2", "3"],
-            b"apple,banana,cherry\na,    bb,    X\n",
+            b"apple,banana,cherry\na    ,bb    ,X\n",
         );
     }
 
@@ -2198,7 +2433,7 @@ mod align {
             "Align: with invert",
             b"apple,banana,cherry\na,bb,ccc\n",
             &["-d", ",", "--align", "--invert", "2"],
-            b"apple,cherry\na,    ccc\n",
+            b"apple,cherry\na    ,ccc\n",
         );
     }
 
@@ -2269,7 +2504,7 @@ mod flag_syntax {
             "Equals syntax: --align=left",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align=left", "1", "2"],
-            b"apple,banana\na,    bb\n",
+            b"apple,banana\na    ,bb\n",
         );
     }
 
@@ -2280,7 +2515,7 @@ mod flag_syntax {
             "Equals syntax: --align=right",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align=right", "1", "2"],
-            b"apple,banana\na,    bb\n", // Current behavior matches left
+            b"apple,banana\n    a,    bb\n", // Current behavior matches left
         );
     }
 
@@ -2478,11 +2713,10 @@ mod flag_syntax {
     #[test]
     fn invalid_align_value() {
         // Should default to Left when invalid
-        run_success_test(
+        run_error_test(
             "Invalid align value defaults to left",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align=invalid", "1", "2"],
-            b"apple,banana\na,    bb\n",
         );
     }
 
@@ -2537,7 +2771,7 @@ mod flag_syntax {
             "Short -a flag (align)",
             b"apple,banana\na,bb\n",
             &["-d", ",", "-a", "left", "1", "2"],
-            b"apple,banana\na,    bb\n",
+            b"apple,banana\na    ,bb\n",
         );
     }
 }

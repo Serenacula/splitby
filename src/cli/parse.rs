@@ -49,7 +49,7 @@ pub fn parse_flags(
         // Our valid align possibilities:
         // - Normal align flags -> set the align
         // - anything else -> assume we're not consuming and set to default
-        if let Some(align_result) = parse_align(&arg) {
+        if let Ok(Some(align_result)) = parse_align(&arg, true) {
             match align_result {
                 Align::Left => raw_instructions.align = Align::Left,
                 Align::Right => raw_instructions.align = Align::Right,
@@ -128,11 +128,15 @@ pub fn parse_flags(
         if !arg.starts_with("--align=") {
             return Err(format!("invalid align flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
-        if let Some(value) = value {
-            raw_instructions.align = parse_align(&trim_quotes(value)).unwrap_or(Align::Left);
-        } else {
-            return Err(format!("empty align value"));
+        let value = match arg.split("=").nth(1) {
+            Some(val) => val,
+            None => return Err(format!("empty align value")),
+        };
+
+        match parse_align(&trim_quotes(value), false) {
+            Ok(Some(align)) => raw_instructions.align = align,
+            Ok(None) => raw_instructions.align = Align::Left,
+            Err(e) => return Err(e),
         }
         return Ok(ParseResult::FlagParsed);
     }
@@ -268,13 +272,21 @@ pub fn parse_flags(
     }
 }
 
-pub fn parse_align(arg: &str) -> Option<Align> {
+pub fn parse_align(arg: &str, allowAny: bool) -> Result<Option<Align>, String> {
     match arg.to_lowercase().as_str() {
-        "left" => Some(Align::Left),
-        "right" => Some(Align::Right),
-        "squash" => Some(Align::Squash),
-        "none" => Some(Align::None),
-        _ => None,
+        "left" => Ok(Some(Align::Left)),
+        "right" => Ok(Some(Align::Right)),
+        "squash" => Ok(Some(Align::Squash)),
+        "none" => Ok(Some(Align::None)),
+        _ => {
+            if allowAny {
+                Ok(None)
+            } else {
+                Err(format!(
+                    "invalid align mode: '{arg}', valid modes are: left, right, squash, none"
+                ))
+            }
+        }
     }
 }
 
