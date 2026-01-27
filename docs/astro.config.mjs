@@ -5,17 +5,11 @@ import starlightAutoSidebar from "starlight-auto-sidebar"
 
 // https://astro.build/config
 export default defineConfig({
+    site: "https://serenacula.github.io/splitby/",
     integrations: [
         starlight({
             // plugins: [starlightAutoSidebar()],
             title: "splitby",
-            social: [
-                {
-                    icon: "github",
-                    label: "GitHub",
-                    href: "https://github.com/Serenacula/splitby",
-                },
-            ],
             customCss: ["./src/styles/custom.css"],
             sidebar: [
                 {
