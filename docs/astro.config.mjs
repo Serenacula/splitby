@@ -9,6 +9,13 @@ export default defineConfig({
         starlight({
             // plugins: [starlightAutoSidebar()],
             title: "splitby",
+            social: [
+                {
+                    icon: "github",
+                    label: "GitHub",
+                    href: "https://github.com/Serenacula/splitby",
+                },
+            ],
             customCss: ["./src/styles/custom.css"],
             sidebar: [
                 {
