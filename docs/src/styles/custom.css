@@ -54,6 +54,20 @@
         .social-icons {
             a {
                 color: white;
+                &:hover {
+                    color: var(--purple);
+                    opacity: 1;
+                }
+            }
+        }
+        dialog {
+            background-color: var(--grey);
+            color: white;
+            border: 2px solid black;
+            .pagefind-ui__result-nested {
+                ::before {
+                    color: blueviolet;
+                }
             }
         }
     }
@@ -129,7 +143,7 @@
     html,
     body {
         background-color: var(--yellow);
-        scrollbar-color: blueviolet black;
+        scrollbar-color: blueviolet var(--yellow);
     }
 
     header {
@@ -150,7 +164,13 @@
                 background-color: lightgrey;
             }
             dialog {
-                background-color: lightgrey;
+                background-color: var(--yellow);
+                border: 2px solid black;
+                .pagefind-ui__result-nested {
+                    ::before {
+                        color: blueviolet;
+                    }
+                }
             }
         }
         .social-icons {
