@@ -12,7 +12,7 @@ The usage format is:
 splitby [options] <delimiter> <selections>
 ```
 
-The delimiter can be any regex string, e.g. `"\s+"`
+The delimiter can be any regex string (wrapped in `/.../`) or a literal string, e.g. `"/\\s+/"` for regex or `","` for literal.
 
 The index states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for bash.
 
@@ -36,7 +36,7 @@ echo "boo,hoo" | splitby , 2
 _Regex_
 
 ```sh
-echo "boo hoo\n  foo" | splitby "\s+" 1 3
+echo -e "boo hoo\n  foo" | splitby -w "/\\s+/" 1 3
 > boo foo # by default, the delimiter after the previous selection is kept between selections
 ```
 
@@ -66,8 +66,9 @@ echo "this is a test" | splitby " " 1 3-4
 _Whole-input mode_
 
 ```sh
-echo "this is\na test" | splitby " " 1 4
-> this test
+echo -e "this is\na test" | splitby -w " " 1 2 3 4
+> this is
+> a test
 ```
 
 _Character mode_
@@ -104,30 +105,31 @@ Alternatively, you can build from source if you prefer:
 It's also suggested to add the following aliases to your .bashrc or .zshrc, for some common usecases:
 
 ```sh
-alias getline="splitby -w -d '\n'" # Split on newline
-alias getword="splitby -e -d '\s+'" # Split on whitespace
+alias getline="splitby -w '/\n/'" # Split on newline
+alias getword="splitby '/\s+/'" # Split on whitespace (regex)
 ```
 
 These allow for fast and simple string processing:
 
 ```sh
-echo "this is\na test" | getline 2 | getword 2
-> test
+echo -e "line1\nline2\nline3" | getline 1
+> line1
 ```
 
 Or quick table processing:
 
 ```
-file.csv:
+file.txt:
 
-Item,Value
-Apple,1.5
-Pear,1.3
-Car,30000
+Item Value
+Apple 1.5
+Pear 1.3
+Car 30000
 ```
 
 ```sh
-cat file.csv | getword 1
+cat file.txt | getword 1
+> Item
 > Apple
 > Pear
 > Car
@@ -171,18 +173,18 @@ _-d, --delimiter <REGEX>_
 This flag specifies the delimiter to use. It can be any regex string.
 
 ```sh
-echo "this,is a.test" | splitby --strict -d "[,.]" 1 4 # regex needs to be quoted
+echo "this,is a.test" | splitby --strict -d "/[,.]/" 1 3 # regex needs to be wrapped in /.../
 > this,test
 ```
 
 As shorthand, you can drop the `-d` flag if you use the format `splitby <FLAGS> <DELIMITER> <SELECTIONS>`, and it will be inferred. But after reading the delimiter, it will begin parsing selections. To avoid this, you can explicitly declare the delimiter with the `-d` flag. For example:
 
 ```sh
-echo "this,is a.test" | splitby --strict "[,.]" 1 4 # equivalent to above
+echo "this,is a.test" | splitby --strict "/[,.]/" 1 3 # equivalent to above
 > this,test
-echo "this,is a.test" | splitby "[,.]" --strict 1 4 # this will break! it thinks --strict is a selection
+echo "this,is a.test" | splitby "/[,.]/" --strict 1 3 # this will break! it thinks --strict is a selection
 > invalid selection: '--strict'
-echo "this,is a.test" | splitby -d "[,.]" --strict 1 4 # using the -d flag explicitly lets it know it's a delimiter
+echo "this,is a.test" | splitby -d "/[,.]/" --strict 1 3 # using the -d flag explicitly lets it know it's a delimiter
 > this,test
 ```
 
@@ -219,19 +221,9 @@ _-w, --whole-string_
 
 This treats the input as a single string. It runs once over the entire input. Useful for situations where you want to treat the string as a single blob, or you wish to use `\n` as your delimiter.
 
-```
-test-result.md:
-
-Test results:
-1. No problem
-2. Error
-3. No problem
-4. No problem
-```
-
 ```sh
-cat test-result.md | splitby --whole-string "\n" 2 # By using \n we can select a specific line
-> 2. Error
+echo "a,b,c" | splitby -w "," 2 # Process entire input as one string
+> b
 ```
 
 #### MODE: Zero-terminated
@@ -283,8 +275,8 @@ This mode treats the input as a sequence of bytes.
 Note: Join is not supported in bytes mode.
 
 ```sh
-echo "this is a test" | splitby -b 2
-> is a test
+echo "this is a test" | splitby -b 2-14
+> his is a test
 ```
 
 ### Selection Options
@@ -328,9 +320,9 @@ This option allows you to align the output to a specific width.
 > A feature is planned to give more control over the alignment, but it is not yet implemented.
 
 ```sh
-echo "apple,banana,cherry\na,b,c" | splitby -a ,
+echo -e "apple,banana,cherry\na,b,c" | splitby -a ,
 > apple,banana,cherry
-> a,    b,     c
+> a    ,b     ,c
 ```
 
 #### Join
@@ -361,13 +353,13 @@ echo "this is\na test" | splitby --join="0x2C20" " " 1 2
 There are also a number of useful keywords you can use (only in fields mode):
 | Keyword | Description |
 |-------------------|-----------------------------------------------------|
-| `--join=@auto` | Automatically tries `@after-previous`, then `@before-next`, then `@space` |
-| `--join=@after-previous` | Use the delimiter after the previous selection |
-| `--join=@before-next` | Use the delimiter before the next selection |
-| `--join=@first` | Use the first delimiter in the record |
-| `--join=@last` | Use the last delimiter in the record |
-| `--join=@space` | Use a space character |
-| `--join=@none` | No join (equivalent to "") |
+| `--join=auto` | Automatically tries `after-previous`, then `before-next`, then `space` |
+| `--join=after-previous` | Use the delimiter after the previous selection |
+| `--join=before-next` | Use the delimiter before the next selection |
+| `--join=first` | Use the first delimiter in the record |
+| `--join=last` | Use the last delimiter in the record |
+| `--join=space` | Use a space character |
+| `--join=none` | No join (equivalent to "") |
 
 #### Placeholder
 
@@ -387,7 +379,7 @@ echo "boo hoo foo" | splitby -j ":" --placeholder="?" " " 1 4 2
 echo "boo hoo foo" | splitby -j "," --placeholder="" " " 1 4 2
 > boo,,hoo # empty string placeholder
 echo "boo hoo foo" | splitby -j "," --placeholder="0x2C20" " " 1 4 2
-> boo, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
+> boo,, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
 ```
 
 ### Count
@@ -441,16 +433,16 @@ For example, this is silently corrected to `2-3`. With strict mode, it emits an 
 echo "boo hoo foo" | splitby " " 2-5
 > hoo foo
 echo "boo hoo foo" | splitby --strict-bounds " " 2-5
-> End index (5) out of bounds. Must be between 1 and 3
+> line 1: strict bounds error: end index (5) out of bounds, must be between 1 and 3
 ```
 
 This also applies to single indexes out of bounds.
 
 ```sh
 echo "boo hoo foo" | splitby " " 4
->
+> # Empty output (index out of bounds)
 echo "boo hoo foo" | splitby --strict-bounds " " 4
-> Index (4) out of bounds. Must be between 1 and 3
+> line 1: strict bounds error: index (4) out of bounds, must be between 1 and 3
 ```
 
 #### Strict Return
@@ -463,18 +455,18 @@ For example:
 
 ```sh
 echo ",boo" | splitby , 1
->
+> # Empty output (field 1 is empty)
 echo ",boo" | splitby --strict-return , 1
-> strict return check failed: No valid fields available
+> line 1: strict returns error: no valid output
 ```
 
 Similarly, if you skip empty fields:
 
 ```sh
 echo ",," | splitby --skip-empty ,
->
+> # Empty output (all fields are empty)
 echo ",," | splitby --skip-empty , --strict-return
-> strict return check failed: No valid fields available
+> line 1: strict return error: empty field
 ```
 
 It has no effect when `--count` is used.
@@ -487,9 +479,9 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 
 ```sh
 echo "boo hoo" | splitby " " 3-1
->
+> # Error: end index (1) is less than start index (3) in selection 3-1
 echo "boo hoo" | splitby --strict-range-order " " 3-1
-> End index (1) is less than start index (3) in selection 3-1
+> line 1: end index (1) is less than start index (3) in selection 3-1
 ```
 
 #### Strict UTF-8
@@ -503,7 +495,7 @@ This is particularly useful when processing binary data or when you need to ensu
 ```sh
 # Invalid UTF-8 sequence (example)
 echo -ne "hello\xFFworld" | splitby -c 1-5
-> helloworld # Replacement character used
+> hello # Replacement character used, but only first 5 characters returned
 echo -ne "hello\xFFworld" | splitby --strict-utf8 -c 1-5
-> Error: invalid UTF-8 sequence
+> line 1: input is not valid UTF-8
 ```

@@ -18,7 +18,7 @@ _Default_
 splitby reads one line at a time and applies selections to each line.
 
 ```sh
-printf "a,b\nc,d\n" | splitby -d "," 1
+printf "a,b\nc,d\n" | splitby "," 1
 # a
 # c
 ```
@@ -28,7 +28,7 @@ printf "a,b\nc,d\n" | splitby -d "," 1
 Treats the entire input as a single record. This is useful when your delimiter is `\n` or you want to operate across line breaks.
 
 ```sh
-printf "a,b\nc,d\n" | splitby -w -d "\n" 2
+printf "a,b\nc,d\n" | splitby -w "\n" 2
 # c,d
 ```
 
@@ -37,7 +37,7 @@ printf "a,b\nc,d\n" | splitby -w -d "\n" 2
 Reads and writes NUL-delimited records. This is useful when piping from tools like `find -print0`.
 
 ```sh
-printf "name,age\0alice,30\0" | splitby -z -d "," 1
+printf "name,age\0alice,30\0" | splitby -z "," 1
 # name
 # alice
 ```
