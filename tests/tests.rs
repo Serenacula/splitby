@@ -2513,6 +2513,69 @@ mod align {
             &["--characters", "--align", "1"],
         );
     }
+
+    #[test]
+    fn align_flag_at_end_defaults_to_left() {
+        // When --align is the last argument (no mode follows), it should default to left
+        // so alignment is applied. Without this fix, align would stay None and no padding.
+        run_success_test(
+            "Align: --align at end defaults to left (alignment applied)",
+            b"apple,banana\na,bb\n",
+            &["-d", ",", "1", "2", "--align"],
+            b"apple,banana\na    ,bb\n",
+        );
+    }
+}
+
+mod consuming_flags {
+    use super::*;
+
+    /// Non-align consuming flags must error when they are the last argument (no value given).
+    #[test]
+    fn consuming_input_at_end_errors() {
+        run_error_test("Consuming: --input at end errors", b"a\n", &["--input"]);
+    }
+
+    #[test]
+    fn consuming_output_at_end_errors() {
+        run_error_test(
+            "Consuming: --output at end errors",
+            b"a\n",
+            &["-d", ",", "1", "--output"],
+        );
+    }
+
+    #[test]
+    fn consuming_delimiter_at_end_errors() {
+        run_error_test("Consuming: -d at end errors", b"a,b\n", &["-d"]);
+    }
+
+    #[test]
+    fn consuming_join_at_end_errors() {
+        run_error_test(
+            "Consuming: --join at end errors",
+            b"a,b\n",
+            &["-d", ",", "1", "--join"],
+        );
+    }
+
+    #[test]
+    fn consuming_placeholder_at_end_errors() {
+        run_error_test(
+            "Consuming: --placeholder at end errors",
+            b"a,b\n",
+            &["-d", ",", "1", "--placeholder"],
+        );
+    }
+
+    #[test]
+    fn consuming_short_placeholder_at_end_errors() {
+        run_error_test(
+            "Consuming: -p (placeholder) at end errors",
+            b"a,b\n",
+            &["-d", ",", "1", "-p"],
+        );
+    }
 }
 
 mod flag_syntax {

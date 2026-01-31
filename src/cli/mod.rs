@@ -169,6 +169,10 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         cli_arguments.selection_mode,
     )
     .map_err(|e| e.to_string())?;
+    if consuming.align {
+        cli_arguments.align = Align::Left;
+    }
+    validate_no_consuming(consuming).map_err(|e| e.to_string())?;
 
     let regex_engine: Option<RegexEngine> = match cli_arguments.selection_mode {
         SelectionMode::Bytes | SelectionMode::Chars => None,
