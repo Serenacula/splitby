@@ -143,32 +143,28 @@ pub fn process_fields(
             };
             let padding_needed = max_field_width.saturating_sub(current_field_width);
 
-            if transform_instructions.align == Align::Right {
+            // Push the padding needed for the field
+            let push_padding = |output: &mut Vec<u8>, padding_needed: usize| {
                 for _ in 0..padding_needed {
                     output.push(b' ');
                 }
-            }
+            };
 
-            // Add the field text or placeholder
-            if field_index < fields.len() {
-                if !fields[field_index].text.is_empty() {
-                    output.extend_from_slice(fields[field_index].text);
-                    strict_return_passed = true;
-                }
-            } else if let Some(placeholder) = &transform_instructions.placeholder {
-                output.extend_from_slice(placeholder);
-                strict_return_passed = true;
-            }
-
-            // Add the delimiter
-            let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
-            if !is_last {
-                if transform_instructions.align == Align::Left {
-                    for _ in 0..padding_needed {
-                        output.push(b' ');
+            // Push the text of the field
+            let push_text = |output: &mut Vec<u8>, strict_return_passed: &mut bool| {
+                if field_index < fields.len() {
+                    if !fields[field_index].text.is_empty() {
+                        output.extend_from_slice(fields[field_index].text);
+                        *strict_return_passed = true;
                     }
+                } else if let Some(placeholder) = &transform_instructions.placeholder {
+                    output.extend_from_slice(placeholder);
+                    *strict_return_passed = true;
                 }
+            };
 
+            // Decide on the join string and push
+            let push_join = |output: &mut Vec<u8>| {
                 let join: &[u8] = match &transform_instructions.join {
                     Some(JoinMode::String(join_bytes)) => join_bytes,
                     Some(JoinMode::AfterPrevious) => {
@@ -237,15 +233,24 @@ pub fn process_fields(
                     }
                 };
                 output.extend_from_slice(join);
+            };
 
-                // Add alignment padding after delimiter (not after final field)
-                // Padding aligns the start of the next field
-                if transform_instructions.align == Align::Squash {
-                    for _ in 0..padding_needed {
-                        output.push(b' ');
-                    }
-                }
+            // Add the field text or placeholder
+            if transform_instructions.align == Align::Right {
+                push_padding(&mut output, padding_needed);
             }
+            push_text(&mut output, &mut strict_return_passed);
+
+            let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
+            if !is_last {
+                if transform_instructions.align == Align::Left {
+                    push_padding(&mut output, padding_needed);
+                }
+                push_join(&mut output);
+                if transform_instructions.align == Align::Squash {
+                    push_padding(&mut output, padding_needed);
+                }
+            };
 
             field_position += 1;
         }
