@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use crate::transform::worker_utilities::*;
 use crate::types::*;
+use crate::width::display_width;
 
 pub fn process_fields(
     transform_instructions: &TransformInstructions,
@@ -135,9 +136,9 @@ pub fn process_fields(
                 0
             };
             let current_field_width = if field_index < fields.len() {
-                fields[field_index].text.len()
+                display_width(fields[field_index].text)
             } else if let Some(placeholder) = &transform_instructions.placeholder {
-                placeholder.len()
+                display_width(placeholder)
             } else {
                 0
             };
@@ -177,7 +178,7 @@ pub fn process_fields(
                     transform_instructions.invert,
                 );
                 output.extend_from_slice(join);
-                join.len()
+                display_width(join)
             };
 
             // Add the field text or placeholder

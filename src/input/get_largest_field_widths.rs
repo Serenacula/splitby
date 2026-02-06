@@ -4,6 +4,7 @@ use crate::transform::worker_utilities::{
     Field, bytes_to_cow_string, choose_join_bytes, invert_selections, normalise_selections,
 };
 use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
+use crate::width::display_width;
 
 /// This is used when the --align flag is used, to get the largest field widths for each record.
 pub fn get_largest_field_widths(
@@ -120,11 +121,11 @@ pub fn get_largest_field_widths(
         for (selection_index, selection) in selections.iter().enumerate() {
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
-                    fields[field_index].text.len()
+                    display_width(fields[field_index].text)
                 } else if let Some(placeholder) = &input_instructions.placeholder
                     && !input_instructions.invert
                 {
-                    placeholder.len()
+                    display_width(placeholder)
                 } else {
                     continue; // Skip if no placeholder and out of bounds
                 };
@@ -156,9 +157,9 @@ pub fn get_largest_field_widths(
                         input_instructions.placeholder.is_some(),
                         input_instructions.invert,
                     );
-                    let join_len = join_bytes.len();
-                    if join_len > max_join_widths[position_index] {
-                        max_join_widths[position_index] = join_len;
+                    let join_width = display_width(&join_bytes);
+                    if join_width > max_join_widths[position_index] {
+                        max_join_widths[position_index] = join_width;
                     }
                 }
 

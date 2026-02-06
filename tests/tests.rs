@@ -2535,6 +2535,36 @@ mod align {
             b"apple,banana\na    ,bb\n",
         );
     }
+
+    #[test]
+    fn align_multi_codepoint_graphemes() {
+        // é as e + combining acute (U+0301): one grapheme, two code points. Alignment
+        // must use display width so the middle column gets correct padding (no over-counting).
+        // Three columns so we pad after the middle field (not last); "q" gets 3 spaces.
+        // (No padding after last field per design.)
+        let input = "a,cafe\u{0301},x\nb,q,yz\n";
+        let expected = "a,cafe\u{0301},x\nb,q   ,yz\n";
+        run_success_test(
+            "Align: multi-codepoint graphemes (combining character)",
+            input.as_bytes(),
+            &["-d", ",", "--align", "1", "2", "3"],
+            expected.as_bytes(),
+        );
+    }
+
+    #[test]
+    fn align_emoji_double_width() {
+        // Grinning face 😀 (U+1F600) has terminal width 2. Column 1: "hi"(2),"x"(1) -> "x "; column 2: 😀(2),"y"(1) -> "y ".
+        // (No padding after last field per design.)
+        let input = "hi,😀,a\nx,y,z\n";
+        let expected = "hi,😀,a\nx ,y ,z\n";
+        run_success_test(
+            "Align: emoji / double-width (smileys)",
+            input.as_bytes(),
+            &["-d", ",", "--align", "1", "2", "3"],
+            expected.as_bytes(),
+        );
+    }
 }
 
 mod consuming_flags {
