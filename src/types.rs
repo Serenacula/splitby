@@ -88,7 +88,6 @@ pub struct OutputInstructions {
     pub selections: Vec<(i32, i32)>,
     pub output: Option<PathBuf>,
     /// True when writing to stdout and stdout is a TTY (not piped/redirected). For use by output layer (e.g. trailing newline, color).
-    #[allow(dead_code)]
     pub stdout_is_terminal: bool,
 }
 
