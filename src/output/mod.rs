@@ -134,8 +134,9 @@ pub fn get_results(
         }
     }
 
-    // Whole-string mode: ensure output ends with a newline if it has content
-    if output_instructions.input_mode == InputMode::WholeString
+    // Whole-string mode: ensure terminal output ends with a newline if it has content
+    if output_instructions.stdout_is_terminal
+        && output_instructions.input_mode == InputMode::WholeString
         && !output_buffer.is_empty()
         && output_buffer.last() != Some(&b'\n')
     {
