@@ -223,9 +223,20 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
 
     // Placeholder - replace with actual parsing logic
 
+    // Compile ANSI strip regex once when align is on (for display_width length calculations only)
+    let ansi_strip_regex = if !matches!(cli_arguments.align, Align::None) {
+        Some(
+            regex::bytes::Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]")
+                .expect("ANSI strip regex pattern is valid"),
+        )
+    } else {
+        None
+    };
+
     let input_instructions = InputInstructions {
         regex_engine: regex_engine.clone(),
         align: cli_arguments.align,
+        ansi_strip_regex: ansi_strip_regex.clone(),
         join: join.clone(),
         input_mode: cli_arguments.input_mode,
         input: cli_arguments.input,
@@ -253,6 +264,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         join: join,
         regex_engine: regex_engine,
         align: cli_arguments.align,
+        ansi_strip_regex,
     };
 
     let output_instructions = OutputInstructions {

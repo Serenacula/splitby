@@ -113,6 +113,7 @@ pub fn process_fields(
         .unwrap_or(b"");
 
     // Track field position for alignment
+    let ansi_regex = transform_instructions.ansi_strip_regex.as_ref();
     let mut field_position: usize = 0;
 
     for (selection_index, selection) in selections.iter().enumerate() {
@@ -136,9 +137,9 @@ pub fn process_fields(
                 0
             };
             let current_field_width = if field_index < fields.len() {
-                display_width(fields[field_index].text)
+                display_width(fields[field_index].text, ansi_regex)
             } else if let Some(placeholder) = &transform_instructions.placeholder {
-                display_width(placeholder)
+                display_width(placeholder, ansi_regex)
             } else {
                 0
             };
@@ -178,7 +179,7 @@ pub fn process_fields(
                     transform_instructions.invert,
                 );
                 output.extend_from_slice(join);
-                display_width(join)
+                display_width(join, ansi_regex)
             };
 
             // Add the field text or placeholder

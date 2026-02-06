@@ -1,4 +1,5 @@
 use fancy_regex::Regex as FancyRegex;
+use regex::bytes::Regex as BytesRegex;
 use regex::Regex as SimpleRegex;
 use std::path::PathBuf;
 
@@ -51,6 +52,7 @@ pub enum RegexEngine {
 pub struct InputInstructions {
     pub regex_engine: Option<RegexEngine>,
     pub align: Align,
+    pub ansi_strip_regex: Option<BytesRegex>,
     pub join: Option<JoinMode>,
     pub input_mode: InputMode,
     pub input: Option<PathBuf>,
@@ -78,6 +80,7 @@ pub struct TransformInstructions {
     pub join: Option<JoinMode>,
     pub regex_engine: Option<RegexEngine>,
     pub align: Align,
+    pub ansi_strip_regex: Option<BytesRegex>,
 }
 
 pub struct OutputInstructions {
