@@ -39,6 +39,7 @@ fn read_record(
         bytes: record_bytes,
         has_terminator,
         field_widths: None,
+        join_widths: None,
     };
     *index += 1;
     Ok(Some(record))
@@ -116,11 +117,13 @@ pub fn read_input(
 
         // Scan field widths
         use crate::input::get_largest_field_widths::get_largest_field_widths;
-        let max_widths = get_largest_field_widths(&all_records, input_instructions)?;
+        let (max_widths, max_join_widths) =
+            get_largest_field_widths(&all_records, input_instructions)?;
 
-        // Attach field_widths to each record
+        // Attach widths to each record
         for record in &mut all_records {
             record.field_widths = Some(max_widths.clone());
+            record.join_widths = Some(max_join_widths.clone());
         }
 
         // Stream buffered records in batches using existing batch variables
@@ -191,6 +194,7 @@ pub fn read_input(
                 bytes: buffer,
                 has_terminator: false,
                 field_widths: None,
+                join_widths: None,
             });
             flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
 

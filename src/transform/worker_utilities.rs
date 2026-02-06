@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use crate::types::JoinMode;
+
 /// From Bytes to Cow string
 pub fn bytes_to_cow_string<'a>(bytes: &'a [u8], strict_utf8: bool) -> Result<Cow<'a, str>, String> {
     match std::str::from_utf8(bytes) {
@@ -251,4 +253,81 @@ pub fn get_next_delimiter<'a>(
         b""
     };
     next_delimiter
+}
+
+pub fn choose_join_bytes<'a>(
+    field_index: usize,
+    selection_index: usize,
+    selections: &[(usize, usize)],
+    fields: &'a [Field<'a>],
+    join_mode: Option<&'a JoinMode>,
+    first_delimiter: &'a [u8],
+    last_delimiter: &'a [u8],
+    placeholder_is_some: bool,
+    invert: bool,
+) -> &'a [u8] {
+    match join_mode {
+        Some(JoinMode::String(join_bytes)) => join_bytes,
+        Some(JoinMode::AfterPrevious) => {
+            let current_delimiter = get_current_delimiter(field_index, fields);
+            if !current_delimiter.is_empty() {
+                current_delimiter
+            } else {
+                b" "
+            }
+        }
+        Some(JoinMode::BeforeNext) => {
+            let next_delimiter = get_next_delimiter(
+                field_index,
+                selection_index,
+                selections,
+                fields,
+                placeholder_is_some,
+                invert,
+            );
+            if !next_delimiter.is_empty() {
+                next_delimiter
+            } else {
+                b" "
+            }
+        }
+        Some(JoinMode::First) => {
+            if !first_delimiter.is_empty() {
+                first_delimiter
+            } else {
+                b" "
+            }
+        }
+        Some(JoinMode::Last) => {
+            if !last_delimiter.is_empty() {
+                last_delimiter
+            } else {
+                b" "
+            }
+        }
+        Some(JoinMode::Space) => b" ",
+        Some(JoinMode::None) => b"",
+        None | Some(JoinMode::Auto) => {
+            let current_delimiter = get_current_delimiter(field_index, fields);
+            if !current_delimiter.is_empty() {
+                current_delimiter
+            } else {
+                let next_delimiter = get_next_delimiter(
+                    field_index,
+                    selection_index,
+                    selections,
+                    fields,
+                    placeholder_is_some,
+                    invert,
+                );
+                if !next_delimiter.is_empty() {
+                    next_delimiter
+                } else if !first_delimiter.is_empty() {
+                    first_delimiter
+                } else {
+                    b" "
+                }
+            }
+        }
+    }
 }

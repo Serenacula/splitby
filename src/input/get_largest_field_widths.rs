@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::transform::worker_utilities::{
-    Field, bytes_to_cow_string, invert_selections, normalise_selections,
+    Field, bytes_to_cow_string, choose_join_bytes, invert_selections, normalise_selections,
 };
 use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
 
@@ -9,9 +9,9 @@ use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
 pub fn get_largest_field_widths(
     records: &[Record],
     input_instructions: &InputInstructions,
-) -> Result<Vec<usize>, String> {
+) -> Result<(Vec<usize>, Vec<usize>), String> {
     if records.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), Vec::new()));
     }
 
     let engine = input_instructions
@@ -20,6 +20,7 @@ pub fn get_largest_field_widths(
         .ok_or_else(|| "internal error: missing regex engine".to_string())?;
 
     let mut max_widths: Vec<usize> = Vec::new();
+    let mut max_join_widths: Vec<usize> = Vec::new();
 
     for record in records {
         let text: Cow<str> =
@@ -102,9 +103,21 @@ pub fn get_largest_field_widths(
             invert_selections(normalised_selections, fields.len())
         };
 
+        let first_delimiter = fields
+            .iter()
+            .find(|field| !field.delimiter.is_empty())
+            .map(|field| field.delimiter)
+            .unwrap_or(b"");
+        let last_delimiter = fields
+            .iter()
+            .rev()
+            .find(|field| !field.delimiter.is_empty())
+            .map(|field| field.delimiter)
+            .unwrap_or(b"");
+
         // Determine which field positions will be output and measure their widths
         let mut position_index = 0;
-        for selection in selections {
+        for (selection_index, selection) in selections.iter().enumerate() {
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
                     fields[field_index].text.len()
@@ -126,10 +139,33 @@ pub fn get_largest_field_widths(
                     max_widths[position_index] = field_width;
                 }
 
+                // Track max join width for the gap after this position (if not last)
+                let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
+                if !is_last {
+                    if position_index >= max_join_widths.len() {
+                        max_join_widths.resize(position_index + 1, 0);
+                    }
+                    let join_bytes = choose_join_bytes(
+                        field_index,
+                        selection_index,
+                        &selections,
+                        &fields,
+                        input_instructions.join.as_ref(),
+                        first_delimiter,
+                        last_delimiter,
+                        input_instructions.placeholder.is_some(),
+                        input_instructions.invert,
+                    );
+                    let join_len = join_bytes.len();
+                    if join_len > max_join_widths[position_index] {
+                        max_join_widths[position_index] = join_len;
+                    }
+                }
+
                 position_index += 1;
             }
         }
     }
 
-    Ok(max_widths)
+    Ok((max_widths, max_join_widths))
 }

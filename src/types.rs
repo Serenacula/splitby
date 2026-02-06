@@ -51,6 +51,7 @@ pub enum RegexEngine {
 pub struct InputInstructions {
     pub regex_engine: Option<RegexEngine>,
     pub align: Align,
+    pub join: Option<JoinMode>,
     pub input_mode: InputMode,
     pub input: Option<PathBuf>,
     pub selections: Vec<(i32, i32)>,
@@ -99,6 +100,7 @@ pub struct Record {
     pub bytes: Vec<u8>,
     pub has_terminator: bool,
     pub field_widths: Option<Vec<usize>>,
+    pub join_widths: Option<Vec<usize>>,
 }
 
 pub struct OutputRecord {

@@ -2443,6 +2443,16 @@ mod align {
     }
 
     #[test]
+    fn align_accounts_for_variable_join_width() {
+        run_success_test(
+            "Align: accounts for variable join width",
+            b"a   b\nlonger      c\n",
+            &["-d", "/\\s+/", "--align", "1", "2"],
+            b"a           b\nlonger      c\n",
+        );
+    }
+
+    #[test]
     fn align_with_skip_empty() {
         run_success_test(
             "Align: with skip-empty",

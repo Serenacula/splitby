@@ -226,6 +226,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
     let input_instructions = InputInstructions {
         regex_engine: regex_engine.clone(),
         align: cli_arguments.align,
+        join: join.clone(),
         input_mode: cli_arguments.input_mode,
         input: cli_arguments.input,
         selections: cli_arguments.selections.clone(),
@@ -243,7 +244,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         selections: cli_arguments.selections.clone(),
         invert: cli_arguments.invert,
         skip_empty: cli_arguments.skip_empty,
-        placeholder: placeholder.clone(),
+        placeholder: placeholder,
         strict_return: cli_arguments.strict_return,
         strict_bounds: cli_arguments.strict_bounds,
         strict_range_order: cli_arguments.strict_range_order,
@@ -257,7 +258,7 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
     let output_instructions = OutputInstructions {
         output: cli_arguments.output,
         input_mode: cli_arguments.input_mode,
-        selections: cli_arguments.selections.clone(),
+        selections: cli_arguments.selections,
         strict_bounds: cli_arguments.strict_bounds,
         strict_return: cli_arguments.strict_return,
         count: cli_arguments.count,

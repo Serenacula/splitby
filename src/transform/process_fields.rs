@@ -164,75 +164,20 @@ pub fn process_fields(
             };
 
             // Decide on the join string and push
-            let push_join = |output: &mut Vec<u8>| {
-                let join: &[u8] = match &transform_instructions.join {
-                    Some(JoinMode::String(join_bytes)) => join_bytes,
-                    Some(JoinMode::AfterPrevious) => {
-                        let current_delimiter = get_current_delimiter(field_index, &fields);
-                        if !current_delimiter.is_empty() {
-                            current_delimiter
-                        } else {
-                            b" " // Fallback to space if no delimiter
-                        }
-                    }
-                    Some(JoinMode::BeforeNext) => {
-                        let next_delimiter = get_next_delimiter(
-                            field_index,
-                            selection_index,
-                            &selections,
-                            &fields,
-                            transform_instructions.placeholder.is_some(),
-                            transform_instructions.invert,
-                        );
-                        if !next_delimiter.is_empty() {
-                            next_delimiter
-                        } else {
-                            b" " // Fallback to space if no delimiter
-                        }
-                    }
-                    Some(JoinMode::First) => {
-                        if !first_delimiter.is_empty() {
-                            first_delimiter
-                        } else {
-                            b" " // Fallback to space if no delimiter
-                        }
-                    }
-                    Some(JoinMode::Last) => {
-                        if !last_delimiter.is_empty() {
-                            last_delimiter
-                        } else {
-                            b" " // Fallback to space if no delimiter
-                        }
-                    }
-                    Some(JoinMode::Space) => b" ",
-                    Some(JoinMode::None) => {
-                        b"" // No join - do nothing
-                    }
-                    None | Some(JoinMode::Auto) => {
-                        // Default behavior
-                        let current_delimiter = get_current_delimiter(field_index, &fields);
-                        if !current_delimiter.is_empty() {
-                            current_delimiter
-                        } else {
-                            let next_delimiter = get_next_delimiter(
-                                field_index,
-                                selection_index,
-                                &selections,
-                                &fields,
-                                transform_instructions.placeholder.is_some(),
-                                transform_instructions.invert,
-                            );
-                            if !next_delimiter.is_empty() {
-                                next_delimiter
-                            } else if !first_delimiter.is_empty() {
-                                first_delimiter
-                            } else {
-                                b" "
-                            }
-                        }
-                    }
-                };
+            let push_join = |output: &mut Vec<u8>| -> usize {
+                let join = choose_join_bytes(
+                    field_index,
+                    selection_index,
+                    &selections,
+                    &fields,
+                    transform_instructions.join.as_ref(),
+                    first_delimiter,
+                    last_delimiter,
+                    transform_instructions.placeholder.is_some(),
+                    transform_instructions.invert,
+                );
                 output.extend_from_slice(join);
+                join.len()
             };
 
             // Add the field text or placeholder
@@ -246,7 +191,15 @@ pub fn process_fields(
                 if transform_instructions.align == Align::Left {
                     push_padding(&mut output, padding_needed);
                 }
-                push_join(&mut output);
+                let join_len = push_join(&mut output);
+                if let Some(max_join_widths) = &record.join_widths
+                    && field_position < max_join_widths.len()
+                {
+                    let max_join_width = max_join_widths[field_position];
+                    if max_join_width > join_len {
+                        push_padding(&mut output, max_join_width - join_len);
+                    }
+                }
                 if transform_instructions.align == Align::Squash {
                     push_padding(&mut output, padding_needed);
                 }
