@@ -4,7 +4,7 @@ use std::sync::Arc;
 mod process_bytes;
 mod process_chars;
 mod process_fields;
-pub mod worker_utilities;
+pub mod transform_utilities;
 
 use self::process_bytes::process_bytes;
 use self::process_chars::process_chars;

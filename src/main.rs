@@ -3,7 +3,7 @@ mod input;
 mod output;
 mod transform;
 mod types;
-mod width;
+mod utilities;
 
 use input::read_input;
 use output::get_results;

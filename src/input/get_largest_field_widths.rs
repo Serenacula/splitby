@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use crate::transform::worker_utilities::{
+use crate::transform::transform_utilities::{
     Field, bytes_to_cow_string, choose_join_bytes, invert_selections, normalise_selections,
 };
 use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
-use crate::width::display_width;
+use crate::utilities::display_width;
 
 /// This is used when the --align flag is used, to get the largest field widths for each record.
 pub fn get_largest_field_widths(

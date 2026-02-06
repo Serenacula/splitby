@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::transform::worker_utilities::*;
+use crate::transform::transform_utilities::*;
 use crate::types::*;
 
 pub fn process_chars(

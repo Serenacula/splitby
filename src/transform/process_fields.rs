@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-use crate::transform::worker_utilities::*;
+use crate::transform::transform_utilities::*;
 use crate::types::*;
-use crate::width::display_width;
+use crate::utilities::display_width;
 
 pub fn process_fields(
     transform_instructions: &TransformInstructions,
