@@ -134,6 +134,14 @@ pub fn get_results(
         }
     }
 
+    // Whole-string mode: ensure output ends with a newline if it has content
+    if output_instructions.input_mode == InputMode::WholeString
+        && !output_buffer.is_empty()
+        && output_buffer.last() != Some(&b'\n')
+    {
+        output_buffer.push(b'\n');
+    }
+
     flush_output(&mut writer, &mut output_buffer)?;
     writer.flush().map_err(|error| error.to_string())?;
     Ok(())

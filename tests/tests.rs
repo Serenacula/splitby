@@ -148,7 +148,7 @@ mod basic_usage {
             "Test with newline delimiter",
             b"this\nis\na\ntest\n",
             &["--whole-string", "-d", "/\\n/", "2"],
-            b"is",
+            b"is\n",
         );
     }
 }
@@ -255,6 +255,17 @@ mod range_and_selection {
             b"this a test\n",
         );
     }
+
+    #[test]
+    fn whole_string_ends_with_newline_when_missing() {
+        // Input has no trailing newline; whole-string output should end with newline
+        run_success_test(
+            "Whole-string: output ends with newline when input does not",
+            b"foo,bar",
+            &["-w", "-d", ",", "1"],
+            b"foo\n",
+        );
+    }
 }
 
 mod comma_separated_selection {
@@ -356,7 +367,7 @@ mod comma_separated_selection {
             "Comma-separated selections: whole-string mode",
             b"apple,banana\ncherry,date\n",
             &["-w", "-d", ",", "1,2"],
-            b"apple,banana\ncherry",
+            b"apple,banana\ncherry\n",
         );
     }
 
@@ -704,7 +715,7 @@ mod join_and_trim {
             "Join with space in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=space", "1", "2", "3"],
-            b"apple banana cherry",
+            b"apple banana cherry\n",
         );
     }
 
@@ -714,7 +725,7 @@ mod join_and_trim {
             "Join with first in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=first", "1", "2", "3"],
-            b"apple,banana,cherry",
+            b"apple,banana,cherry\n",
         );
     }
 
@@ -724,7 +735,7 @@ mod join_and_trim {
             "Join with last in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=last", "1", "2", "3"],
-            b"apple,banana,cherry",
+            b"apple,banana,cherry\n",
         );
     }
 
@@ -1048,7 +1059,7 @@ mod count_and_invert {
             "Using --count with newline delimiter whole-string",
             b"this\nis\na\ntest\n",
             &["--whole-string", "-d", "/\\n/", "--count"],
-            b"4",
+            b"4\n",
         );
     }
 
@@ -1068,7 +1079,7 @@ mod count_and_invert {
             "Using --count with extra newline whole-string",
             b"this\nis\na\ntest\n\n",
             &["--whole-string", "-d", "/\\n/", "--count"],
-            b"5",
+            b"5\n",
         );
     }
 
@@ -1794,7 +1805,7 @@ mod byte_mode {
             "Byte mode: whole-string mode",
             b"hello\nworld\n",
             &["--whole-string", "--bytes", "1-5"],
-            b"hello",
+            b"hello\n",
         );
     }
 
@@ -1804,7 +1815,7 @@ mod byte_mode {
             "Byte mode: whole-string mode with newline join",
             b"hello\nworld\n",
             &["--whole-string", "--bytes", "1", "2"],
-            b"he",
+            b"he\n",
         );
     }
 
@@ -2011,7 +2022,7 @@ mod char_mode {
             "Char mode: whole-string mode",
             b"hello\nworld\n",
             &["--whole-string", "--characters", "1-5"],
-            b"hello",
+            b"hello\n",
         );
     }
 
@@ -2021,7 +2032,7 @@ mod char_mode {
             "Char mode: whole-string mode with newline join",
             b"hello\nworld\n",
             &["--whole-string", "--characters", "1", "2"],
-            b"he",
+            b"he\n",
         );
     }
 
