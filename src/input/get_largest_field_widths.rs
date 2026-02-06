@@ -117,16 +117,15 @@ pub fn get_largest_field_widths(
             .unwrap_or(b"");
 
         // Determine which field positions will be output and measure their widths
-        let ansi_regex = input_instructions.ansi_strip_regex.as_ref();
         let mut position_index = 0;
         for (selection_index, selection) in selections.iter().enumerate() {
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
-                    display_width(fields[field_index].text, ansi_regex)
+                    display_width(fields[field_index].text)
                 } else if let Some(placeholder) = &input_instructions.placeholder
                     && !input_instructions.invert
                 {
-                    display_width(placeholder, ansi_regex)
+                    display_width(placeholder)
                 } else {
                     continue; // Skip if no placeholder and out of bounds
                 };
@@ -158,7 +157,7 @@ pub fn get_largest_field_widths(
                         input_instructions.placeholder.is_some(),
                         input_instructions.invert,
                     );
-                    let join_width = display_width(&join_bytes, ansi_regex);
+                    let join_width = display_width(&join_bytes);
                     if join_width > max_join_widths[position_index] {
                         max_join_widths[position_index] = join_width;
                     }

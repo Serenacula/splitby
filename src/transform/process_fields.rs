@@ -112,8 +112,7 @@ pub fn process_fields(
         .map(|field| field.delimiter)
         .unwrap_or(b"");
 
-    // Track field position for alignment
-    let ansi_regex = transform_instructions.ansi_strip_regex.as_ref();
+    let align_active = transform_instructions.align != Align::None;
     let mut field_position: usize = 0;
 
     for (selection_index, selection) in selections.iter().enumerate() {
@@ -126,33 +125,6 @@ pub fn process_fields(
                 continue;
             }
 
-            // Padding setup for align
-            let max_field_width = if let Some(max_widths) = &record.field_widths {
-                if field_position < max_widths.len() {
-                    max_widths[field_position]
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-            let current_field_width = if field_index < fields.len() {
-                display_width(fields[field_index].text, ansi_regex)
-            } else if let Some(placeholder) = &transform_instructions.placeholder {
-                display_width(placeholder, ansi_regex)
-            } else {
-                0
-            };
-            let padding_needed = max_field_width.saturating_sub(current_field_width);
-
-            // Push the padding needed for the field
-            let push_padding = |output: &mut Vec<u8>, padding_needed: usize| {
-                for _ in 0..padding_needed {
-                    output.push(b' ');
-                }
-            };
-
-            // Push the text of the field
             let push_text = |output: &mut Vec<u8>, strict_return_passed: &mut bool| {
                 if field_index < fields.len() {
                     if !fields[field_index].text.is_empty() {
@@ -165,49 +137,86 @@ pub fn process_fields(
                 }
             };
 
-            // Decide on the join string and push
-            let push_join = |output: &mut Vec<u8>| -> usize {
-                let join = choose_join_bytes(
-                    field_index,
-                    selection_index,
-                    &selections,
-                    &fields,
-                    transform_instructions.join.as_ref(),
-                    first_delimiter,
-                    last_delimiter,
-                    transform_instructions.placeholder.is_some(),
-                    transform_instructions.invert,
-                );
-                output.extend_from_slice(join);
-                display_width(join, ansi_regex)
-            };
-
-            // Add the field text or placeholder
-            if transform_instructions.align == Align::Right {
-                push_padding(&mut output, padding_needed);
-            }
-            push_text(&mut output, &mut strict_return_passed);
-
             let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
-            if !is_last {
-                if transform_instructions.align == Align::Left {
+
+            if align_active {
+                // Padding setup for align (only when align is active)
+                let max_field_width = if let Some(max_widths) = &record.field_widths {
+                    if field_position < max_widths.len() {
+                        max_widths[field_position]
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                };
+                let current_field_width = if field_index < fields.len() {
+                    display_width(fields[field_index].text)
+                } else if let Some(placeholder) = &transform_instructions.placeholder {
+                    display_width(placeholder)
+                } else {
+                    0
+                };
+                let padding_needed = max_field_width.saturating_sub(current_field_width);
+
+                let push_padding = |output: &mut Vec<u8>, n: usize| {
+                    for _ in 0..n {
+                        output.push(b' ');
+                    }
+                };
+
+                if transform_instructions.align == Align::Right {
                     push_padding(&mut output, padding_needed);
                 }
-                let join_len = push_join(&mut output);
-                if let Some(max_join_widths) = &record.join_widths
-                    && field_position < max_join_widths.len()
-                {
-                    let max_join_width = max_join_widths[field_position];
-                    if max_join_width > join_len {
-                        push_padding(&mut output, max_join_width - join_len);
+                push_text(&mut output, &mut strict_return_passed);
+
+                if !is_last {
+                    if transform_instructions.align == Align::Left {
+                        push_padding(&mut output, padding_needed);
+                    }
+                    let join = choose_join_bytes(
+                        field_index,
+                        selection_index,
+                        &selections,
+                        &fields,
+                        transform_instructions.join.as_ref(),
+                        first_delimiter,
+                        last_delimiter,
+                        transform_instructions.placeholder.is_some(),
+                        transform_instructions.invert,
+                    );
+                    output.extend_from_slice(join);
+                    let join_width = display_width(join);
+                    if let Some(max_join_widths) = &record.join_widths
+                        && field_position < max_join_widths.len()
+                    {
+                        let max_join_width = max_join_widths[field_position];
+                        if max_join_width > join_width {
+                            push_padding(&mut output, max_join_width - join_width);
+                        }
+                    }
+                    if transform_instructions.align == Align::Squash {
+                        push_padding(&mut output, padding_needed);
                     }
                 }
-                if transform_instructions.align == Align::Squash {
-                    push_padding(&mut output, padding_needed);
+                field_position += 1;
+            } else {
+                push_text(&mut output, &mut strict_return_passed);
+                if !is_last {
+                    let join = choose_join_bytes(
+                        field_index,
+                        selection_index,
+                        &selections,
+                        &fields,
+                        transform_instructions.join.as_ref(),
+                        first_delimiter,
+                        last_delimiter,
+                        transform_instructions.placeholder.is_some(),
+                        transform_instructions.invert,
+                    );
+                    output.extend_from_slice(join);
                 }
-            };
-
-            field_position += 1;
+            }
         }
     }
 
