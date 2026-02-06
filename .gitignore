@@ -28,5 +28,3 @@ pnpm-debug.log*
 
 # Added by cargo
 /target
-
-/planning-docs
