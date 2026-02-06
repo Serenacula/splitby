@@ -2565,6 +2565,20 @@ mod align {
             expected.as_bytes(),
         );
     }
+
+    #[test]
+    fn align_strips_ansi_for_width() {
+        // Column 2: "\x1b[32mAB\x1b[0m" (green "AB", 2 visible chars) and "Q" (1 char).
+        // Width calculation must strip ANSI so max width is 2; "Q" gets 1 space.
+        let input = "\x1b[32ma\x1b[0m,x\na,z\n";
+        let expected = "\x1b[32ma\x1b[0m,x\na,z\n";
+        run_success_test(
+            "Align: ANSI CSI stripped for width (alignment correct)",
+            input.as_bytes(),
+            &["-d", ",", "--align", "1", "2", "3"],
+            expected.as_bytes(),
+        );
+    }
 }
 
 mod consuming_flags {
