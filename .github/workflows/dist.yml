@@ -1,0 +1,170 @@
+name: dist
+
+on:
+  workflow_run:
+    workflows:
+      - release-plz
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and attach artifacts to (e.g. v1.0.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  detect-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.detect.outputs.should_run }}
+      release_tag: ${{ steps.detect.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Detect release tag
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_TAG: ${{ github.event.inputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            release_tag="${MANUAL_TAG}"
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${release_tag}" >/dev/null 2>&1; then
+              echo "should_run=true" >> "${GITHUB_OUTPUT}"
+              echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            echo "No GitHub release found for tag ${release_tag}"
+            echo "should_run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [ "${WORKFLOW_CONCLUSION}" != "success" ]; then
+            echo "release-plz workflow did not succeed; skipping."
+            echo "should_run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          release_tag="$(git tag --points-at "${WORKFLOW_HEAD_SHA}" | sort -V | tail -n1)"
+          if [ -z "${release_tag}" ]; then
+            echo "No tag points at release-plz head SHA ${WORKFLOW_HEAD_SHA}; skipping."
+            echo "should_run=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${release_tag}" >/dev/null 2>&1; then
+            echo "should_run=true" >> "${GITHUB_OUTPUT}"
+            echo "release_tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Tag ${release_tag} has no GitHub release yet; skipping."
+            echo "should_run=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+  build-artifacts:
+    if: needs.detect-release.outputs.should_run == 'true'
+    needs: detect-release
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            zigbuild: true
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            zigbuild: true
+          - runner: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            zigbuild: true
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+          - runner: windows-latest
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-release.outputs.release_tag }}
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.93.1"
+          targets: ${{ matrix.target }}
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-dist
+
+      - name: Install cargo-zigbuild
+        if: matrix.zigbuild == true
+        run: cargo-binstall --no-confirm cargo-zigbuild
+
+      - name: Install zig
+        if: matrix.zigbuild == true
+        continue-on-error: true
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.14.0
+
+      - name: Fallback install zig via apt
+        if: matrix.zigbuild == true
+        run: |
+          if ! command -v zig >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y zig
+          fi
+          zig version
+
+      - name: Build distributables for target
+        run: dist build --allow-dirty --artifacts=local --target=${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.target }}
+          path: target/distrib/*
+          if-no-files-found: error
+
+  attach-to-release:
+    if: needs.detect-release.outputs.should_run == 'true'
+    needs:
+      - detect-release
+      - build-artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts from build jobs
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: Attach artifacts to current GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.detect-release.outputs.release_tag }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

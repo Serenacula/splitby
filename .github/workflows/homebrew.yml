@@ -1,0 +1,119 @@
+name: homebrew
+
+on:
+  workflow_run:
+    workflows:
+      - dist
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to use (e.g. v1.2.2)"
+        required: true
+        type: string
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: serenacula/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Resolve tag
+        id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [ -n "${MANUAL_TAG}" ]; then
+            echo "tag=${MANUAL_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            tag="$(git tag --points-at "${HEAD_SHA}" | sort -V | tail -n1)"
+            if [ -z "${tag}" ]; then
+              echo "No tag found at ${HEAD_SHA}, skipping."
+              echo "tag=" >> "${GITHUB_OUTPUT}"
+            else
+              echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+            fi
+          fi
+
+      - name: Generate formula
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          VERSION="${TAG#v}"
+          BASE_URL="https://github.com/serenacula/splitby/releases/download/${TAG}"
+
+          fetch_sha256() {
+            curl -sL "${BASE_URL}/$1.sha256" | awk '{print $1}'
+          }
+
+          SHA_DARWIN_ARM64=$(fetch_sha256 "splitby-aarch64-apple-darwin.tar.xz")
+          SHA_DARWIN_AMD64=$(fetch_sha256 "splitby-x86_64-apple-darwin.tar.xz")
+          SHA_LINUX_ARM64=$(fetch_sha256 "splitby-aarch64-unknown-linux-gnu.tar.xz")
+          SHA_LINUX_AMD64=$(fetch_sha256 "splitby-x86_64-unknown-linux-gnu.tar.xz")
+
+          mkdir -p tap/Formula
+          cat > tap/Formula/splitby.rb << FORMULA
+          class Splitby < Formula
+            desc "Split text by a regex delimiter — a powerful, multi-threaded alternative to cut"
+            homepage "https://github.com/serenacula/splitby"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "${BASE_URL}/splitby-aarch64-apple-darwin.tar.xz"
+                sha256 "${SHA_DARWIN_ARM64}"
+              end
+              on_intel do
+                url "${BASE_URL}/splitby-x86_64-apple-darwin.tar.xz"
+                sha256 "${SHA_DARWIN_AMD64}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "${BASE_URL}/splitby-aarch64-unknown-linux-gnu.tar.xz"
+                sha256 "${SHA_LINUX_ARM64}"
+              end
+              on_intel do
+                url "${BASE_URL}/splitby-x86_64-unknown-linux-gnu.tar.xz"
+                sha256 "${SHA_LINUX_AMD64}"
+              end
+            end
+
+            def install
+              bin.install "splitby"
+            end
+
+            test do
+              system "#{bin}/splitby", "--version"
+            end
+          end
+          FORMULA
+
+      - name: Commit and push
+        if: steps.tag.outputs.tag != ''
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          cd tap
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git add Formula/splitby.rb
+          git commit -m "release: update splitby to ${TAG}"
+          git push

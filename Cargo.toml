@@ -2,6 +2,13 @@
 name = "splitby"
 version = "1.2.2"
 edition = "2024"
+description = "Split text by a regex delimiter — a powerful, multi-threaded alternative to cut"
+readme = "readme.md"
+license = "MIT"
+repository = "https://github.com/serenacula/splitby"
+homepage = "https://github.com/serenacula/splitby"
+keywords = ["split", "text", "regex", "cli", "cut"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 crossbeam = "0.8.4"
@@ -12,6 +19,9 @@ unicode-width = "0.1"
 
 [dev-dependencies]
 assert_cmd = "2"
+
+[profile.dist]
+inherits = "release"
 
 [profile.release]
 debug = false
