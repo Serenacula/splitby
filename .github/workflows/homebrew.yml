@@ -54,7 +54,6 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          VERSION="${TAG#v}"
           BASE_URL="https://github.com/serenacula/splitby/releases/download/${TAG}"
 
           fetch_sha256() {
@@ -71,7 +70,6 @@ jobs:
           class Splitby < Formula
             desc "Split text by a regex delimiter — a powerful, multi-threaded alternative to cut"
             homepage "https://github.com/serenacula/splitby"
-            version "${VERSION}"
             license "MIT"
 
             on_macos do
