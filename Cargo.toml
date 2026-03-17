@@ -1,6 +1,6 @@
 [package]
 name = "splitby"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2024"
 description = "Split text by a regex delimiter — a powerful, multi-threaded alternative to cut"
 readme = "readme.md"
