@@ -9,18 +9,18 @@ A high-performance Rust command-line tool that splits text by a regex delimiter 
 The usage format is:
 
 ```sh
-splitby [options] <delimiter> <selections>
+splitby [options] <delimiter> [selections]
 ```
 
 The delimiter can be any regex string (wrapped in `/.../`) or a literal string, e.g. `"/\\s+/"` for regex or `","` for literal.
 
-The index states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for bash.
+The selection states which values you want. It can accept a single number `2` or a range `2-3`. Indexes are 1-based, as standard for Unix text tools like `cut` and `awk`.
 
 Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing positive and negative is allowed, however will cause an error if the starting index is greater than the ending index.
 
 You can also use special keywords: `start` or `first` (equivalent to `1`), and `end` or `last` (equivalent to `-1`). These can be used in ranges like `first-last` or `start-2`.
 
-Multiple indexes can be used, with the syntax `1 3 4-5`. The results will be separated by a new line.
+Multiple indexes can be used, with the syntax `1 3 4-5`. Selections are joined by the delimiter.
 
 ### Examples
 
@@ -66,9 +66,8 @@ echo "this is a test" | splitby " " 1 3-4
 _Whole-input mode_
 
 ```sh
-echo -e "this is\na test" | splitby -w " " 1 2 3 4
-> this is
-> a test
+echo -e "line1\nline2\nline3" | splitby -w "/\n/" 2
+> line2
 ```
 
 _Character mode_
@@ -91,11 +90,17 @@ echo "this is a test" | splitby " " end
 
 ## Installation
 
-You can find binaries to install under [releases](https://github.com/Serenacula/splitby/releases).
+**Homebrew** (macOS/Linux):
+
+```sh
+brew install serenacula/tap/splitby
+```
+
+Or you can find binaries to install under [releases](https://github.com/Serenacula/splitby/releases).
 
 Alternatively, you can build from source if you prefer:
 
-1. Install rust, e.g. `brew install rust`
+1. Install Rust via [rustup](https://rustup.rs)
 2. `git clone https://github.com/serenacula/splitby`
 3. `cargo build --release`
 4. `mv ./target/release/splitby /usr/local/bin/`
@@ -106,7 +111,7 @@ It's also suggested to add the following aliases to your .bashrc or .zshrc, for 
 
 ```sh
 alias getline="splitby -w '/\n/'" # Split on newline
-alias getword="splitby '/\s+/'" # Split on whitespace (regex)
+alias getword="splitby -e '/\s+/'" # Split on whitespace (regex), skipping empty fields
 ```
 
 These allow for fast and simple string processing:
@@ -315,7 +320,7 @@ echo "boo,,hoo" | splitby --skip-empty , 2
 
 _-a, --align_
 
-This option allows you to align the output to a specific width.
+This option pads each field so that columns line up across lines. Selections are optional; omitting them returns all fields.
 
 > A feature is planned to give more control over the alignment, but it is not yet implemented.
 
@@ -479,9 +484,9 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 
 ```sh
 echo "boo hoo" | splitby " " 3-1
-> # Error: end index (1) is less than start index (3) in selection 3-1
-echo "boo hoo" | splitby --strict-range-order " " 3-1
 > line 1: end index (1) is less than start index (3) in selection 3-1
+echo "boo hoo" | splitby --no-strict-range-order " " 3-1
+> # No error emitted
 ```
 
 #### Strict UTF-8
