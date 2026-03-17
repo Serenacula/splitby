@@ -20,7 +20,7 @@ This mode is on by default.
 
 ```sh
 echo "a b" | splitby -d " " 2-1
-# end index (1) is less than start index (2) in selection 2-1
+# strict-range-order error: end index (1) is less than start index (2) in selection 2-1
 echo "a b" | splitby -d " " --no-strict-range-order 2-1
 # (no output, no error)
 ```

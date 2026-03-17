@@ -221,7 +221,7 @@ pub fn process_fields(
     }
 
     if transform_instructions.strict_return && !strict_return_passed {
-        Err("strict returns error: no valid output".to_string())
+        Err("strict-return error: no valid output".to_string())
     } else {
         Ok(output)
     }

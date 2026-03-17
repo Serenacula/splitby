@@ -23,10 +23,10 @@ pub fn process_chars(
 
     if grapheme_count == 0 {
         if transform_instructions.strict_return {
-            return Err("strict return error: empty record".to_string());
+            return Err("strict-return error: empty record".to_string());
         }
         if transform_instructions.strict_bounds && !transform_instructions.selections.is_empty() {
-            return Err("strict bounds error: empty record".to_string());
+            return Err("strict-bounds error: empty record".to_string());
         }
         return Ok(Vec::new());
     }
@@ -75,7 +75,7 @@ pub fn process_chars(
     }
 
     if transform_instructions.strict_return && output.is_empty() {
-        Err("strict returns error: no valid output".to_string())
+        Err("strict-return error: no valid output".to_string())
     } else {
         Ok(output)
     }

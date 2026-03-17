@@ -8,7 +8,7 @@ pub fn bytes_to_cow_string<'a>(bytes: &'a [u8], strict_utf8: bool) -> Result<Cow
         Ok(string) => Ok(Cow::Borrowed(string)),
         Err(_) => match strict_utf8 {
             false => Ok(Cow::Owned(String::from_utf8_lossy(bytes).into_owned())),
-            true => Err("input is not valid UTF-8".to_string()),
+            true => Err("strict-utf8 error: input is not valid UTF-8".to_string()),
         },
     }
 }
@@ -66,7 +66,7 @@ pub fn normalise_selection(
         match strict_range_order {
             true => {
                 return Err(format!(
-                    "end index ({}) is less than start index ({}) in selection {}-{}",
+                    "strict-range-order error: end index ({}) is less than start index ({}) in selection {}-{}",
                     raw_end, raw_start, raw_start, raw_end
                 ));
             }
@@ -78,7 +78,7 @@ pub fn normalise_selection(
 
     if strict_bounds {
         if length == 0 {
-            return Err(format!("strict bounds error: no valid fields to select"));
+            return Err(format!("strict-bounds error: no valid fields to select"));
         }
 
         let is_single_index = raw_start == raw_end;
@@ -86,19 +86,19 @@ pub fn normalise_selection(
         if start < 0 || start >= length as i32 {
             if is_single_index {
                 return Err(format!(
-                    "strict bounds error: index ({}) out of bounds, must be between 1 and {}",
+                    "strict-bounds error: index ({}) out of bounds, must be between 1 and {}",
                     raw_start, length
                 ));
             } else {
                 return Err(format!(
-                    "strict bounds error: start index ({}) out of bounds, must be between 1 and {}",
+                    "strict-bounds error: start index ({}) out of bounds, must be between 1 and {}",
                     raw_start, length
                 ));
             }
         }
         if end < 0 || end >= length as i32 {
             return Err(format!(
-                "strict bounds error: end index ({}) out of bounds, must be between 1 and {}",
+                "strict-bounds error: end index ({}) out of bounds, must be between 1 and {}",
                 raw_end, length
             ));
         }

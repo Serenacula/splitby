@@ -51,7 +51,7 @@ pub fn process_records(
                     if transform_instructions.strict_return && bytes.is_empty() {
                         let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
-                            error: "strict return error: empty field".to_string(),
+                            error: "strict-return error: empty field".to_string(),
                         });
                         return Ok(());
                     }

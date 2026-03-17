@@ -123,12 +123,12 @@ pub fn get_results(
             writer.write_all(b"0").map_err(|error| error.to_string())?;
         }
         if output_instructions.strict_return {
-            return Err("strict return check failed: no input received".to_string());
+            return Err("strict-return error: no input received".to_string());
         }
         if output_instructions.strict_bounds && !output_instructions.selections.is_empty() {
             let (raw_start, _) = output_instructions.selections[0];
             return Err(format!(
-                "index ({}) out of bounds, must be between 1 and {}",
+                "strict-bounds error: index ({}) out of bounds, must be between 1 and {}",
                 raw_start, 0
             ));
         }

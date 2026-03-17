@@ -450,7 +450,7 @@ For example, this is silently corrected to `2-3`. With strict mode, it emits an 
 echo "boo hoo foo" | splitby " " 2-5
 > hoo foo
 echo "boo hoo foo" | splitby --strict-bounds " " 2-5
-> line 1: strict bounds error: end index (5) out of bounds, must be between 1 and 3
+> line 1: strict-bounds error: end index (5) out of bounds, must be between 1 and 3
 ```
 
 This also applies to single indexes out of bounds.
@@ -459,7 +459,7 @@ This also applies to single indexes out of bounds.
 echo "boo hoo foo" | splitby " " 4
 > # Empty output (index out of bounds)
 echo "boo hoo foo" | splitby --strict-bounds " " 4
-> line 1: strict bounds error: index (4) out of bounds, must be between 1 and 3
+> line 1: strict-bounds error: index (4) out of bounds, must be between 1 and 3
 ```
 
 #### Strict Return
@@ -474,7 +474,7 @@ For example:
 echo ",boo" | splitby , 1
 > # Empty output (field 1 is empty)
 echo ",boo" | splitby --strict-return , 1
-> line 1: strict returns error: no valid output
+> line 1: strict-return error: no valid output
 ```
 
 Similarly, if you skip empty fields:
@@ -483,7 +483,7 @@ Similarly, if you skip empty fields:
 echo ",," | splitby --skip-empty ,
 > # Empty output (all fields are empty)
 echo ",," | splitby --skip-empty , --strict-return
-> line 1: strict return error: empty field
+> line 1: strict-return error: empty field
 ```
 
 It has no effect when `--count` is used.
@@ -496,7 +496,7 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 
 ```sh
 echo "boo hoo" | splitby " " 3-1
-> line 1: end index (1) is less than start index (3) in selection 3-1
+> line 1: strict-range-order error: end index (1) is less than start index (3) in selection 3-1
 echo "boo hoo" | splitby --no-strict-range-order " " 3-1
 > # No error emitted
 ```
@@ -514,5 +514,5 @@ This is particularly useful when processing binary data or when you need to ensu
 echo -ne "hello\xFFworld" | splitby -c 1-5
 > hello # Replacement character used, but only first 5 characters returned
 echo -ne "hello\xFFworld" | splitby --strict-utf8 -c 1-5
-> line 1: input is not valid UTF-8
+> line 1: strict-utf8 error: input is not valid UTF-8
 ```
