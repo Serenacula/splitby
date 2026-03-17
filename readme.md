@@ -157,7 +157,7 @@ cat file.txt | getword 1
 | `-f, --fields`                |                           | Select fields split by delimiter (default)                               | Enabled       |
 | `-b, --bytes`                 |                           | Select bytes from the input                                              |               |
 | `-c, --characters`            |                           | Select characters from the input                                         |               |
-| `-a, --align`                 |                           | Align output to a specific width                                         |               |
+| `-a, --align[=MODE]`          |                           | Align fields to consistent column widths (`left`, `right`, `squash`)     | `left`        |
 | `--count`                     |                           | Return the number of results after splitting                             |               |
 | `--invert`                    |                           | Inverts the chosen selection                                             |               |
 | `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
@@ -320,14 +320,26 @@ echo "boo,,hoo" | splitby --skip-empty , 2
 
 _-a, --align_
 
-This option pads each field so that columns line up across lines. Selections are optional; omitting them returns all fields.
+This option pads fields so that columns line up across lines. Selections are optional; omitting them returns all fields.
 
-> A feature is planned to give more control over the alignment, but it is not yet implemented.
+It accepts an optional mode:
+
+- `left` (default): fields are left-aligned within their column
+- `right`: fields are right-aligned within their column
+- `squash`: padding is placed after the delimiter, aligning the first character of each field
 
 ```sh
 echo -e "apple,banana,cherry\na,b,c" | splitby -a ,
 > apple,banana,cherry
 > a    ,b     ,c
+
+echo -e "apple,banana,cherry\na,b,c" | splitby --align=right ,
+> apple,banana,cherry
+>     a,     b,     c
+
+echo -e "apple,banana,cherry\na,b,c" | splitby --align=squash ,
+> apple,banana,cherry
+> a,    b,    c
 ```
 
 #### Join
