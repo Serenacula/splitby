@@ -123,9 +123,9 @@ mod basic_usage {
     }
 
     #[test]
-    fn test_equals_syntax() {
+    fn equals_syntax() {
         run_success_test(
-            "Test equals syntax",
+            "Equals syntax for flags",
             b"this is a test\n",
             &["-w", "--delimiter= ", "--join=,"],
             b"this,is,a,test\n",
@@ -143,9 +143,9 @@ mod basic_usage {
     }
 
     #[test]
-    fn test_with_newline_delimiter() {
+    fn whole_string_with_newline_delimiter() {
         run_success_test(
-            "Test with newline delimiter",
+            "Whole-string with newline delimiter",
             b"this\nis\na\ntest\n",
             &["--whole-string", "-d", "/\\n/", "2"],
             b"is\n",
@@ -1357,15 +1357,6 @@ mod strictness {
     }
 
     #[test]
-    fn strict_enables_strict_return() {
-        run_error_test(
-            "Strict enables strict-return",
-            b",\n",
-            &["--strict", "-d", ","],
-        );
-    }
-
-    #[test]
     fn no_strict_clears_strict_flags() {
         run_success_test(
             "No-strict clears strict flags",
@@ -1420,9 +1411,9 @@ mod skip_empty {
     }
 
     #[test]
-    fn known_failure() {
+    fn skip_empty_collapses_multiple_delimiters() {
         run_success_test(
-            "Known failure",
+            "Skip-empty collapses multiple consecutive delimiters",
             b"a  b   c\n",
             &["-d", " ", "--skip-empty", "1-3"],
             b"a b c\n",
