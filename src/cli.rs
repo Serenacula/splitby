@@ -13,7 +13,6 @@ use crate::types::*;
 use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
 use std::env;
-use std::io::IsTerminal;
 
 /// Parse command line arguments and return Instructions
 pub fn get_instructions() -> Result<Option<Instructions>, String> {
@@ -256,8 +255,6 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         align: cli_arguments.align,
     };
 
-    let stdout_is_terminal = cli_arguments.output.is_none() && std::io::stdout().is_terminal();
-
     let output_instructions = OutputInstructions {
         output: cli_arguments.output,
         input_mode: cli_arguments.input_mode,
@@ -265,7 +262,6 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         strict_bounds: cli_arguments.strict_bounds,
         strict_return: cli_arguments.strict_return,
         count: cli_arguments.count,
-        stdout_is_terminal,
     };
 
     Ok(Some(Instructions {

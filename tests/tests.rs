@@ -148,7 +148,7 @@ mod basic_usage {
             "Test with newline delimiter",
             b"this\nis\na\ntest\n",
             &["--whole-string", "-d", "/\\n/", "2"],
-            b"is",
+            b"is\n",
         );
     }
 }
@@ -258,12 +258,12 @@ mod range_and_selection {
 
     #[test]
     fn whole_string_ends_with_newline_when_missing() {
-        // Input has no trailing newline. When stdout is a terminal we add newline; in tests (pipe) we don't.
+        // Whole-string mode always appends a trailing newline if the output doesn't already end with one.
         run_success_test(
-            "Whole-string: no trailing newline when not a terminal",
+            "Whole-string: trailing newline always added when missing",
             b"foo,bar",
             &["-w", "-d", ",", "1"],
-            b"foo",
+            b"foo\n",
         );
     }
 }
@@ -367,7 +367,7 @@ mod comma_separated_selection {
             "Comma-separated selections: whole-string mode",
             b"apple,banana\ncherry,date\n",
             &["-w", "-d", ",", "1,2"],
-            b"apple,banana\ncherry",
+            b"apple,banana\ncherry\n",
         );
     }
 
@@ -715,7 +715,7 @@ mod join_and_trim {
             "Join with space in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=space", "1", "2", "3"],
-            b"apple banana cherry",
+            b"apple banana cherry\n",
         );
     }
 
@@ -725,7 +725,7 @@ mod join_and_trim {
             "Join with first in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=first", "1", "2", "3"],
-            b"apple,banana,cherry",
+            b"apple,banana,cherry\n",
         );
     }
 
@@ -735,7 +735,7 @@ mod join_and_trim {
             "Join with last in whole-string mode",
             b"apple,banana,cherry",
             &["-w", "-d", ",", "--join=last", "1", "2", "3"],
-            b"apple,banana,cherry",
+            b"apple,banana,cherry\n",
         );
     }
 
@@ -1059,7 +1059,7 @@ mod count_and_invert {
             "Using --count with newline delimiter whole-string",
             b"this\nis\na\ntest\n",
             &["--whole-string", "-d", "/\\n/", "--count"],
-            b"4",
+            b"4\n",
         );
     }
 
@@ -1079,7 +1079,7 @@ mod count_and_invert {
             "Using --count with extra newline whole-string",
             b"this\nis\na\ntest\n\n",
             &["--whole-string", "-d", "/\\n/", "--count"],
-            b"5",
+            b"5\n",
         );
     }
 
@@ -1557,7 +1557,7 @@ mod invalid_input {
 
     #[test]
     fn empty_i_input() {
-        run_error_test("Empty -i input", b"", &["-i", "", "-d", ","]);
+        run_error_test("Empty --input", b"", &["--input", "", "-d", ","]);
     }
 
     #[test]
@@ -1805,7 +1805,7 @@ mod byte_mode {
             "Byte mode: whole-string mode",
             b"hello\nworld\n",
             &["--whole-string", "--bytes", "1-5"],
-            b"hello",
+            b"hello\n",
         );
     }
 
@@ -1815,7 +1815,7 @@ mod byte_mode {
             "Byte mode: whole-string mode with newline join",
             b"hello\nworld\n",
             &["--whole-string", "--bytes", "1", "2"],
-            b"he",
+            b"he\n",
         );
     }
 
@@ -2022,7 +2022,7 @@ mod char_mode {
             "Char mode: whole-string mode",
             b"hello\nworld\n",
             &["--whole-string", "--characters", "1-5"],
-            b"hello",
+            b"hello\n",
         );
     }
 
@@ -2032,7 +2032,7 @@ mod char_mode {
             "Char mode: whole-string mode with newline join",
             b"hello\nworld\n",
             &["--whole-string", "--characters", "1", "2"],
-            b"he",
+            b"he\n",
         );
     }
 
@@ -2897,26 +2897,21 @@ mod flag_syntax {
     }
 
     #[test]
-    fn short_i_flag_consuming() {
-        // -i sets consuming flag, next arg should be treated as input file
-        // Since we're using stdin, this should work but input file takes precedence
-        // For now, just verify it doesn't crash
+    fn input_flag_consuming() {
         run_success_test(
-            "Short -i flag (consuming mode)",
+            "--input flag (consuming mode)",
             b"test\n",
-            &["-i", "/dev/null", "-d", ",", "1"],
+            &["--input", "/dev/null", "-d", ",", "1"],
             b"", // Empty file produces no output
         );
     }
 
     #[test]
-    fn short_o_flag_consuming() {
-        // -o sets consuming flag, but we can't easily test file output
-        // So we'll just verify the flag is recognized
+    fn output_flag_consuming() {
         run_success_test(
-            "Short -o flag (consuming mode)",
+            "--output flag (consuming mode)",
             b"apple,banana\n",
-            &["-d", ",", "-o", "/dev/null", "1"],
+            &["-d", ",", "--output", "/dev/null", "1"],
             b"", // Output goes to file, not stdout
         );
     }
