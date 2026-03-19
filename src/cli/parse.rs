@@ -182,11 +182,11 @@ pub fn parse_flags(
             raw_instructions.selection_mode = SelectionMode::Fields;
             return Ok(ParseResult::FlagParsed);
         }
-        "--input" | "-i" => {
+        "--input" => {
             consuming.input = true;
             return Ok(ParseResult::FlagParsed);
         }
-        "--output" | "-o" => {
+        "--output" => {
             consuming.output = true;
             return Ok(ParseResult::FlagParsed);
         }
@@ -218,7 +218,7 @@ pub fn parse_flags(
             raw_instructions.count = true;
             return Ok(ParseResult::FlagParsed);
         }
-        "--invert" => {
+        "--invert" | "-i" => {
             raw_instructions.invert = true;
             return Ok(ParseResult::FlagParsed);
         }

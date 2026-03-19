@@ -3,8 +3,8 @@ pub fn print_help() {
     println!("Options:");
     println!("  -h, --help        Print help text");
     println!("  -v, --version     Print version number");
-    println!("  -i, --input=<FILE>              Provide an input file");
-    println!("  -o, --output=<FILE>             Write output to a file");
+    println!("  --input=<FILE>                  Provide an input file");
+    println!("  --output=<FILE>                 Write output to a file");
     println!("  -d, --delimiter=<REGEX>         Specify the delimiter to use");
     println!(
         "  -j, --join=<STRING|HEX|KEYWORD> Join each selection with string or hex or delimiter"
@@ -20,7 +20,7 @@ pub fn print_help() {
     println!("  -c, --characters                Select characters from the input");
     println!("  -a, --align=<MODE>              Align output (left|right|squash|none)");
     println!("  --count                         Return the number of results after splitting");
-    println!("  --invert                        Inverts the chosen selection");
+    println!("  -i, --invert                    Inverts the chosen selection");
     println!("  -e, --skip-empty                Skips empty fields when indexing or counting");
     println!(
         "  -E, --no-skip-empty             Does not skip empty fields when indexing or counting"

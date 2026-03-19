@@ -146,8 +146,8 @@ cat file.txt | getword 1
 | ----------------------------- | ------------------------- | ------------------------------------------------------------------------ | ------------- |
 | `-h, --help`                  |                           | Print help text                                                          |               |
 | `-v, --version`               |                           | Print version number                                                     |               |
-| `-i, --input=<FILE>`          |                           | Provide an input file                                                    |               |
-| `-o, --output=<FILE>`         |                           | Write output to a file                                                   |               |
+| `--input=<FILE>`              |                           | Provide an input file                                                    |               |
+| `--output=<FILE>`             |                           | Write output to a file                                                   |               |
 | `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
 | `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
 | `--placeholder=<STRING\|HEX>` |                           | Inserts placeholder for invalid selections                               |               |
@@ -159,7 +159,7 @@ cat file.txt | getword 1
 | `-c, --characters`            |                           | Select characters from the input                                         |               |
 | `-a, --align[=MODE]`          |                           | Align fields to consistent column widths (`left`, `right`, `squash`)     | `left`        |
 | `--count`                     |                           | Return the number of results after splitting                             |               |
-| `--invert`                    |                           | Inverts the chosen selection                                             |               |
+| `-i, --invert`                |                           | Inverts the chosen selection                                             |               |
 | `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
 | `-s, --strict`                | `--no-strict`             | Shorthand for all strict features                                        |               |
 | `--strict-bounds`             | `--no-strict-bounds`      | Emit error if range is out of bounds                                     | Disabled      |
