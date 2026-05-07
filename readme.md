@@ -176,7 +176,7 @@ Disable flags are available for making aliasing easier, allowing you to specify 
 The delimiter is passed as a plain argument — no flag needed:
 
 ```sh
-echo "this,is a.test" | splitby --strict "/[,.]/" 1 3
+echo "this,is a.test" | splitby "/[,.]/" --strict 1 3
 > this,test
 ```
 
@@ -291,7 +291,7 @@ The invert option selects everything _except_ what you choose.
 ```sh
 echo "this is a test" | splitby " " 2
 > is
-echo "this is a test" | splitby --invert " " 2
+echo "this is a test" | splitby " " --invert 2
 > this a test
 ```
 
@@ -306,7 +306,7 @@ With indexes:
 ```sh
 echo "boo,,hoo" | splitby , 2
 >
-echo "boo,,hoo" | splitby --skip-empty , 2
+echo "boo,,hoo" | splitby , --skip-empty 2
 > hoo
 ```
 
@@ -329,11 +329,11 @@ echo -e "apple,banana,cherry\na,b,c" | splitby -a ,
 > apple,banana,cherry
 > a    ,b     ,c
 
-echo -e "apple,banana,cherry\na,b,c" | splitby --align=right ,
+echo -e "apple,banana,cherry\na,b,c" | splitby , --align=right
 > apple,banana,cherry
 >     a,     b,     c
 
-echo -e "apple,banana,cherry\na,b,c" | splitby --align=squash ,
+echo -e "apple,banana,cherry\na,b,c" | splitby , --align=squash
 > apple,banana,cherry
 > a,    b,    c
 ```
@@ -350,7 +350,7 @@ By default, the joiner is the delimiter after the previous selection. If unavail
 echo "this is\na test" | splitby " " 1 2
 > this is
 > a test
-echo "this is\na test" | splitby --join="," " " 1 2
+echo "this is\na test" | splitby " " --join="," 1 2
 > this,is
 > a,test
 ```
@@ -358,7 +358,7 @@ echo "this is\na test" | splitby --join="," " " 1 2
 The join flag also accepts hex values (with `0x` or `0X` prefix) for multi-byte joiners or non-printable characters:
 
 ```sh
-echo "this is\na test" | splitby --join="0x2C20" " " 1 2
+echo "this is\na test" | splitby " " --join="0x2C20" 1 2
 > this, is
 > a, test
 ```
@@ -445,7 +445,7 @@ For example, this is silently corrected to `2-3`. With strict mode, it emits an 
 ```sh
 echo "boo hoo foo" | splitby " " 2-5
 > hoo foo
-echo "boo hoo foo" | splitby --strict-bounds " " 2-5
+echo "boo hoo foo" | splitby " " --strict-bounds 2-5
 > line 1: strict-bounds error: end index (5) out of bounds, must be between 1 and 3
 ```
 
@@ -454,7 +454,7 @@ This also applies to single indexes out of bounds.
 ```sh
 echo "boo hoo foo" | splitby " " 4
 > # Empty output (index out of bounds)
-echo "boo hoo foo" | splitby --strict-bounds " " 4
+echo "boo hoo foo" | splitby " " --strict-bounds 4
 > line 1: strict-bounds error: index (4) out of bounds, must be between 1 and 3
 ```
 
@@ -469,16 +469,16 @@ For example:
 ```sh
 echo ",boo" | splitby , 1
 > # Empty output (field 1 is empty)
-echo ",boo" | splitby --strict-return , 1
+echo ",boo" | splitby , --strict-return 1
 > line 1: strict-return error: no valid output
 ```
 
 Similarly, if you skip empty fields:
 
 ```sh
-echo ",," | splitby --skip-empty ,
+echo ",," | splitby , --skip-empty
 > # Empty output (all fields are empty)
-echo ",," | splitby --skip-empty , --strict-return
+echo ",," | splitby , --skip-empty --strict-return
 > line 1: strict-return error: empty field
 ```
 
@@ -493,7 +493,7 @@ This flag causes an error to emit if the start of a range is after the end, e.g.
 ```sh
 echo "boo hoo" | splitby " " 3-1
 > line 1: strict-range-order error: end index (1) is less than start index (3) in selection 3-1
-echo "boo hoo" | splitby --no-strict-range-order " " 3-1
+echo "boo hoo" | splitby " " --no-strict-range-order 3-1
 > # No error emitted
 ```
 

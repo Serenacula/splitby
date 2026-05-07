@@ -17,6 +17,6 @@ If selections yield no output, splitby emits an error instead of printing nothin
 ## Examples
 
 ```sh
-echo ",a" | splitby --strict-return "," 1
+echo ",a" | splitby "," --strict-return 1
 # strict-return error: no valid output
 ```

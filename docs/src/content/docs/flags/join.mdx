@@ -30,7 +30,7 @@ Because delimiters can be regex, sometimes there are multiple delimiters in a re
 Join selections with a custom string:
 
 ```sh
-echo "a,b,c" | splitby --join " | " "," 1 3
+echo "a,b,c" | splitby "," --join " | " 1 3
 # a | c
 ```
 

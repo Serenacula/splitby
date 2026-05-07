@@ -17,6 +17,6 @@ When enabled, out-of-range selections become errors instead of silently clamping
 ## Examples
 
 ```sh
-echo "a b" | splitby --strict-bounds " " 5
+echo "a b" | splitby " " --strict-bounds 5
 # strict-bounds error: index (5) out of bounds, must be between 1 and 2
 ```

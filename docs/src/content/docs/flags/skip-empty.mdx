@@ -24,11 +24,11 @@ When enabled, empty fields are ignored during indexing and counting. This is use
 ## Examples
 
 ```sh
-echo "a,,b" | splitby -e "," 2
+echo "a,,b" | splitby "," -e 2
 # b
 ```
 
 ```sh
-echo "a,,b" | splitby -E "," 2
+echo "a,,b" | splitby "," -E 2
 # (empty)
 ```
