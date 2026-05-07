@@ -138,30 +138,15 @@ pub fn read_input(
     }
 
     match config.input_mode {
-        InputMode::PerLine => {
+        InputMode::PerLine | InputMode::ZeroTerminated => {
+            let terminator = match config.input_mode {
+                InputMode::PerLine => b'\n',
+                InputMode::ZeroTerminated => b'\0',
+                InputMode::WholeString => unreachable!(),
+            };
             let mut buffer: Vec<u8> = Vec::new();
             loop {
-                match read_record(&mut reader, &mut buffer, &mut index, b'\n')? {
-                    Some(record) => {
-                        add_record_to_batch(
-                            record,
-                            &mut batch,
-                            &mut batch_bytes,
-                            batch_byte_quota,
-                            &record_sender,
-                        )?;
-                    }
-                    None => {
-                        flush_batch(&record_sender, &mut batch, &mut batch_bytes)?;
-                        return Ok(());
-                    }
-                }
-            }
-        }
-        InputMode::ZeroTerminated => {
-            let mut buffer: Vec<u8> = Vec::new();
-            loop {
-                match read_record(&mut reader, &mut buffer, &mut index, b'\0')? {
+                match read_record(&mut reader, &mut buffer, &mut index, terminator)? {
                     Some(record) => {
                         add_record_to_batch(
                             record,

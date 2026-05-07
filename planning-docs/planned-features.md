@@ -70,6 +70,9 @@ On reflection, entirely on accident this is essentially a more powerful version 
     -   @auto: follows existing logic, try after-previous, then try before-next, then space (done)
     -   @after-previous: delimiter from after previous field (done)
     -   @before-next: delimiter from before next field (done)
+    -   @first: use the first delimiter in the record (done)
+    -   @last: use the last delimiter in the record (done)
+    -   @space: use a space character (done)
     -   @none: equivalent to "" (done)
 -   Add --join-ranges, which only applies within ranges
 -   Add --join-selections, which only applies between discrete selections
