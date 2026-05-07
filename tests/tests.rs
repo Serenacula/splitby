@@ -2937,3 +2937,186 @@ mod flag_syntax {
         );
     }
 }
+
+mod config_file {
+    use assert_cmd::Command;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn make_config_dir(test_name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("splitby_test_{test_name}"));
+        let _ = fs::remove_dir_all(&dir);
+        let splitby_dir = dir.join("splitby");
+        fs::create_dir_all(&splitby_dir).expect("failed to create config dir");
+        dir
+    }
+
+    fn run_with_config(
+        description: &str,
+        input_bytes: &[u8],
+        test_name: &str,
+        config_json: &str,
+        arguments: &[&str],
+        expected_stdout: &[u8],
+    ) {
+        let config_dir = make_config_dir(test_name);
+        fs::write(config_dir.join("splitby").join("config.json"), config_json)
+            .expect("failed to write config file");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(arguments);
+        command.write_stdin(input_bytes);
+
+        let output = command
+            .output()
+            .unwrap_or_else(|error| panic!("{description}: failed to run: {error}"));
+
+        let stdout_text = String::from_utf8_lossy(&output.stdout);
+        let stderr_text = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "-----\n DESC: {description}\n\n ARGS: {arguments:?}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}"
+        );
+        assert_eq!(
+            output.stdout, expected_stdout,
+            "-----\n DESC: {description}\nSTDOUT: {stdout_text}\nSTDERR: {stderr_text}"
+        );
+    }
+
+    #[test]
+    fn config_sets_delimiter() {
+        run_with_config(
+            "config file sets delimiter",
+            b"apple,banana,cherry\n",
+            "config_sets_delimiter",
+            r#"{"delimiter": ","}"#,
+            &["2"],
+            b"banana\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_join() {
+        run_with_config(
+            "config file sets join",
+            b"apple,banana,cherry\n",
+            "config_sets_join",
+            r#"{"join": "|"}"#,
+            &["-d", ",", "1", "2", "3"],
+            b"apple|banana|cherry\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_invert() {
+        run_with_config(
+            "config file sets invert",
+            b"apple,banana,cherry\n",
+            "config_sets_invert",
+            r#"{"invert": true}"#,
+            &["-d", ",", "2"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_skip_empty() {
+        run_with_config(
+            "config file sets skip-empty",
+            b"apple,,cherry\n",
+            "config_sets_skip_empty",
+            r#"{"skip-empty": true}"#,
+            &["-d", ",", "1", "2", "3"],
+            b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_input_mode_whole_string() {
+        run_with_config(
+            "config file sets input-mode to whole-string",
+            b"apple,banana",
+            "config_sets_input_mode",
+            r#"{"input-mode": "whole-string"}"#,
+            &["-d", ",", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_selection_mode_bytes() {
+        run_with_config(
+            "config file sets selection-mode to bytes",
+            b"hello\n",
+            "config_sets_selection_mode_bytes",
+            r#"{"selection-mode": "bytes"}"#,
+            &["1", "2"],
+            b"he\n",
+        );
+    }
+
+    #[test]
+    fn cli_args_override_config() {
+        run_with_config(
+            "CLI args override config file values",
+            b"apple,banana,cherry\n",
+            "cli_overrides_config",
+            r#"{"join": "|"}"#,
+            &["-d", ",", "--join", "-", "1", "2", "3"],
+            b"apple-banana-cherry\n",
+        );
+    }
+
+    #[test]
+    fn config_strict_sets_all_strict_flags() {
+        let config_dir = make_config_dir("config_strict");
+        fs::write(config_dir.join("splitby").join("config.json"), r#"{"strict": true}"#)
+            .expect("failed to write config file");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(["-d", ",", "5"]);
+        command.write_stdin(b"apple,banana\n");
+
+        let output = command.output().expect("failed to run");
+        assert!(
+            !output.status.success(),
+            "expected failure with strict bounds from config"
+        );
+    }
+
+    #[test]
+    fn missing_config_file_is_ignored() {
+        let config_dir = std::env::temp_dir().join("splitby_test_missing_config");
+        let _ = fs::remove_dir_all(&config_dir);
+        fs::create_dir_all(&config_dir).expect("failed to create dir");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(["-d", ",", "1"]);
+        command.write_stdin(b"apple,banana\n");
+
+        let output = command.output().expect("failed to run");
+        assert!(output.status.success(), "missing config file should not error");
+        assert_eq!(output.stdout, b"apple\n");
+    }
+
+    #[test]
+    fn invalid_config_file_warns_and_continues() {
+        let config_dir = make_config_dir("invalid_config");
+        fs::write(config_dir.join("splitby").join("config.json"), "not valid json")
+            .expect("failed to write config file");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(["-d", ",", "1"]);
+        command.write_stdin(b"apple,banana\n");
+
+        let output = command.output().expect("failed to run");
+        assert!(output.status.success(), "invalid config file should not abort");
+        assert_eq!(output.stdout, b"apple\n");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("warning"), "expected a warning on stderr, got: {stderr}");
+    }
+}

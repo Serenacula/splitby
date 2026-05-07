@@ -1,9 +1,11 @@
+mod config;
 mod help_version;
 mod parse;
 mod types;
 mod utilities;
 mod validation;
 
+use self::config::{apply_file_config, load_file_config};
 use self::parse::*;
 use self::types::*;
 use self::utilities::parse_delimiter_token;
@@ -41,6 +43,9 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         strict_range_order: true,
         selections: Vec::new(),
     };
+
+    let file_config = load_file_config();
+    apply_file_config(&file_config, &mut cli_arguments);
 
     let mut consuming = Consuming {
         input: false,
