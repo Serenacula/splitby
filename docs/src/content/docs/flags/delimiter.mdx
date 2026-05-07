@@ -6,9 +6,8 @@ description: Choose how fields are separated in field mode.
 ## Syntax
 
 ```sh
-splitby -d "< /REGEX/ | LITERAL >" [selection...]
-# or
-splitby -d "< /REGEX/ | LITERAL >" [selection...]
+splitby -d "/REGEX/" [selection...]
+splitby --delimiter="LITERAL" [selection...]
 ```
 
 By default, splitby will assume the first unrecognised argument it comes across is a delimiter. This is called an implicit delimiter.

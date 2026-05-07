@@ -150,8 +150,8 @@ cat file.txt | getword 1
 | `--output=<FILE>`             |                           | Write output to a file                                                   |               |
 | `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
 | `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
-| `--placeholder=<STRING\|HEX>` |                           | Inserts placeholder for invalid selections                               |               |
-| `-p, --per-line`              |                           | Processes the input line by line (default)                               | Enabled       |
+| `-p, --placeholder=<STRING\|HEX>` |                       | Inserts placeholder for invalid selections                               |               |
+| `--per-line`                  |                           | Processes the input line by line (default)                               | Enabled       |
 | `-w, --whole-string`          |                           | Processes the input as a single string, rather than each line separately |               |
 | `-z, --zero-terminated`       |                           | Processes the input as zero-terminated strings                           |               |
 | `-f, --fields`                |                           | Select fields split by delimiter (default)                               | Enabled       |
@@ -161,7 +161,7 @@ cat file.txt | getword 1
 | `--count`                     |                           | Return the number of results after splitting                             |               |
 | `-i, --invert`                |                           | Inverts the chosen selection                                             |               |
 | `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
-| `-s, --strict`                | `--no-strict`             | Shorthand for all strict features                                        |               |
+| `--strict`                    | `--no-strict`             | Shorthand for all strict features                                        |               |
 | `--strict-bounds`             | `--no-strict-bounds`      | Emit error if range is out of bounds                                     | Disabled      |
 | `--strict-return`             | `--no-strict-return`      | Emit error if there is no result                                         | Disabled      |
 | `--strict-range-order`        | `--no-strict-range-order` | Emit error if start of a range is greater than the end                   | Enabled       |
@@ -197,7 +197,7 @@ echo "this,is a.test" | splitby -d "/[,.]/" --strict 1 3 # using the -d flag exp
 
 #### MODE: Per-line
 
-_-p, --per-line_ (default: enabled)
+_--per-line_ (default: enabled)
 
 This functionality will have the tool run once per line. Useful for when dealing with a table of information.
 
@@ -380,7 +380,7 @@ There are also a number of useful keywords you can use (only in fields mode):
 
 #### Placeholder
 
-_--placeholder=\<STRING|HEX\>_
+_-p, --placeholder=\<STRING|HEX\>_
 
 This is a useful flag for the situation where you need a reliable output format. Normally an invalid selection is skipped, however with this flag an invalid selection will output the given placeholder string instead.
 
