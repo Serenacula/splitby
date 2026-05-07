@@ -5,12 +5,12 @@ use crate::types::*;
 use crate::utilities::display_width;
 
 pub fn process_fields(
-    transform_instructions: &TransformInstructions,
+    config: &Config,
     engine: &RegexEngine,
     record: Record,
 ) -> Result<Vec<u8>, String> {
     let text: Cow<str> =
-        match bytes_to_cow_string(&record.bytes, transform_instructions.strict_utf8) {
+        match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
             Ok(string) => string,
             Err(e) => return Err(e),
         };
@@ -53,21 +53,21 @@ pub fn process_fields(
 
     // Don't add an empty field at the end for whole-string
     let final_text = text[cursor..text.len()].as_bytes();
-    if !final_text.is_empty() || transform_instructions.input_mode != InputMode::WholeString {
+    if !final_text.is_empty() || config.input_mode != InputMode::WholeString {
         fields.push(Field {
             text: text[cursor..text.len()].as_bytes(),
             delimiter: b"",
         });
     }
 
-    if transform_instructions.skip_empty {
+    if config.skip_empty {
         fields = fields
             .into_iter()
             .filter(|field| !field.text.is_empty())
             .collect();
     }
 
-    if transform_instructions.count {
+    if config.count {
         let count = fields.len();
         return Ok(count.to_string().into_bytes());
     }
@@ -77,19 +77,19 @@ pub fn process_fields(
     }
 
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-        &transform_instructions.selections,
+        &config.selections,
         fields.len(),
-        transform_instructions.placeholder.is_some(),
-        transform_instructions.strict_bounds,
-        transform_instructions.strict_range_order,
+        config.placeholder.is_some(),
+        config.strict_bounds,
+        config.strict_range_order,
     ) {
         Ok(result) => result,
         Err(error) => return Err(error),
     };
 
-    let selections = if transform_instructions.selections.is_empty() {
+    let selections = if config.selections.is_empty() {
         vec![(0, fields.len().saturating_sub(1))]
-    } else if !transform_instructions.invert {
+    } else if !config.invert {
         normalised_selections
     } else {
         invert_selections(normalised_selections, fields.len())
@@ -112,14 +112,14 @@ pub fn process_fields(
         .map(|field| field.delimiter)
         .unwrap_or(b"");
 
-    let align_active = transform_instructions.align != Align::None;
+    let align_active = config.align != Align::None;
     let mut field_position: usize = 0;
 
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
             // Skip if there's no data in this field
             let has_data = field_index < fields.len()
-                || (transform_instructions.placeholder.is_some() && !transform_instructions.invert);
+                || (config.placeholder.is_some() && !config.invert);
 
             if !has_data {
                 continue;
@@ -131,7 +131,7 @@ pub fn process_fields(
                         output.extend_from_slice(fields[field_index].text);
                         *strict_return_passed = true;
                     }
-                } else if let Some(placeholder) = &transform_instructions.placeholder {
+                } else if let Some(placeholder) = &config.placeholder {
                     output.extend_from_slice(placeholder);
                     *strict_return_passed = true;
                 }
@@ -152,7 +152,7 @@ pub fn process_fields(
                 };
                 let current_field_width = if field_index < fields.len() {
                     display_width(fields[field_index].text)
-                } else if let Some(placeholder) = &transform_instructions.placeholder {
+                } else if let Some(placeholder) = &config.placeholder {
                     display_width(placeholder)
                 } else {
                     0
@@ -165,13 +165,13 @@ pub fn process_fields(
                     }
                 };
 
-                if transform_instructions.align == Align::Right {
+                if config.align == Align::Right {
                     push_padding(&mut output, padding_needed);
                 }
                 push_text(&mut output, &mut strict_return_passed);
 
                 if !is_last {
-                    if transform_instructions.align == Align::Left {
+                    if config.align == Align::Left {
                         push_padding(&mut output, padding_needed);
                     }
                     let join = choose_join_bytes(
@@ -179,11 +179,11 @@ pub fn process_fields(
                         selection_index,
                         &selections,
                         &fields,
-                        transform_instructions.join.as_ref(),
+                        config.join.as_ref(),
                         first_delimiter,
                         last_delimiter,
-                        transform_instructions.placeholder.is_some(),
-                        transform_instructions.invert,
+                        config.placeholder.is_some(),
+                        config.invert,
                     );
                     output.extend_from_slice(join);
                     let join_width = display_width(join);
@@ -195,7 +195,7 @@ pub fn process_fields(
                             push_padding(&mut output, max_join_width - join_width);
                         }
                     }
-                    if transform_instructions.align == Align::Squash {
+                    if config.align == Align::Squash {
                         push_padding(&mut output, padding_needed);
                     }
                 }
@@ -208,11 +208,11 @@ pub fn process_fields(
                         selection_index,
                         &selections,
                         &fields,
-                        transform_instructions.join.as_ref(),
+                        config.join.as_ref(),
                         first_delimiter,
                         last_delimiter,
-                        transform_instructions.placeholder.is_some(),
-                        transform_instructions.invert,
+                        config.placeholder.is_some(),
+                        config.invert,
                     );
                     output.extend_from_slice(join);
                 }
@@ -220,7 +220,7 @@ pub fn process_fields(
         }
     }
 
-    if transform_instructions.strict_return && !strict_return_passed {
+    if config.strict_return && !strict_return_passed {
         Err("strict-return error: no valid output".to_string())
     } else {
         Ok(output)

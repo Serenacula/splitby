@@ -12,7 +12,7 @@ use self::process_fields::process_fields;
 use crate::types::*;
 
 pub fn process_records(
-    transform_instructions: Arc<TransformInstructions>,
+    config: Arc<Config>,
     record_receiver: channel::Receiver<Vec<Record>>,
     result_sender: channel::Sender<ResultChunk>,
 ) -> Result<(), String> {
@@ -34,21 +34,21 @@ pub fn process_records(
             let has_terminator = record.has_terminator;
 
             let processed_result: Result<Vec<u8>, String> =
-                match transform_instructions.selection_mode {
-                    SelectionMode::Bytes => process_bytes(&transform_instructions, record),
-                    SelectionMode::Chars => process_chars(&transform_instructions, record),
+                match config.selection_mode {
+                    SelectionMode::Bytes => process_bytes(&config, record),
+                    SelectionMode::Chars => process_chars(&config, record),
                     SelectionMode::Fields => {
-                        let engine = transform_instructions
+                        let engine = config
                             .regex_engine
                             .as_ref()
                             .ok_or_else(|| "internal error: missing regex engine".to_string())?;
-                        process_fields(&transform_instructions, engine, record)
+                        process_fields(&config, engine, record)
                     }
                 };
 
             match processed_result {
                 Ok(bytes) => {
-                    if transform_instructions.strict_return && bytes.is_empty() {
+                    if config.strict_return && bytes.is_empty() {
                         let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
                             error: "strict-return error: empty field".to_string(),

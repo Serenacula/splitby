@@ -14,8 +14,8 @@ use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
 use std::env;
 
-/// Parse command line arguments and return Instructions
-pub fn get_instructions() -> Result<Option<Instructions>, String> {
+/// Parse command line arguments and return a Config
+pub fn get_instructions() -> Result<Option<Config>, String> {
     let args: Vec<String> = env::args().skip(1).collect();
 
     // So the logic here is this:
@@ -211,62 +211,22 @@ pub fn get_instructions() -> Result<Option<Instructions>, String> {
         }
     };
 
-    // TODO: Parse arguments and build Instructions
-    // - Classify each arg as flag, delimiter, or selection
-    // - Handle flag values
-    // - Build Instructions struct
-
-    // TODO: Parse arguments and build Instructions
-    // - Classify each arg as flag, delimiter, or selection
-    // - Handle flag values
-    // - Build Instructions struct
-
-    // Placeholder - replace with actual parsing logic
-
-    let input_instructions = InputInstructions {
-        regex_engine: regex_engine.clone(),
-        align: cli_arguments.align,
-        join: join.clone(),
-        input_mode: cli_arguments.input_mode,
+    Ok(Some(Config {
         input: cli_arguments.input,
-        selections: cli_arguments.selections.clone(),
-        skip_empty: cli_arguments.skip_empty,
-        invert: cli_arguments.invert,
-        placeholder: placeholder.clone(),
-        strict_bounds: cli_arguments.strict_bounds,
-        strict_range_order: cli_arguments.strict_range_order,
-        strict_utf8: cli_arguments.strict_utf8,
-    };
-
-    let transform_instructions = TransformInstructions {
-        input_mode: cli_arguments.input_mode,
-        selection_mode: cli_arguments.selection_mode,
-        selections: cli_arguments.selections.clone(),
-        invert: cli_arguments.invert,
-        skip_empty: cli_arguments.skip_empty,
-        placeholder: placeholder,
-        strict_return: cli_arguments.strict_return,
-        strict_bounds: cli_arguments.strict_bounds,
-        strict_range_order: cli_arguments.strict_range_order,
-        strict_utf8: cli_arguments.strict_utf8,
-        count: cli_arguments.count,
-        join: join,
-        regex_engine: regex_engine,
-        align: cli_arguments.align,
-    };
-
-    let output_instructions = OutputInstructions {
         output: cli_arguments.output,
         input_mode: cli_arguments.input_mode,
+        selection_mode: cli_arguments.selection_mode,
         selections: cli_arguments.selections,
-        strict_bounds: cli_arguments.strict_bounds,
-        strict_return: cli_arguments.strict_return,
+        invert: cli_arguments.invert,
+        skip_empty: cli_arguments.skip_empty,
+        regex_engine,
+        join,
+        placeholder,
+        align: cli_arguments.align,
         count: cli_arguments.count,
-    };
-
-    Ok(Some(Instructions {
-        input_instructions,
-        transform_instructions,
-        output_instructions,
+        strict_return: cli_arguments.strict_return,
+        strict_bounds: cli_arguments.strict_bounds,
+        strict_range_order: cli_arguments.strict_range_order,
+        strict_utf8: cli_arguments.strict_utf8,
     }))
 }

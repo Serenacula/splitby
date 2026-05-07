@@ -3,19 +3,19 @@ use std::borrow::Cow;
 use crate::transform::transform_utilities::{
     Field, bytes_to_cow_string, choose_join_bytes, invert_selections, normalise_selections,
 };
-use crate::types::{InputInstructions, InputMode, Record, RegexEngine};
+use crate::types::{Config, InputMode, Record, RegexEngine};
 use crate::utilities::display_width;
 
 /// This is used when the --align flag is used, to get the largest field widths for each record.
 pub fn get_largest_field_widths(
     records: &[Record],
-    input_instructions: &InputInstructions,
+    config: &Config,
 ) -> Result<(Vec<usize>, Vec<usize>), String> {
     if records.is_empty() {
         return Ok((Vec::new(), Vec::new()));
     }
 
-    let engine = input_instructions
+    let engine = config
         .regex_engine
         .as_ref()
         .ok_or_else(|| "internal error: missing regex engine".to_string())?;
@@ -25,7 +25,7 @@ pub fn get_largest_field_widths(
 
     for record in records {
         let text: Cow<str> =
-            match bytes_to_cow_string(&record.bytes, input_instructions.strict_utf8) {
+            match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
                 Ok(string) => string,
                 Err(e) => return Err(e),
             };
@@ -64,7 +64,7 @@ pub fn get_largest_field_widths(
 
         // Don't add an empty field at the end for whole-string
         let final_text = text[cursor..text.len()].as_bytes();
-        if !final_text.is_empty() || input_instructions.input_mode != InputMode::WholeString {
+        if !final_text.is_empty() || config.input_mode != InputMode::WholeString {
             fields.push(Field {
                 text: final_text,
                 delimiter: b"",
@@ -72,7 +72,7 @@ pub fn get_largest_field_widths(
         }
 
         // Apply skip_empty filter
-        if input_instructions.skip_empty {
+        if config.skip_empty {
             fields = fields
                 .into_iter()
                 .filter(|field| !field.text.is_empty())
@@ -85,20 +85,20 @@ pub fn get_largest_field_widths(
 
         // Normalize selections
         let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-            &input_instructions.selections,
+            &config.selections,
             fields.len(),
-            input_instructions.placeholder.is_some(),
-            input_instructions.strict_bounds,
-            input_instructions.strict_range_order,
+            config.placeholder.is_some(),
+            config.strict_bounds,
+            config.strict_range_order,
         ) {
             Ok(result) => result,
             Err(_) => continue, // Skip records with invalid selections
         };
 
         // Apply invert if needed
-        let selections = if input_instructions.selections.is_empty() {
+        let selections = if config.selections.is_empty() {
             vec![(0, fields.len().saturating_sub(1))]
-        } else if !input_instructions.invert {
+        } else if !config.invert {
             normalised_selections
         } else {
             invert_selections(normalised_selections, fields.len())
@@ -122,8 +122,8 @@ pub fn get_largest_field_widths(
             for field_index in selection.0..=selection.1 {
                 let field_width = if field_index < fields.len() {
                     display_width(fields[field_index].text)
-                } else if let Some(placeholder) = &input_instructions.placeholder
-                    && !input_instructions.invert
+                } else if let Some(placeholder) = &config.placeholder
+                    && !config.invert
                 {
                     display_width(placeholder)
                 } else {
@@ -151,11 +151,11 @@ pub fn get_largest_field_widths(
                         selection_index,
                         &selections,
                         &fields,
-                        input_instructions.join.as_ref(),
+                        config.join.as_ref(),
                         first_delimiter,
                         last_delimiter,
-                        input_instructions.placeholder.is_some(),
-                        input_instructions.invert,
+                        config.placeholder.is_some(),
+                        config.invert,
                     );
                     let join_width = display_width(&join_bytes);
                     if join_width > max_join_widths[position_index] {

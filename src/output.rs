@@ -7,16 +7,16 @@ use std::{
 use crate::types::*;
 
 pub fn get_results(
-    output_instructions: OutputInstructions,
+    config: &Config,
     result_receiver: channel::Receiver<ResultChunk>,
 ) -> Result<(), String> {
-    let record_terminator: Option<u8> = match output_instructions.input_mode {
+    let record_terminator: Option<u8> = match config.input_mode {
         InputMode::PerLine => Some(b'\n'),
         InputMode::ZeroTerminated => Some(b'\0'),
         InputMode::WholeString => None,
     };
 
-    let mut writer: Box<dyn Write> = match &output_instructions.output {
+    let mut writer: Box<dyn Write> = match &config.output {
         Some(path) => {
             let file = std::fs::File::create(path)
                 .map_err(|error| format!("failed to create {}: {}", path.display(), error))?;
@@ -53,7 +53,7 @@ pub fn get_results(
         match result {
             ResultChunk::Err { index, error } => {
                 let index = index + 1;
-                match output_instructions.input_mode {
+                match config.input_mode {
                     InputMode::WholeString => return Err(error),
                     InputMode::PerLine => return Err(format!("line {index}: {error}")),
                     InputMode::ZeroTerminated => {
@@ -119,14 +119,14 @@ pub fn get_results(
     }
 
     if next_index == 0 {
-        if output_instructions.count {
+        if config.count {
             writer.write_all(b"0").map_err(|error| error.to_string())?;
         }
-        if output_instructions.strict_return {
+        if config.strict_return {
             return Err("strict-return error: no input received".to_string());
         }
-        if output_instructions.strict_bounds && !output_instructions.selections.is_empty() {
-            let (raw_start, _) = output_instructions.selections[0];
+        if config.strict_bounds && !config.selections.is_empty() {
+            let (raw_start, _) = config.selections[0];
             return Err(format!(
                 "strict-bounds error: index ({}) out of bounds, must be between 1 and {}",
                 raw_start, 0
@@ -135,7 +135,7 @@ pub fn get_results(
     }
 
     // Whole-string mode: ensure output ends with a newline if it has content
-    if output_instructions.input_mode == InputMode::WholeString
+    if config.input_mode == InputMode::WholeString
         && !output_buffer.is_empty()
         && output_buffer.last() != Some(&b'\n')
     {

@@ -2,21 +2,21 @@ use crate::transform::transform_utilities::*;
 use crate::types::*;
 
 pub fn process_bytes(
-    transform_instructions: &TransformInstructions,
+    config: &Config,
     record: Record,
 ) -> Result<Vec<u8>, String> {
     let bytes = &record.bytes;
     let byte_length = bytes.len();
 
-    if transform_instructions.count {
+    if config.count {
         return Ok(byte_length.to_string().into_bytes());
     }
 
     if byte_length == 0 {
-        if transform_instructions.strict_return {
+        if config.strict_return {
             return Err("strict-return error: empty record".to_string());
         }
-        if transform_instructions.strict_bounds && !transform_instructions.selections.is_empty() {
+        if config.strict_bounds && !config.selections.is_empty() {
             return Err("strict-bounds error: empty record".to_string());
         }
         return Ok(Vec::new());
@@ -24,20 +24,20 @@ pub fn process_bytes(
 
     // Initial normalisation pass
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-        &transform_instructions.selections,
+        &config.selections,
         byte_length,
-        transform_instructions.placeholder.is_some(),
-        transform_instructions.strict_bounds,
-        transform_instructions.strict_range_order,
+        config.placeholder.is_some(),
+        config.strict_bounds,
+        config.strict_range_order,
     ) {
         Ok(result) => result,
         Err(error) => return Err(error),
     };
 
     // Invert if applicable
-    let selections = if transform_instructions.selections.is_empty() {
+    let selections = if config.selections.is_empty() {
         vec![(0, byte_length.saturating_sub(1))]
-    } else if !transform_instructions.invert {
+    } else if !config.invert {
         normalised_selections
     } else {
         invert_selections(normalised_selections, byte_length)
@@ -50,14 +50,14 @@ pub fn process_bytes(
             if i < byte_length {
                 output.push(bytes[i])
             } else {
-                if let Some(placeholder) = &transform_instructions.placeholder {
+                if let Some(placeholder) = &config.placeholder {
                     output.extend_from_slice(&placeholder);
                 }
             }
         }
     }
 
-    if transform_instructions.strict_return && output.is_empty() {
+    if config.strict_return && output.is_empty() {
         Err("strict-return error: no valid output".to_string())
     } else {
         Ok(output)

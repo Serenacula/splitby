@@ -48,51 +48,23 @@ pub enum RegexEngine {
     Fancy(FancyRegex),
 }
 
-pub struct InputInstructions {
-    pub regex_engine: Option<RegexEngine>,
-    pub align: Align,
-    pub join: Option<JoinMode>,
-    pub input_mode: InputMode,
+pub struct Config {
     pub input: Option<PathBuf>,
-    pub selections: Vec<(i32, i32)>,
-    pub skip_empty: bool,
-    pub invert: bool,
-    pub placeholder: Option<Vec<u8>>,
-    pub strict_bounds: bool,
-    pub strict_range_order: bool,
-    pub strict_utf8: bool,
-}
-
-pub struct TransformInstructions {
+    pub output: Option<PathBuf>,
     pub input_mode: InputMode,
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
     pub skip_empty: bool,
+    pub regex_engine: Option<RegexEngine>,
+    pub join: Option<JoinMode>,
     pub placeholder: Option<Vec<u8>>,
+    pub align: Align,
+    pub count: bool,
     pub strict_return: bool,
     pub strict_bounds: bool,
     pub strict_range_order: bool,
     pub strict_utf8: bool,
-    pub count: bool,
-    pub join: Option<JoinMode>,
-    pub regex_engine: Option<RegexEngine>,
-    pub align: Align,
-}
-
-pub struct OutputInstructions {
-    pub count: bool,
-    pub strict_return: bool,
-    pub strict_bounds: bool,
-    pub input_mode: InputMode,
-    pub selections: Vec<(i32, i32)>,
-    pub output: Option<PathBuf>,
-}
-
-pub struct Instructions {
-    pub input_instructions: InputInstructions,
-    pub transform_instructions: TransformInstructions,
-    pub output_instructions: OutputInstructions,
 }
 
 pub struct Record {

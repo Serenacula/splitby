@@ -5,11 +5,11 @@ use crate::transform::transform_utilities::*;
 use crate::types::*;
 
 pub fn process_chars(
-    transform_instructions: &TransformInstructions,
+    config: &Config,
     record: Record,
 ) -> Result<Vec<u8>, String> {
     let text: Cow<str> =
-        match bytes_to_cow_string(&record.bytes, transform_instructions.strict_utf8) {
+        match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
             Ok(string) => string,
             Err(e) => return Err(e),
         };
@@ -17,15 +17,15 @@ pub fn process_chars(
     let graphemes: Vec<&str> = text.graphemes(true).collect();
     let grapheme_count = graphemes.len();
 
-    if transform_instructions.count {
+    if config.count {
         return Ok(grapheme_count.to_string().into_bytes());
     }
 
     if grapheme_count == 0 {
-        if transform_instructions.strict_return {
+        if config.strict_return {
             return Err("strict-return error: empty record".to_string());
         }
-        if transform_instructions.strict_bounds && !transform_instructions.selections.is_empty() {
+        if config.strict_bounds && !config.selections.is_empty() {
             return Err("strict-bounds error: empty record".to_string());
         }
         return Ok(Vec::new());
@@ -33,20 +33,20 @@ pub fn process_chars(
 
     // Initial normalisation pass
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
-        &transform_instructions.selections,
+        &config.selections,
         grapheme_count,
-        transform_instructions.placeholder.is_some(),
-        transform_instructions.strict_bounds,
-        transform_instructions.strict_range_order,
+        config.placeholder.is_some(),
+        config.strict_bounds,
+        config.strict_range_order,
     ) {
         Ok(result) => result,
         Err(error) => return Err(error),
     };
 
     // Invert if applicable
-    let selections = if transform_instructions.selections.is_empty() {
+    let selections = if config.selections.is_empty() {
         vec![(0, grapheme_count.saturating_sub(1))]
-    } else if !transform_instructions.invert {
+    } else if !config.invert {
         normalised_selections
     } else {
         invert_selections(normalised_selections, grapheme_count)
@@ -58,11 +58,11 @@ pub fn process_chars(
         for i in selection.0..=selection.1 {
             if i < grapheme_count {
                 output.extend_from_slice(graphemes[i].as_bytes());
-            } else if let Some(placeholder) = &transform_instructions.placeholder {
+            } else if let Some(placeholder) = &config.placeholder {
                 output.extend_from_slice(&placeholder);
             }
             if !(index == selections.len() - 1 && i == selection.1) {
-                match &transform_instructions.join {
+                match &config.join {
                     Some(JoinMode::String(join_bytes)) => {
                         output.extend_from_slice(join_bytes);
                     }
@@ -74,7 +74,7 @@ pub fn process_chars(
         }
     }
 
-    if transform_instructions.strict_return && output.is_empty() {
+    if config.strict_return && output.is_empty() {
         Err("strict-return error: no valid output".to_string())
     } else {
         Ok(output)
