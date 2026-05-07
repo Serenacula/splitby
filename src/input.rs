@@ -48,7 +48,7 @@ fn read_record(
 pub fn read_input(
     config: &Config,
     record_sender: channel::Sender<Vec<Record>>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let batch_byte_quota = std::env::var("SPLITBY_BATCH_QUOTA")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
@@ -58,7 +58,7 @@ pub fn read_input(
     let mut reader: Box<dyn BufRead> = match config.input.as_ref() {
         Some(path) => {
             let file = File::open(path)
-                .map_err(|error| format!("failed to open {}: {error}", path.display()))?;
+                .map_err(|error| AppError::io(format!("failed to open {}: {error}", path.display())))?;
             Box::new(BufReader::new(file))
         }
         None => {

@@ -9,7 +9,7 @@ use crate::types::*;
 pub fn get_results(
     config: &Config,
     result_receiver: channel::Receiver<ResultChunk>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let record_terminator: Option<u8> = match config.input_mode {
         InputMode::PerLine => Some(b'\n'),
         InputMode::ZeroTerminated => Some(b'\0'),
@@ -19,7 +19,7 @@ pub fn get_results(
     let mut writer: Box<dyn Write> = match &config.output {
         Some(path) => {
             let file = std::fs::File::create(path)
-                .map_err(|error| format!("failed to create {}: {}", path.display(), error))?;
+                .map_err(|error| AppError::io(format!("failed to create {}: {}", path.display(), error)))?;
             Box::new(io::BufWriter::new(file))
         }
         None => {
@@ -54,10 +54,10 @@ pub fn get_results(
             ResultChunk::Err { index, error } => {
                 let index = index + 1;
                 match config.input_mode {
-                    InputMode::WholeString => return Err(error),
-                    InputMode::PerLine => return Err(format!("line {index}: {error}")),
+                    InputMode::WholeString => return Err(AppError::other(error)),
+                    InputMode::PerLine => return Err(AppError::other(format!("line {index}: {error}"))),
                     InputMode::ZeroTerminated => {
-                        return Err(format!("record {index}: {error}"));
+                        return Err(AppError::other(format!("record {index}: {error}")));
                     }
                 }
             }
@@ -113,9 +113,9 @@ pub fn get_results(
 
     if !pending.is_empty() {
         let first_missing = next_index;
-        return Err(format!(
+        return Err(AppError::other(format!(
             "result stream ended early: missing record {first_missing}"
-        ));
+        )));
     }
 
     if next_index == 0 {
@@ -123,14 +123,14 @@ pub fn get_results(
             writer.write_all(b"0").map_err(|error| error.to_string())?;
         }
         if config.strict_return {
-            return Err("strict-return error: no input received".to_string());
+            return Err(AppError::other("strict-return error: no input received".to_string()));
         }
         if config.strict_bounds && !config.selections.is_empty() {
             let (raw_start, _) = config.selections[0];
-            return Err(format!(
+            return Err(AppError::other(format!(
                 "strict-bounds error: index ({}) out of bounds, must be between 1 and {}",
                 raw_start, 0
-            ));
+            )));
         }
     }
 

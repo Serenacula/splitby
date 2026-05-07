@@ -55,22 +55,12 @@ fn main() {
     let results_status = get_results(&config, output_receiver);
 
     if let Err(error) = input_handle.join().unwrap() {
-        eprintln!("{}", error);
-        let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
-            2
-        } else {
-            1
-        };
-        std::process::exit(exit_code);
+        eprintln!("{error}");
+        std::process::exit(error.exit_code);
     }
 
     if let Err(error) = results_status {
-        eprintln!("{}", error);
-        let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
-            2
-        } else {
-            1
-        };
-        std::process::exit(exit_code);
+        eprintln!("{error}");
+        std::process::exit(error.exit_code);
     }
 }

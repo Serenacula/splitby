@@ -79,6 +79,27 @@ pub struct OutputRecord {
     pub bytes: Vec<u8>,
     pub has_terminator: bool,
 }
+
+pub struct AppError {
+    pub message: String,
+    pub exit_code: i32,
+}
+
+impl AppError {
+    pub fn io(message: String) -> Self    { Self { message, exit_code: 2 } }
+    pub fn other(message: String) -> Self { Self { message, exit_code: 1 } }
+}
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl From<String> for AppError {
+    fn from(message: String) -> Self { Self::other(message) }
+}
+
 pub enum ResultChunk {
     Ok {
         start_index: usize,
