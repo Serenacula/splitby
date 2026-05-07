@@ -30,12 +30,12 @@ Because delimiters can be regex, sometimes there are multiple delimiters in a re
 Join selections with a custom string:
 
 ```sh
-echo "a,b,c" | splitby -d "," --join " | " 1 3
+echo "a,b,c" | splitby --join " | " "," 1 3
 # a | c
 ```
 
 ```sh
-echo "apple,banana,cherry" | splitby -d "," -j " -> " 1-3
+echo "apple,banana,cherry" | splitby "," -j " -> " 1-3
 # apple -> banana -> cherry
 ```
 
@@ -49,11 +49,11 @@ Tries to preserve original delimiters, falling back to space when no delimiter i
 
 ```sh
 # When delimiters exist between selections, preserves them
-echo "apple,banana,cherry" | splitby -d "," --join auto 1 3
+echo "apple,banana,cherry" | splitby "," --join auto 1 3
 # apple,cherry
 
 # Falls back to space when no delimiter is available
-echo "apple" | splitby -d "," --join auto 1 1
+echo "apple" | splitby "," --join auto 1 1
 # apple apple
 ```
 
@@ -62,7 +62,7 @@ echo "apple" | splitby -d "," --join auto 1 1
 Uses the first delimiter found in the record:
 
 ```sh
-echo "apple,banana;cherry:date" | splitby -d "/[,;:]/" --join first 3 4
+echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join first 3 4
 # cherry,date
 ```
 
@@ -72,7 +72,7 @@ Uses the last delimiter found in the record:
 
 ```sh
 # Multiple delimiter types - uses the last one found
-echo "apple,banana;cherry:date" | splitby -d "/[,;:]/" --join last 1 2
+echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join last 1 2
 # apple:banana
 ```
 
@@ -82,7 +82,7 @@ Uses the delimiter that immediately follows the previously selected field:
 
 ```sh
 # Uses the comma after "apple" (field 1)
-echo "apple,banana;cherry:date" | splitby -d "/[,;:]/" --join after-previous 1 3 1
+echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join after-previous 1 3 1
 # apple,cherry:apple
 ```
 
@@ -92,7 +92,7 @@ Uses the delimiter that immediately precedes the next selected field:
 
 ```sh
 # Uses the comma before "cherry" (field 3)
-echo "apple,banana;cherry:date" | splitby -d "/[,;:]/" --join before-next 1 4 2
+echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join before-next 1 4 2
 # apple:date,banana
 ```
 
@@ -101,7 +101,7 @@ echo "apple,banana;cherry:date" | splitby -d "/[,;:]/" --join before-next 1 4 2
 Concatenates selections with no separator between them:
 
 ```sh
-echo "apple,banana,cherry" | splitby -d "," --join none 1 3
+echo "apple,banana,cherry" | splitby "," --join none 1 3
 # applecherry
 ```
 
@@ -111,7 +111,7 @@ Always uses a single space, regardless of original delimiters:
 
 ```sh
 # Original delimiter is comma, but output uses space
-echo "apple,banana,cherry" | splitby -d "," --join space 1 3
+echo "apple,banana,cherry" | splitby "," --join space 1 3
 # apple cherry
 ```
 

@@ -5,34 +5,49 @@ description: Choose how fields are separated in field mode.
 
 ## Syntax
 
+The delimiter is a plain argument — no flag needed:
+
+```sh
+splitby "/REGEX/" [selection...]
+splitby "LITERAL" [selection...]
+```
+
+Use `-d` / `--delimiter` when the delimiter would otherwise be ambiguous:
+
 ```sh
 splitby -d "/REGEX/" [selection...]
 splitby --delimiter="LITERAL" [selection...]
 ```
 
-By default, splitby will assume the first unrecognised argument it comes across is a delimiter. This is called an implicit delimiter.
-
-```sh
-splitby "<REGEX>" [selection...]
-```
-
 ## What it does
 
-Splits each record into fields using a regular expression. The delimiter is required for field mode unless it can be auto-detected from the first argument.
+Splits each record into fields. The delimiter is the first argument that isn't a flag or a selection.
+
+## When to use `-d`
+
+Most of the time you don't need it. The `-d` flag exists for cases where your delimiter would be parsed as something else:
+
+- Looks like a selection (e.g., `1`, `2-3`, `last`)
+- Starts with `-` and could be mistaken for a flag
+
+```sh
+echo "1 2 3" | splitby -d "1" 2   # "1" would be parsed as a selection without -d
+echo "a-b-c" | splitby -d "-" 2   # "-" would error as an invalid flag without -d
+```
 
 ## Examples
 
 Split on a literal comma:
 
 ```sh
-echo "a,b,c" | splitby -d "," 2
+echo "a,b,c" | splitby "," 2
 # b
 ```
 
 Split on regex whitespace:
 
 ```sh
-echo "a   b   c" | splitby -d "/\\s+/" 3
+echo "a   b   c" | splitby "/\\s+/" 3
 # c
 ```
 

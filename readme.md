@@ -173,24 +173,20 @@ Disable flags are available for making aliasing easier, allowing you to specify 
 
 ### Delimiter
 
-_-d, --delimiter <REGEX>_
-
-This flag specifies the delimiter to use. It can be any regex string.
+The delimiter is passed as a plain argument — no flag needed:
 
 ```sh
-echo "this,is a.test" | splitby --strict -d "/[,.]/" 1 3 # regex needs to be wrapped in /.../
+echo "this,is a.test" | splitby --strict "/[,.]/" 1 3
 > this,test
 ```
 
-As shorthand, you can drop the `-d` flag if you use the format `splitby <FLAGS> <DELIMITER> <SELECTIONS>`, and it will be inferred. But after reading the delimiter, it will begin parsing selections. To avoid this, you can explicitly declare the delimiter with the `-d` flag. For example:
+Flags can go anywhere relative to the delimiter and selections. The first argument that isn't a flag or a selection is taken as the delimiter.
+
+The `-d` / `--delimiter` flag exists for the cases where your delimiter would otherwise be ambiguous — for example, if it looks like a number (and would be parsed as a selection) or starts with `-` (and would be parsed as a flag):
 
 ```sh
-echo "this,is a.test" | splitby --strict "/[,.]/" 1 3 # equivalent to above
-> this,test
-echo "this,is a.test" | splitby "/[,.]/" --strict 1 3 # this will break! it thinks --strict is a selection
-> invalid selection: '--strict'
-echo "this,is a.test" | splitby -d "/[,.]/" --strict 1 3 # using the -d flag explicitly lets it know it's a delimiter
-> this,test
+echo "1 2 3" | splitby -d "1" 2   # delimiter is "1"; without -d it would be parsed as a selection
+echo "a-b-c" | splitby -d "-" 2   # delimiter is "-"; without -d it would error as an invalid flag
 ```
 
 ### Input Modes
@@ -354,7 +350,7 @@ By default, the joiner is the delimiter after the previous selection. If unavail
 echo "this is\na test" | splitby " " 1 2
 > this is
 > a test
-echo "this is\na test" | splitby --join="," --delimiter=" " 1 2
+echo "this is\na test" | splitby --join="," " " 1 2
 > this,is
 > a,test
 ```
@@ -406,7 +402,7 @@ _--count_
 The count option allows you to get the number of results:
 
 ```sh
-echo "this;is;a;test" | splitby --count -d ";"
+echo "this;is;a;test" | splitby ";" --count
 > 4
 ```
 
@@ -415,9 +411,9 @@ As with index selection, empty fields are counted unless you use the `--skip-emp
 Behaviours that affect selections are ignored, e.g. `--invert`, `--placeholder`
 
 ```sh
-echo "boo;;hoo" | splitby --count -d ";"
+echo "boo;;hoo" | splitby ";" --count
 > 3
-echo "boo;;hoo" | splitby --count -d ";" --skip-empty
+echo "boo;;hoo" | splitby ";" --count --skip-empty
 > 2
 ```
 
