@@ -10,8 +10,7 @@ fn ansi_strip_regex() -> &'static Regex {
     })
 }
 
-/// Returns the display width (terminal columns) of `bytes` when interpreted as UTF-8.
-/// Only used when align is active. Uses lossy decoding and strips ANSI CSI sequences before measuring.
+// Strips ANSI CSI sequences before measuring, so coloured output aligns correctly.
 pub fn display_width(bytes: &[u8]) -> usize {
     let stripped = ansi_strip_regex().replace_all(bytes, b"");
     String::from_utf8_lossy(stripped.as_ref()).width()

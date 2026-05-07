@@ -22,7 +22,6 @@ pub fn process_bytes(
         return Ok(Vec::new());
     }
 
-    // Initial normalisation pass
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
         &config.selections,
         byte_length,
@@ -34,7 +33,6 @@ pub fn process_bytes(
         Err(error) => return Err(error),
     };
 
-    // Invert if applicable
     let selections = if config.selections.is_empty() {
         vec![(0, byte_length.saturating_sub(1))]
     } else if !config.invert {
@@ -43,7 +41,6 @@ pub fn process_bytes(
         invert_selections(normalised_selections, byte_length)
     };
 
-    // Make our real output
     let mut output: Vec<u8> = Vec::with_capacity(byte_length);
     for selection in selections {
         for i in selection.0..=selection.1 {

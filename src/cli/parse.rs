@@ -46,9 +46,7 @@ pub fn parse_flags(
         return Ok(ParseResult::FlagParsed);
     }
     if consuming.align {
-        // Our valid align possibilities:
-        // - Normal align flags -> set the align
-        // - anything else -> assume we're not consuming and set to default
+        // If next token isn't a valid align mode, stop consuming and fall through with default (left).
         if let Ok(Some(align_result)) = parse_align(&arg, true) {
             match align_result {
                 Align::Left => raw_instructions.align = Align::Left,
@@ -63,7 +61,6 @@ pub fn parse_flags(
         raw_instructions.align = Align::Left;
         consuming.align = false;
     }
-    // Handle consuming flags
     if arg.starts_with("--input") && arg != "--input" {
         if !arg.starts_with("--input=") {
             return Err(format!("invalid input flag: '{arg}'"));
@@ -148,7 +145,6 @@ pub fn parse_flags(
         return Ok(ParseResult::FlagParsed);
     }
 
-    // Handle non-consuming flags
     match arg {
         "-v" | "--version" => {
             print_version();

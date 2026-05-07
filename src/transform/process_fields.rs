@@ -99,7 +99,6 @@ pub fn process_fields(
     let mut output: Vec<u8> = Vec::with_capacity(estimated_output_size);
     let mut strict_return_passed: bool = false;
 
-    // Find first and last delimiters for @first and @last join modes
     let first_delimiter = fields
         .iter()
         .find(|field| !field.delimiter.is_empty())
@@ -117,7 +116,6 @@ pub fn process_fields(
 
     for (selection_index, selection) in selections.iter().enumerate() {
         for field_index in selection.0..=selection.1 {
-            // Skip if there's no data in this field
             let has_data = field_index < fields.len()
                 || (config.placeholder.is_some() && !config.invert);
 
@@ -140,7 +138,6 @@ pub fn process_fields(
             let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
 
             if align_active {
-                // Padding setup for align (only when align is active)
                 let max_field_width = if let Some(max_widths) = &record.field_widths {
                     if field_position < max_widths.len() {
                         max_widths[field_position]

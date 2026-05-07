@@ -31,7 +31,6 @@ pub fn process_chars(
         return Ok(Vec::new());
     }
 
-    // Initial normalisation pass
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
         &config.selections,
         grapheme_count,
@@ -43,7 +42,6 @@ pub fn process_chars(
         Err(error) => return Err(error),
     };
 
-    // Invert if applicable
     let selections = if config.selections.is_empty() {
         vec![(0, grapheme_count.saturating_sub(1))]
     } else if !config.invert {
@@ -52,7 +50,6 @@ pub fn process_chars(
         invert_selections(normalised_selections, grapheme_count)
     };
 
-    // Make our real output
     let mut output: Vec<u8> = Vec::with_capacity(grapheme_count);
     for (index, selection) in selections.iter().enumerate() {
         for i in selection.0..=selection.1 {

@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use crate::types::JoinMode;
 
-/// From Bytes to Cow string
 pub fn bytes_to_cow_string<'a>(bytes: &'a [u8], strict_utf8: bool) -> Result<Cow<'a, str>, String> {
     match std::str::from_utf8(bytes) {
         Ok(string) => Ok(Cow::Borrowed(string)),
@@ -13,7 +12,6 @@ pub fn bytes_to_cow_string<'a>(bytes: &'a [u8], strict_utf8: bool) -> Result<Cow
     }
 }
 
-/// Rough capacity hint for field buffers.
 pub fn estimate_field_count(input_len: usize, delimiter_len: usize) -> usize {
     if input_len == 0 {
         return 1;
@@ -22,7 +20,6 @@ pub fn estimate_field_count(input_len: usize, delimiter_len: usize) -> usize {
     estimated.max(1).min(10000)
 }
 
-/// Rough capacity hint for output buffers.
 pub fn estimate_output_size(input_len: usize, selection_count: usize) -> usize {
     if selection_count == 0 {
         return input_len;
@@ -46,7 +43,6 @@ pub fn resolve_index(raw_index: i32, len: usize) -> Result<i32, String> {
     }
 }
 
-/// Parse and validate a selection range.
 pub fn normalise_selection(
     raw_start: i32,
     raw_end: i32,
@@ -152,16 +148,13 @@ pub fn normalise_selections(
     Ok(normalised_selections)
 }
 
-/// Invert a list of selection ranges by sorting, merging, and building the complement.
 pub fn invert_selections(
     mut normalised_selections: Vec<(usize, usize)>,
     length: usize,
 ) -> Vec<(usize, usize)> {
-    // Sort
     normalised_selections
         .sort_by(|(start_a, end_a), (start_b, end_b)| start_a.cmp(start_b).then(end_a.cmp(end_b)));
 
-    // Merge
     let mut merged: Vec<(usize, usize)> = Vec::with_capacity(normalised_selections.len());
     for (start, end) in normalised_selections {
         if let Some((_, last_end)) = merged.last_mut() {
@@ -173,7 +166,6 @@ pub fn invert_selections(
         merged.push((start, end));
     }
 
-    // Build inverted list
     let mut invert_pointer: usize = 0;
     let mut inverted: Vec<(usize, usize)> = Vec::with_capacity(merged.len());
     for (start, end) in &merged {

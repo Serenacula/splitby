@@ -28,13 +28,11 @@ fn main() {
     let (input_sender, input_receiver) = channel::bounded::<Vec<Record>>(1024);
     let (output_sender, output_receiver) = channel::bounded::<ResultChunk>(1024);
 
-    // Setting up our Reader worker
     let input_handle = {
         let config = Arc::clone(&config);
         std::thread::spawn(move || read_input(&config, input_sender))
     };
 
-    // Working out how much memory we need
     let worker_count = if std::env::var("SPLITBY_SINGLE_CORE").is_ok() {
         1
     } else {
@@ -43,7 +41,6 @@ fn main() {
             .unwrap_or(1)
     };
 
-    // Setting up our main processing workers
     for _worker_index in 0..max(worker_count - 1, 1) {
         let worker_config = Arc::clone(&config);
         let worker_receiver = input_receiver.clone();
@@ -57,10 +54,8 @@ fn main() {
 
     let results_status = get_results(&config, output_receiver);
 
-    // Check if input thread encountered an I/O error
     if let Err(error) = input_handle.join().unwrap() {
         eprintln!("{}", error);
-        // Exit with code 2 for I/O errors
         let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
             2
         } else {
@@ -71,7 +66,6 @@ fn main() {
 
     if let Err(error) = results_status {
         eprintln!("{}", error);
-        // Exit with code 2 for I/O errors, code 1 for other errors
         let exit_code = if error.contains("failed to open") || error.contains("failed to create") {
             2
         } else {

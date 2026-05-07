@@ -6,7 +6,6 @@ use crate::transform::transform_utilities::{
 use crate::types::{Config, InputMode, Record, RegexEngine};
 use crate::utilities::display_width;
 
-/// This is used when the --align flag is used, to get the largest field widths for each record.
 pub fn get_largest_field_widths(
     records: &[Record],
     config: &Config,
@@ -30,7 +29,6 @@ pub fn get_largest_field_widths(
                 Err(e) => return Err(e),
             };
 
-        // Extract fields using regex
         let mut fields: Vec<Field> = Vec::new();
         let mut cursor = 0usize;
 
@@ -71,7 +69,6 @@ pub fn get_largest_field_widths(
             });
         }
 
-        // Apply skip_empty filter
         if config.skip_empty {
             fields = fields
                 .into_iter()
@@ -83,7 +80,6 @@ pub fn get_largest_field_widths(
             continue;
         }
 
-        // Normalize selections
         let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
             &config.selections,
             fields.len(),
@@ -95,7 +91,6 @@ pub fn get_largest_field_widths(
             Err(_) => continue, // Skip records with invalid selections
         };
 
-        // Apply invert if needed
         let selections = if config.selections.is_empty() {
             vec![(0, fields.len().saturating_sub(1))]
         } else if !config.invert {
@@ -116,7 +111,6 @@ pub fn get_largest_field_widths(
             .map(|field| field.delimiter)
             .unwrap_or(b"");
 
-        // Determine which field positions will be output and measure their widths
         let mut position_index = 0;
         for (selection_index, selection) in selections.iter().enumerate() {
             for field_index in selection.0..=selection.1 {
@@ -130,17 +124,14 @@ pub fn get_largest_field_widths(
                     continue; // Skip if no placeholder and out of bounds
                 };
 
-                // Ensure max_widths vec is large enough
                 if position_index >= max_widths.len() {
                     max_widths.resize(position_index + 1, 0);
                 }
 
-                // Update max width for this position
                 if field_width > max_widths[position_index] {
                     max_widths[position_index] = field_width;
                 }
 
-                // Track max join width for the gap after this position (if not last)
                 let is_last = selection_index == selections.len() - 1 && field_index == selection.1;
                 if !is_last {
                     if position_index >= max_join_widths.len() {

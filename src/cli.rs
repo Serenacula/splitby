@@ -14,25 +14,14 @@ use fancy_regex::Regex as FancyRegex;
 use regex::Regex as SimpleRegex;
 use std::env;
 
-/// Parse command line arguments and return a Config
 pub fn get_instructions() -> Result<Option<Config>, String> {
     let args: Vec<String> = env::args().skip(1).collect();
 
-    // So the logic here is this:
-    // - If previous token was consuming flag, treat arg as input for that flag
-    //     - join flag
-    //     - placeholder flag
-    //     - delimiter flag
-    //     - align flag
-    //         - if it isn't a specific align flag, assume NO FLAG and keep parsing
-    // - If is known flag, assume it's a flag
-    // - Check if selection:
-    //     - selection regex only works on single item, so we need to break it up first with split_regex
-    //     - if first arg isn't selection, continue
-    //     - check each item with selection_regex. If a subsequent selection fails, error
-    //     - put selections into selection list
-    // - If delimiter is not set, assume it is a delimiter
-    // - Otherwise error: "Invalid argument: {arg}"
+    // Two non-obvious parsing behaviors:
+    // - --align is optionally consuming: if the next token isn't a valid mode keyword, consuming
+    //   stops and that token is re-processed as a normal argument with alignment defaulting to left.
+    // - The delimiter is positional: the first unrecognised non-flag argument is taken as an
+    //   implicit delimiter rather than an error.
 
     let mut cli_arguments = CLIArguments {
         output: None,

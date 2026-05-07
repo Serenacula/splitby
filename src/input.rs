@@ -99,14 +99,14 @@ pub fn read_input(
         Ok(())
     };
 
-    // Handle align mode: read all records, scan widths, then stream
+    // --align requires knowing every column's max width before emitting any output,
+    // so all records must be buffered and scanned before streaming begins.
     if !matches!(config.align, Align::None)
         && config.input_mode == InputMode::PerLine
     {
         let mut all_records: Vec<Record> = Vec::new();
         let mut buffer: Vec<u8> = Vec::new();
 
-        // Read all records into memory
         loop {
             match read_record(&mut reader, &mut buffer, &mut index, b'\n')? {
                 Some(record) => all_records.push(record),
@@ -114,18 +114,15 @@ pub fn read_input(
             }
         }
 
-        // Scan field widths
         use crate::input::get_largest_field_widths::get_largest_field_widths;
         let (max_widths, max_join_widths) =
             get_largest_field_widths(&all_records, config)?;
 
-        // Attach widths to each record
         for record in &mut all_records {
             record.field_widths = Some(max_widths.clone());
             record.join_widths = Some(max_join_widths.clone());
         }
 
-        // Stream buffered records in batches using existing batch variables
         for record in all_records {
             add_record_to_batch(
                 record,
@@ -140,7 +137,6 @@ pub fn read_input(
         return Ok(());
     }
 
-    // Normal streaming behavior
     match config.input_mode {
         InputMode::PerLine => {
             let mut buffer: Vec<u8> = Vec::new();
