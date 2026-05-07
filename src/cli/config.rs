@@ -2,19 +2,16 @@ use std::path::PathBuf;
 
 use crate::cli::parse::parse_align;
 use crate::cli::types::CLIArguments;
-use crate::cli::utilities::parse_delimiter_token;
 use crate::types::{Align, InputMode, SelectionMode};
 
+const DEFAULT_CONFIG: &str = include_str!("default_config.json");
+
 #[derive(serde::Deserialize, Default)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
 pub struct FileConfig {
-    pub delimiter: Option<String>,
-    pub join: Option<String>,
     pub align: Option<String>,
-    pub placeholder: Option<String>,
     pub skip_empty: Option<bool>,
     pub invert: Option<bool>,
-    pub strict: Option<bool>,
     pub strict_bounds: Option<bool>,
     pub strict_return: Option<bool>,
     pub strict_range_order: Option<bool>,
@@ -39,7 +36,13 @@ pub fn load_file_config() -> FileConfig {
     let path = config_path();
     let contents = match std::fs::read_to_string(&path) {
         Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return FileConfig::default(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&path, DEFAULT_CONFIG);
+            return FileConfig::default();
+        }
         Err(error) => {
             eprintln!("warning: could not read config file {}: {error}", path.display());
             return FileConfig::default();
@@ -55,12 +58,6 @@ pub fn load_file_config() -> FileConfig {
 }
 
 pub fn apply_file_config(file_config: &FileConfig, cli_arguments: &mut CLIArguments) {
-    if let Some(delimiter) = &file_config.delimiter {
-        cli_arguments.delimiter = Some(parse_delimiter_token(delimiter));
-    }
-    if let Some(join) = &file_config.join {
-        cli_arguments.join = Some(join.as_bytes().to_vec());
-    }
     if let Some(align_str) = &file_config.align {
         match parse_align(align_str, false) {
             Ok(Some(align)) => cli_arguments.align = align,
@@ -68,20 +65,11 @@ pub fn apply_file_config(file_config: &FileConfig, cli_arguments: &mut CLIArgume
             Err(error) => eprintln!("warning: config file: {error}"),
         }
     }
-    if let Some(placeholder) = &file_config.placeholder {
-        cli_arguments.placeholder = Some(placeholder.as_bytes().to_vec());
-    }
     if let Some(skip_empty) = file_config.skip_empty {
         cli_arguments.skip_empty = skip_empty;
     }
     if let Some(invert) = file_config.invert {
         cli_arguments.invert = invert;
-    }
-    if let Some(strict) = file_config.strict {
-        cli_arguments.strict_bounds = strict;
-        cli_arguments.strict_return = strict;
-        cli_arguments.strict_range_order = strict;
-        cli_arguments.strict_utf8 = strict;
     }
     if let Some(strict_bounds) = file_config.strict_bounds {
         cli_arguments.strict_bounds = strict_bounds;

@@ -2985,30 +2985,6 @@ mod config_file {
     }
 
     #[test]
-    fn config_sets_delimiter() {
-        run_with_config(
-            "config file sets delimiter",
-            b"apple,banana,cherry\n",
-            "config_sets_delimiter",
-            r#"{"delimiter": ","}"#,
-            &["2"],
-            b"banana\n",
-        );
-    }
-
-    #[test]
-    fn config_sets_join() {
-        run_with_config(
-            "config file sets join",
-            b"apple,banana,cherry\n",
-            "config_sets_join",
-            r#"{"join": "|"}"#,
-            &["-d", ",", "1", "2", "3"],
-            b"apple|banana|cherry\n",
-        );
-    }
-
-    #[test]
     fn config_sets_invert() {
         run_with_config(
             "config file sets invert",
@@ -3058,36 +3034,20 @@ mod config_file {
 
     #[test]
     fn cli_args_override_config() {
+        // Config sets whole-string mode; --per-line on the CLI should take precedence,
+        // producing one result per line rather than treating all input as one record.
         run_with_config(
             "CLI args override config file values",
-            b"apple,banana,cherry\n",
+            b"apple,banana\nfoo,bar\n",
             "cli_overrides_config",
-            r#"{"join": "|"}"#,
-            &["-d", ",", "--join", "-", "1", "2", "3"],
-            b"apple-banana-cherry\n",
+            r#"{"input-mode": "whole-string"}"#,
+            &["-d", ",", "--per-line", "1"],
+            b"apple\nfoo\n",
         );
     }
 
     #[test]
-    fn config_strict_sets_all_strict_flags() {
-        let config_dir = make_config_dir("config_strict");
-        fs::write(config_dir.join("splitby").join("config.json"), r#"{"strict": true}"#)
-            .expect("failed to write config file");
-
-        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
-        command.env("XDG_CONFIG_HOME", &config_dir);
-        command.args(["-d", ",", "5"]);
-        command.write_stdin(b"apple,banana\n");
-
-        let output = command.output().expect("failed to run");
-        assert!(
-            !output.status.success(),
-            "expected failure with strict bounds from config"
-        );
-    }
-
-    #[test]
-    fn missing_config_file_is_ignored() {
+    fn missing_config_file_creates_default() {
         let config_dir = std::env::temp_dir().join("splitby_test_missing_config");
         let _ = fs::remove_dir_all(&config_dir);
         fs::create_dir_all(&config_dir).expect("failed to create dir");
@@ -3100,6 +3060,9 @@ mod config_file {
         let output = command.output().expect("failed to run");
         assert!(output.status.success(), "missing config file should not error");
         assert_eq!(output.stdout, b"apple\n");
+
+        let config_path = config_dir.join("splitby").join("config.json");
+        assert!(config_path.exists(), "default config file should have been created");
     }
 
     #[test]

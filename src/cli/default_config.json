@@ -1,0 +1,11 @@
+{
+  "align": "none",
+  "skip-empty": false,
+  "invert": false,
+  "strict-bounds": false,
+  "strict-return": false,
+  "strict-range-order": true,
+  "strict-utf8": false,
+  "input-mode": "per-line",
+  "selection-mode": "fields"
+}
