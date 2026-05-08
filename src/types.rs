@@ -57,6 +57,7 @@ pub struct Config {
     pub invert: bool,
     pub skip_empty: bool,
     pub skip_empty_lines: bool,
+    pub skip_undelimited: bool,
     pub regex_engine: Option<RegexEngine>,
     pub join: Option<JoinMode>,
     pub placeholder: Option<Vec<u8>>,
@@ -104,6 +105,7 @@ impl From<String> for AppError {
 pub enum ResultChunk {
     Ok {
         start_index: usize,
+        input_count: usize,
         outputs: Vec<OutputRecord>,
     },
     Err {

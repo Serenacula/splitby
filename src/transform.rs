@@ -27,17 +27,14 @@ pub fn process_records(
         }
 
         let batch_start_index = record_batch[0].index;
-        let mut batch_outputs: Vec<OutputRecord> = Vec::with_capacity(record_batch.len());
+        let input_count = record_batch.len();
+        let mut batch_outputs: Vec<OutputRecord> = Vec::with_capacity(input_count);
 
         for record in record_batch {
-            if config.skip_empty_lines && record.bytes.is_empty() {
-                continue;
-            }
-
             let record_index = record.index;
             let has_terminator = record.has_terminator;
 
-            let processed_result: Result<Vec<u8>, String> =
+            let processed_result: Result<Option<Vec<u8>>, String> =
                 match config.selection_mode {
                     SelectionMode::Bytes => process_bytes(&config, record),
                     SelectionMode::Chars => process_chars(&config, record),
@@ -51,13 +48,17 @@ pub fn process_records(
                 };
 
             match processed_result {
-                Ok(bytes) => {
+                Ok(None) => {}
+                Ok(Some(bytes)) => {
                     if config.strict_return && bytes.is_empty() {
                         let _ = result_sender.send(ResultChunk::Err {
                             index: record_index,
                             error: "strict-return error: empty field".to_string(),
                         });
                         return Ok(());
+                    }
+                    if config.skip_empty_lines && bytes.is_empty() {
+                        continue;
                     }
                     batch_outputs.push(OutputRecord {
                         bytes,
@@ -77,6 +78,7 @@ pub fn process_records(
         result_sender
             .send(ResultChunk::Ok {
                 start_index: batch_start_index,
+                input_count,
                 outputs: batch_outputs,
             })
             .map_err(|error| error.to_string())?;

@@ -8,7 +8,7 @@ pub fn process_fields(
     config: &Config,
     engine: &RegexEngine,
     record: Record,
-) -> Result<Vec<u8>, String> {
+) -> Result<Option<Vec<u8>>, String> {
     let text: Cow<str> =
         match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
             Ok(string) => string,
@@ -60,6 +60,10 @@ pub fn process_fields(
         });
     }
 
+    if config.skip_undelimited && !fields.iter().any(|field| !field.delimiter.is_empty()) {
+        return Ok(None);
+    }
+
     if config.skip_empty {
         fields = fields
             .into_iter()
@@ -69,11 +73,11 @@ pub fn process_fields(
 
     if config.count {
         let count = fields.len();
-        return Ok(count.to_string().into_bytes());
+        return Ok(Some(count.to_string().into_bytes()));
     }
 
     if fields.is_empty() {
-        return Ok(Vec::new());
+        return Ok(Some(Vec::new()));
     }
 
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
@@ -220,6 +224,6 @@ pub fn process_fields(
     if config.strict_return && !strict_return_passed {
         Err("strict-return error: no valid output".to_string())
     } else {
-        Ok(output)
+        Ok(Some(output))
     }
 }

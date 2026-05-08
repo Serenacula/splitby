@@ -4,12 +4,12 @@ use crate::types::*;
 pub fn process_bytes(
     config: &Config,
     record: Record,
-) -> Result<Vec<u8>, String> {
+) -> Result<Option<Vec<u8>>, String> {
     let bytes = &record.bytes;
     let byte_length = bytes.len();
 
     if config.count {
-        return Ok(byte_length.to_string().into_bytes());
+        return Ok(Some(byte_length.to_string().into_bytes()));
     }
 
     if byte_length == 0 {
@@ -19,7 +19,7 @@ pub fn process_bytes(
         if config.strict_bounds && !config.selections.is_empty() {
             return Err("strict-bounds error: empty record".to_string());
         }
-        return Ok(Vec::new());
+        return Ok(Some(Vec::new()));
     }
 
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
@@ -57,6 +57,6 @@ pub fn process_bytes(
     if config.strict_return && output.is_empty() {
         Err("strict-return error: no valid output".to_string())
     } else {
-        Ok(output)
+        Ok(Some(output))
     }
 }

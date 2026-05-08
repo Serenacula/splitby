@@ -7,7 +7,7 @@ use crate::types::*;
 pub fn process_chars(
     config: &Config,
     record: Record,
-) -> Result<Vec<u8>, String> {
+) -> Result<Option<Vec<u8>>, String> {
     let text: Cow<str> =
         match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
             Ok(string) => string,
@@ -18,7 +18,7 @@ pub fn process_chars(
     let grapheme_count = graphemes.len();
 
     if config.count {
-        return Ok(grapheme_count.to_string().into_bytes());
+        return Ok(Some(grapheme_count.to_string().into_bytes()));
     }
 
     if grapheme_count == 0 {
@@ -28,7 +28,7 @@ pub fn process_chars(
         if config.strict_bounds && !config.selections.is_empty() {
             return Err("strict-bounds error: empty record".to_string());
         }
-        return Ok(Vec::new());
+        return Ok(Some(Vec::new()));
     }
 
     let normalised_selections: Vec<(usize, usize)> = match normalise_selections(
@@ -74,6 +74,6 @@ pub fn process_chars(
     if config.strict_return && output.is_empty() {
         Err("strict-return error: no valid output".to_string())
     } else {
-        Ok(output)
+        Ok(Some(output))
     }
 }

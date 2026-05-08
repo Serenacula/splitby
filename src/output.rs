@@ -34,7 +34,7 @@ pub fn get_results(
         .filter(|value| *value > 0)
         .unwrap_or(64 * 1024);
     let mut next_index: usize = 0;
-    let mut pending: BTreeMap<usize, Vec<OutputRecord>> = BTreeMap::new();
+    let mut pending: BTreeMap<usize, (usize, Vec<OutputRecord>)> = BTreeMap::new();
     let mut output_buffer: Vec<u8> = Vec::with_capacity(output_flush_threshold * 2);
 
     let flush_output =
@@ -63,34 +63,28 @@ pub fn get_results(
             }
             ResultChunk::Ok {
                 start_index,
+                input_count,
                 outputs,
             } => {
-                pending.insert(start_index, outputs);
+                pending.insert(start_index, (input_count, outputs));
             }
         }
 
         while let Some(&pending_index) = pending.keys().next() {
             if pending_index == next_index {
-                if let Some(outputs) = pending.remove(&next_index) {
-                    let base_index = next_index;
-                    let mut offset = 0usize;
-
-                    while offset < outputs.len() {
-                        let output_record = &outputs[offset];
+                if let Some((input_count, outputs)) = pending.remove(&next_index) {
+                    for output_record in &outputs {
                         output_buffer.extend_from_slice(&output_record.bytes);
                         if let Some(terminator_byte) = record_terminator {
                             if output_record.has_terminator {
                                 output_buffer.push(terminator_byte);
                             }
                         }
-
                         if output_buffer.len() >= output_flush_threshold {
                             flush_output(&mut writer, &mut output_buffer)?;
                         }
-
-                        next_index = base_index + offset + 1;
-                        offset += 1;
                     }
+                    next_index += input_count;
                 }
             } else {
                 break;
@@ -98,7 +92,7 @@ pub fn get_results(
         }
     }
 
-    while let Some(outputs) = pending.remove(&next_index) {
+    while let Some((input_count, outputs)) = pending.remove(&next_index) {
         for output_record in outputs {
             output_buffer.extend_from_slice(&output_record.bytes);
             if let Some(terminator_byte) = record_terminator {
@@ -106,9 +100,8 @@ pub fn get_results(
                     output_buffer.push(terminator_byte);
                 }
             }
-
-            next_index += 1;
         }
+        next_index += input_count;
     }
 
     if !pending.is_empty() {
