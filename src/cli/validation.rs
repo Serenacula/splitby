@@ -37,7 +37,7 @@ pub fn validate_join_mode(join_str: &[u8], selection_mode: SelectionMode) -> Res
     if join_str.starts_with(b"@") {
         if selection_mode != SelectionMode::Fields {
             return Err(
-                "join flags (@auto, @after-previous, etc.) are only supported in fields mode"
+                "join flags (auto, after-previous, etc.) are only supported in fields mode"
                     .to_string(),
             );
         }

@@ -70,7 +70,7 @@ pub fn parse_flags(
         if !arg.starts_with("--input=") {
             return Err(format!("invalid input flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.input = Some(PathBuf::from(trim_quotes(value)));
         } else {
@@ -82,7 +82,7 @@ pub fn parse_flags(
         if !arg.starts_with("--output=") {
             return Err(format!("invalid output flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.output = Some(PathBuf::from(trim_quotes(value)));
         } else {
@@ -94,7 +94,7 @@ pub fn parse_flags(
         if !arg.starts_with("--delimiter=") {
             return Err(format!("invalid delimiter flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.delimiter = Some(parse_delimiter_token(value));
         } else {
@@ -106,7 +106,7 @@ pub fn parse_flags(
         if !arg.starts_with("--join=") {
             return Err(format!("invalid join flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.join = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
@@ -118,7 +118,7 @@ pub fn parse_flags(
         if !arg.starts_with("--placeholder=") {
             return Err(format!("invalid placeholder flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.placeholder = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
@@ -130,7 +130,7 @@ pub fn parse_flags(
         if !arg.starts_with("--terminator=") {
             return Err(format!("invalid terminator flag: '{arg}'"));
         }
-        let value = arg.split("=").nth(1);
+        let value = arg.splitn(2, '=').nth(1);
         if let Some(value) = value {
             raw_instructions.terminator = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
@@ -142,7 +142,7 @@ pub fn parse_flags(
         if !arg.starts_with("--align=") {
             return Err(format!("invalid align flag: '{arg}'"));
         }
-        let value = match arg.split("=").nth(1) {
+        let value = match arg.splitn(2, '=').nth(1) {
             Some(val) => val,
             None => return Err(format!("empty align value")),
         };

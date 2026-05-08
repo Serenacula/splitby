@@ -3240,6 +3240,46 @@ mod flag_syntax {
     }
 
     #[test]
+    fn equals_value_contains_equals_delimiter() {
+        run_success_test(
+            "Equals in delimiter value: --delimiter=a=b",
+            b"xa=by\n",
+            &["--delimiter=a=b", "1"],
+            b"x\n",
+        );
+    }
+
+    #[test]
+    fn equals_value_contains_equals_join() {
+        run_success_test(
+            "Equals in join value: --join=a=b",
+            b"x,y,z\n",
+            &["-d", ",", "--join=a=b", "1", "2", "3"],
+            b"xa=bya=bz\n",
+        );
+    }
+
+    #[test]
+    fn equals_value_contains_equals_placeholder() {
+        run_success_test(
+            "Equals in placeholder value: --placeholder=a=b",
+            b"x,y\n",
+            &["-d", ",", "--placeholder=a=b", "1", "5"],
+            b"x,a=b\n",
+        );
+    }
+
+    #[test]
+    fn equals_value_contains_equals_terminator() {
+        run_success_test(
+            "Equals in terminator value: --terminator=a=b",
+            b"x,y\nx,z\n",
+            &["-d", ",", "--terminator=a=b", "1"],
+            b"xa=bxa=b",
+        );
+    }
+
+    #[test]
     fn invalid_flag_syntax_delimiterx() {
         run_error_test(
             "Invalid flag: --delimiterx",
