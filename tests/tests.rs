@@ -1030,6 +1030,100 @@ mod terminator_behavior {
     }
 }
 
+mod terminator_flag {
+    use super::*;
+
+    #[test]
+    fn basic_custom_terminator() {
+        run_success_test(
+            "Terminator: replaces newline with custom string",
+            b"a,b\nc,d\n",
+            &["-d", ",", "-t", ",", "1"],
+            b"a,c,",
+        );
+    }
+
+    #[test]
+    fn long_form_works() {
+        run_success_test(
+            "Terminator: long form --terminator= works",
+            b"a,b\nc,d\n",
+            &["-d", ",", "--terminator=,", "1"],
+            b"a,c,",
+        );
+    }
+
+    #[test]
+    fn empty_terminator_concatenates_records() {
+        run_success_test(
+            "Terminator: empty string produces no separators",
+            b"a,b\nc,d\n",
+            &["-d", ",", "-t", "", "1"],
+            b"ac",
+        );
+    }
+
+    #[test]
+    fn hex_terminator() {
+        run_success_test(
+            "Terminator: hex value replaces newline",
+            b"a,b\nc,d\n",
+            &["-d", ",", "--terminator=0x7C", "1"],
+            b"a|c|",
+        );
+    }
+
+    #[test]
+    fn multichar_terminator() {
+        run_success_test(
+            "Terminator: multi-char string terminator",
+            b"a,b\nc,d\n",
+            &["-d", ",", "-t", " | ", "1"],
+            b"a | c | ",
+        );
+    }
+
+    #[test]
+    fn final_record_without_newline_gets_no_terminator() {
+        run_success_test(
+            "Terminator: final record without newline gets no custom terminator",
+            b"a,b\nc,d",
+            &["-d", ",", "-t", ",", "1"],
+            b"a,c",
+        );
+    }
+
+    #[test]
+    fn zero_terminated_mode() {
+        run_success_test(
+            "Terminator: replaces null byte in zero-terminated mode",
+            b"a,b\x00c,d\x00",
+            &["-z", "-d", ",", "-t", ",", "1"],
+            b"a,c,",
+        );
+    }
+
+    #[test]
+    fn whole_string_mode() {
+        run_success_test(
+            "Terminator: appended after whole-string output",
+            b"a,b,c",
+            &["-w", "-d", ",", "-t", ";", "1", "2"],
+            b"a,b;",
+        );
+    }
+
+    #[test]
+    fn whole_string_mode_empty_terminator() {
+        run_success_test(
+            "Terminator: empty terminator in whole-string adds nothing",
+            b"a,b,c",
+            &["-w", "-d", ",", "-t", "", "1", "2"],
+            b"a,b",
+        );
+    }
+}
+
 mod count_and_invert {
     use super::*;
 
@@ -2889,6 +2983,24 @@ mod consuming_flags {
             &["-d", ",", "1", "-p"],
         );
     }
+
+    #[test]
+    fn consuming_terminator_at_end_errors() {
+        run_error_test(
+            "Consuming: --terminator at end errors",
+            b"a,b\n",
+            &["-d", ",", "1", "--terminator"],
+        );
+    }
+
+    #[test]
+    fn consuming_short_terminator_at_end_errors() {
+        run_error_test(
+            "Consuming: -t (terminator) at end errors",
+            b"a,b\n",
+            &["-d", ",", "1", "-t"],
+        );
+    }
 }
 
 mod flag_syntax {
@@ -3252,6 +3364,18 @@ mod config_file {
             r#"{"invert": true}"#,
             &["-d", ",", "2"],
             b"apple,cherry\n",
+        );
+    }
+
+    #[test]
+    fn config_sets_terminator() {
+        run_with_config(
+            "config file sets terminator",
+            b"a,b\nc,d\n",
+            "config_sets_terminator",
+            r#"{"terminator": ","}"#,
+            &["-d", ",", "1"],
+            b"a,c,",
         );
     }
 

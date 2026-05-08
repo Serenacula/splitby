@@ -36,6 +36,7 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         selection_mode: SelectionMode::Fields,
         count: false,
         invert: false,
+        terminator: None,
         skip_empty_fields: false,
         skip_empty_lines: false,
         skip_undelimited: false,
@@ -55,6 +56,7 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         delim: false,
         join: false,
         placeholder: false,
+        terminator: false,
         align: false,
     };
 
@@ -159,6 +161,9 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         None => None,
     };
 
+    let terminator: Option<Vec<u8>> = cli_arguments.terminator
+        .and_then(|bytes| parse_placeholder(&bytes));
+
     validate_align(
         cli_arguments.align,
         cli_arguments.input_mode,
@@ -216,6 +221,7 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         selection_mode: cli_arguments.selection_mode,
         selections: cli_arguments.selections,
         invert: cli_arguments.invert,
+        terminator,
         skip_empty_fields: cli_arguments.skip_empty_fields,
         skip_empty_lines: cli_arguments.skip_empty_lines,
         skip_undelimited: cli_arguments.skip_undelimited,

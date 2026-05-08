@@ -10,10 +10,14 @@ pub fn get_results(
     config: &Config,
     result_receiver: channel::Receiver<ResultChunk>,
 ) -> Result<(), AppError> {
-    let record_terminator: Option<u8> = match config.input_mode {
-        InputMode::PerLine => Some(b'\n'),
-        InputMode::ZeroTerminated => Some(b'\0'),
+    let record_terminator: Option<Vec<u8>> = match config.input_mode {
         InputMode::WholeString => None,
+        InputMode::PerLine => Some(
+            config.terminator.as_deref().unwrap_or(b"\n").to_vec()
+        ),
+        InputMode::ZeroTerminated => Some(
+            config.terminator.as_deref().unwrap_or(b"\0").to_vec()
+        ),
     };
 
     let mut writer: Box<dyn Write> = match &config.output {
@@ -75,9 +79,9 @@ pub fn get_results(
                 if let Some((input_count, outputs)) = pending.remove(&next_index) {
                     for output_record in &outputs {
                         output_buffer.extend_from_slice(&output_record.bytes);
-                        if let Some(terminator_byte) = record_terminator {
+                        if let Some(ref terminator_bytes) = record_terminator {
                             if output_record.has_terminator {
-                                output_buffer.push(terminator_byte);
+                                output_buffer.extend_from_slice(terminator_bytes);
                             }
                         }
                         if output_buffer.len() >= output_flush_threshold {
@@ -95,9 +99,9 @@ pub fn get_results(
     while let Some((input_count, outputs)) = pending.remove(&next_index) {
         for output_record in outputs {
             output_buffer.extend_from_slice(&output_record.bytes);
-            if let Some(terminator_byte) = record_terminator {
+            if let Some(ref terminator_bytes) = record_terminator {
                 if output_record.has_terminator {
-                    output_buffer.push(terminator_byte);
+                    output_buffer.extend_from_slice(terminator_bytes);
                 }
             }
         }
@@ -127,12 +131,15 @@ pub fn get_results(
         }
     }
 
-    // Whole-string mode: ensure output ends with a newline if it has content
-    if config.input_mode == InputMode::WholeString
-        && !output_buffer.is_empty()
-        && output_buffer.last() != Some(&b'\n')
-    {
-        output_buffer.push(b'\n');
+    // Whole-string mode: append terminator after content.
+    // Without --terminator: add \n only if the output doesn't already end with one.
+    // With --terminator: always append the custom bytes.
+    if config.input_mode == InputMode::WholeString && !output_buffer.is_empty() {
+        if let Some(ref terminator) = config.terminator {
+            output_buffer.extend_from_slice(terminator);
+        } else if output_buffer.last() != Some(&b'\n') {
+            output_buffer.push(b'\n');
+        }
     }
 
     flush_output(&mut writer, &mut output_buffer)?;

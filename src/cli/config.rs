@@ -10,6 +10,7 @@ const DEFAULT_CONFIG: &str = include_str!("default_config.json");
 #[serde(rename_all = "kebab-case")]
 pub struct FileConfig {
     pub align: Option<String>,
+    pub terminator: Option<String>,
     pub skip_empty_fields: Option<bool>,
     pub skip_empty_lines: Option<bool>,
     pub skip_undelimited: Option<bool>,
@@ -66,6 +67,9 @@ pub fn apply_file_config(file_config: &FileConfig, cli_arguments: &mut CLIArgume
             Ok(None) => cli_arguments.align = Align::Left,
             Err(error) => eprintln!("warning: config file: {error}"),
         }
+    }
+    if let Some(terminator) = &file_config.terminator {
+        cli_arguments.terminator = Some(terminator.as_bytes().to_vec());
     }
     if let Some(skip_empty_fields) = file_config.skip_empty_fields {
         cli_arguments.skip_empty_fields = skip_empty_fields;

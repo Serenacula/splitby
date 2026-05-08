@@ -8,6 +8,7 @@ pub struct Consuming {
     pub delim: bool,
     pub join: bool,
     pub placeholder: bool,
+    pub terminator: bool,
     pub align: bool,
 }
 
@@ -22,6 +23,7 @@ pub struct CLIArguments {
     pub selection_mode: SelectionMode,
     pub count: bool,
     pub invert: bool,
+    pub terminator: Option<Vec<u8>>,
     pub skip_empty_fields: bool,
     pub skip_empty_lines: bool,
     pub skip_undelimited: bool,

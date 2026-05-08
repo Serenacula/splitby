@@ -45,6 +45,11 @@ pub fn parse_flags(
         consuming.placeholder = false;
         return Ok(ParseResult::FlagParsed);
     }
+    if consuming.terminator {
+        raw_instructions.terminator = Some(arg.as_bytes().to_vec());
+        consuming.terminator = false;
+        return Ok(ParseResult::FlagParsed);
+    }
     if consuming.align {
         // If next token isn't a valid align mode, stop consuming and fall through with default (left).
         if let Ok(Some(align_result)) = parse_align(&arg, true) {
@@ -118,6 +123,18 @@ pub fn parse_flags(
             raw_instructions.placeholder = Some(trim_quotes(value).as_bytes().to_vec());
         } else {
             raw_instructions.placeholder = Some("".as_bytes().to_vec());
+        }
+        return Ok(ParseResult::FlagParsed);
+    }
+    if arg.starts_with("--terminator") && arg != "--terminator" {
+        if !arg.starts_with("--terminator=") {
+            return Err(format!("invalid terminator flag: '{arg}'"));
+        }
+        let value = arg.split("=").nth(1);
+        if let Some(value) = value {
+            raw_instructions.terminator = Some(trim_quotes(value).as_bytes().to_vec());
+        } else {
+            raw_instructions.terminator = Some("".as_bytes().to_vec());
         }
         return Ok(ParseResult::FlagParsed);
     }
@@ -196,6 +213,10 @@ pub fn parse_flags(
         }
         "--placeholder" | "-p" => {
             consuming.placeholder = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--terminator" | "-t" => {
+            consuming.terminator = true;
             return Ok(ParseResult::FlagParsed);
         }
         "--align" | "-a" => {

@@ -10,6 +10,7 @@ pub fn print_help() {
         "  -j, --join=<STRING|HEX|KEYWORD> Join each selection with string or hex or delimiter"
     );
     println!("  -p, --placeholder=<STRING|HEX>  Inserts placeholder for invalid selections");
+    println!("  -t, --terminator=<STRING|HEX>   Replace the output record terminator");
     println!("  --per-line                      Processes the input line by line (default)");
     println!(
         "  -w, --whole-string              Processes the input as a single string, rather than each line separately"

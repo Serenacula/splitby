@@ -66,6 +66,9 @@ pub fn validate_no_consuming(consuming: Consuming) -> Result<(), String> {
     if consuming.placeholder {
         return Err("placeholder set but no placeholder string given".to_string());
     }
+    if consuming.terminator {
+        return Err("terminator set but no terminator string given".to_string());
+    }
 
     Ok(())
 }

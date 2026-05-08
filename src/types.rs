@@ -55,6 +55,7 @@ pub struct Config {
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
+    pub terminator: Option<Vec<u8>>,
     pub skip_empty_fields: bool,
     pub skip_empty_lines: bool,
     pub skip_undelimited: bool,
