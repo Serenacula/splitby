@@ -9,7 +9,7 @@ A high-performance Rust command-line tool that splits text by a regex delimiter 
 The usage format is:
 
 ```sh
-splitby [options] <delimiter> [selections]
+splitby <delimiter> [options] [selections]
 ```
 
 The delimiter can be any regex string (wrapped in `/.../`) or a literal string, e.g. `"/\\s+/"` for regex or `","` for literal.
@@ -20,7 +20,7 @@ Negative numbers are valid, and count from the end, e.g. `-1` or `-3--1`. Mixing
 
 You can also use special keywords: `start` or `first` (equivalent to `1`), and `end` or `last` (equivalent to `-1`). These can be used in ranges like `first-last` or `start-2`.
 
-Multiple indexes can be used, with the syntax `1 3 4-5`. Selections are joined by the delimiter.
+Multiple indexes can be used, with the syntax `1 3 4-5`. By default, selections are joined by the delimiter between them.
 
 ### Examples
 
@@ -36,7 +36,7 @@ echo "boo,hoo" | splitby , 2
 _Regex_
 
 ```sh
-echo -e "boo hoo\n  foo" | splitby -w "/\\s+/" 1 3
+echo -e "boo hoo\n  foo" | splitby "/\\s+/" -w 1 3
 > boo foo # by default, the delimiter after the previous selection is kept between selections
 ```
 
@@ -66,7 +66,7 @@ echo "this is a test" | splitby " " 1 3-4
 _Whole-input mode_
 
 ```sh
-echo -e "line1\nline2\nline3" | splitby -w "/\n/" 2
+echo -e "line1\nline2\nline3" | splitby "/\n/" -w 2
 > line2
 ```
 
@@ -148,7 +148,7 @@ cat file.txt | getword 1
 | `-v, --version`               |                           | Print version number                                                     |               |
 | `--input=<FILE>`              |                           | Provide an input file                                                    |               |
 | `--output=<FILE>`             |                           | Write output to a file                                                   |               |
-| `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use (required for fields mode)                  |               |
+| `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use                                             |               |
 | `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
 | `-p, --placeholder=<STRING\|HEX>` |                       | Inserts placeholder for invalid selections                               |               |
 | `--per-line`                  |                           | Processes the input line by line (default)                               | Enabled       |
@@ -157,7 +157,7 @@ cat file.txt | getword 1
 | `-f, --fields`                |                           | Select fields split by delimiter (default)                               | Enabled       |
 | `-b, --bytes`                 |                           | Select bytes from the input                                              |               |
 | `-c, --characters`            |                           | Select characters from the input                                         |               |
-| `-a, --align[=MODE]`          |                           | Align fields to consistent column widths (`left`, `right`, `squash`)     | `left`        |
+| `-a, --align[=MODE]`          |                           | Align fields to consistent column widths; mode defaults to `left` (`left`, `right`, `squash`, `none`) | Disabled      |
 | `--count`                     |                           | Return the number of results after splitting                             |               |
 | `-i, --invert`                |                           | Inverts the chosen selection                                             |               |
 | `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
@@ -195,7 +195,7 @@ echo "a-b-c" | splitby -d "-" 2   # delimiter is "-"; without -d it would error 
 
 _--per-line_ (default: enabled)
 
-This functionality will have the tool run once per line. Useful for when dealing with a table of information.
+This processes the input line by line. Useful for when dealing with a table of information.
 
 For example:
 
@@ -223,7 +223,7 @@ _-w, --whole-string_
 This treats the input as a single string. It runs once over the entire input. Useful for situations where you want to treat the string as a single blob, or you wish to use `\n` as your delimiter.
 
 ```sh
-echo "a,b,c" | splitby -w "," 2 # Process entire input as one string
+echo "a,b,c" | splitby "," -w 2 # Process entire input as one string
 > b
 ```
 
@@ -235,7 +235,7 @@ This mode treats the input as a sequence of zero-terminated strings. It runs onc
 
 ```sh
 # split on /, join with \n, and get the last field
-find . -name "*.txt" -print0 | splitby -d "/" -j "\n" -z last
+find . -name "*.txt" -print0 | splitby "/" -j "\n" -z last
 > file1.txt
 > file2.txt
 > file3.txt
@@ -258,7 +258,7 @@ echo "this is a test" | splitby " " 2
 
 _-c, --characters_
 
-This mode treats the input as a sequence of characters. It runs once over the entire input. Useful for situations where you need to work with a sequence of characters.
+This mode treats the input as a sequence of characters. Useful for situations where you need to work with a sequence of characters.
 
 Note: Unlike `cut`, this respects visible characters, rather than byte counts.
 
@@ -385,13 +385,13 @@ The placeholder accepts both string values and hex values (with `0x` or `0X` pre
 A join string is added here for clarity:
 
 ```sh
-echo "boo hoo foo" | splitby -j ":" " " 1 4 2 # Out of range value gets skipped
+echo "boo hoo foo" | splitby " " -j ":" 1 4 2 # Out of range value gets skipped
 > boo:hoo
-echo "boo hoo foo" | splitby -j ":" --placeholder="?" " " 1 4 2
+echo "boo hoo foo" | splitby " " -j ":" --placeholder="?" 1 4 2
 > boo:?:hoo
-echo "boo hoo foo" | splitby -j "," --placeholder="" " " 1 4 2
+echo "boo hoo foo" | splitby " " -j "," --placeholder="" 1 4 2
 > boo,,hoo # empty string placeholder
-echo "boo hoo foo" | splitby -j "," --placeholder="0x2C20" " " 1 4 2
+echo "boo hoo foo" | splitby " " -j "," --placeholder="0x2C20" 1 4 2
 > boo,, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
 ```
 
