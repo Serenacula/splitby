@@ -25,7 +25,7 @@ Or install from [releases](https://github.com/Serenacula/splitby/releases)
 ## Usage
 
 ```sh
-splitby <delimiter> [options] [selections]
+splitby <delimiter> [selections] [options]
 ```
 
 Selections are 1-based indexes or ranges. Negative indexes count from the end.

@@ -1,5 +1,5 @@
 pub fn print_help() {
-    println!("Usage: splitby [options] <delimiter> <selections>");
+    println!("Usage: splitby <delimiter> <selections> [options]");
     println!("Options:");
     println!("  -h, --help        Print help text");
     println!("  -v, --version     Print version number");
@@ -27,13 +27,11 @@ pub fn print_help() {
         "  -E, --no-skip-empty-fields      Does not skip empty fields when indexing or counting"
     );
     println!("  -l, --skip-empty-lines          Suppresses output records whose result is empty");
+    println!("  -L, --no-skip-empty-lines       Does not suppress empty output records");
     println!(
-        "  -L, --no-skip-empty-lines       Does not suppress empty output records"
+        "  -s, --skip-undelimited          Skips records with no delimiter (fields mode only)"
     );
-    println!("  -s, --skip-undelimited          Skips records with no delimiter (fields mode only)");
-    println!(
-        "  -S, --no-skip-undelimited       Does not skip undelimited records"
-    );
+    println!("  -S, --no-skip-undelimited       Does not skip undelimited records");
     println!("  --strict                        Shorthand for all strict features");
     println!("  --no-strict                     Disables all strict features");
     println!("  --strict-bounds                 Emit error if range is out of bounds");
