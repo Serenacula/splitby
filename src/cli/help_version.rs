@@ -26,6 +26,14 @@ pub fn print_help() {
     println!(
         "  -E, --no-skip-empty-fields      Does not skip empty fields when indexing or counting"
     );
+    println!("  -l, --skip-empty-lines          Suppresses output records whose result is empty");
+    println!(
+        "  -L, --no-skip-empty-lines       Does not suppress empty output records"
+    );
+    println!("  -s, --skip-undelimited          Skips records with no delimiter (fields mode only)");
+    println!(
+        "  -S, --no-skip-undelimited       Does not skip undelimited records"
+    );
     println!("  --strict                        Shorthand for all strict features");
     println!("  --no-strict                     Does not enforce strict features");
     println!("  --strict-bounds                 Emit error if range is out of bounds");
