@@ -910,16 +910,6 @@ mod join_and_trim {
     }
 
     #[test]
-    fn join_space_multiple_selections() {
-        run_success_test(
-            "Join with space (multiple selections)",
-            b"apple,banana,cherry\n",
-            &["-d", ",", "--join=space", "1", "2", "3"],
-            b"apple banana cherry\n",
-        );
-    }
-
-    #[test]
     fn join_first_with_placeholder() {
         run_success_test(
             "Join with first (with placeholder out-of-bounds)",
@@ -1329,6 +1319,25 @@ mod strictness {
     }
 
     #[test]
+    fn strict_bounds_valid_negative_index() {
+        run_success_test(
+            "Strict bounds: valid negative index (-1 = last field)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--strict-bounds", "-1"],
+            b"cherry\n",
+        );
+    }
+
+    #[test]
+    fn strict_bounds_out_of_range_negative_index() {
+        run_error_test(
+            "Strict bounds: out-of-range negative index (-10 on 3-field input)",
+            b"apple,banana,cherry\n",
+            &["-d", ",", "--strict-bounds", "-10"],
+        );
+    }
+
+    #[test]
     fn strict_return_feature() {
         run_error_test(
             "Strict return feature",
@@ -1367,6 +1376,8 @@ mod strictness {
 
     #[test]
     fn start_after_end_no_strict_range_order() {
+        // A reversed range (2-1) with strict-range-order disabled is silently skipped,
+        // producing no fields — just the terminator.
         run_success_test(
             "Start after end (no strict range order)",
             b"this is a test\n",
@@ -1457,6 +1468,27 @@ mod strictness {
             b"a b\n",
             &["--strict", "--no-strict", "-d", " ", "5"],
             b"\n",
+        );
+    }
+
+    #[test]
+    fn strict_return_and_strict_bounds_compose() {
+        run_success_test(
+            "Strict return + strict bounds: both active, valid in-bounds non-empty field",
+            b"apple,banana\n",
+            &["-d", ",", "--strict-return", "--strict-bounds", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn strict_return_fires_when_strict_bounds_passes() {
+        // Selection 2 is in bounds (3 fields), so strict-bounds does not fire.
+        // Field 2 is empty, so strict-return fires.
+        run_error_test(
+            "Strict return + strict bounds: strict-return fires on empty in-bounds field",
+            b"a,,c\n",
+            &["-d", ",", "--strict-return", "--strict-bounds", "2"],
         );
     }
 }
@@ -1963,6 +1995,16 @@ mod zero_terminated_mode {
             b"a,b\0c,d\0",
             &["-z", "-d", ",", "2"],
             b"b\0d\0",
+        );
+    }
+
+    #[test]
+    fn zero_terminated_with_join() {
+        run_success_test(
+            "Zero-terminated: join applies within each record, null bytes preserved",
+            b"a,b\0c,d\0",
+            &["-z", "-d", ",", "--join=|", "1", "2"],
+            b"a|b\0c|d\0",
         );
     }
 }
@@ -2932,6 +2974,17 @@ mod align {
             expected.as_bytes(),
         );
     }
+
+    #[test]
+    fn align_right_pads_last_field() {
+        // Unlike left-align, right-align pads all fields including the last column.
+        run_success_test(
+            "Align: right pads last field (unlike left which skips it)",
+            b"apple,banana,cherry\na,bb,ccc\n",
+            &["-d", ",", "--align=right", "1", "2", "3"],
+            b"apple,banana,cherry\n    a,    bb,   ccc\n",
+        );
+    }
 }
 
 mod consuming_flags {
@@ -3048,23 +3101,21 @@ mod flag_syntax {
 
     #[test]
     fn equals_syntax_align_right() {
-        // Note: align=right currently behaves like left (feature not fully implemented)
         run_success_test(
             "Equals syntax: --align=right",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align=right", "1", "2"],
-            b"apple,banana\n    a,    bb\n", // Current behavior matches left
+            b"apple,banana\n    a,    bb\n",
         );
     }
 
     #[test]
     fn equals_syntax_align_squash() {
-        // Note: align=squash currently behaves like left (feature not fully implemented)
         run_success_test(
             "Equals syntax: --align=squash",
             b"apple,banana\na,bb\n",
             &["-d", ",", "--align=squash", "1", "2"],
-            b"apple,banana\na,    bb\n", // Current behavior matches left
+            b"apple,banana\na,    bb\n",
         );
     }
 
@@ -3504,5 +3555,47 @@ mod config_file {
         assert_eq!(output.stdout, b"apple\n");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(stderr.contains("warning"), "expected a warning on stderr, got: {stderr}");
+    }
+
+    #[test]
+    fn config_unknown_key_silently_ignored() {
+        let config_dir = make_config_dir("config_unknown_key");
+        fs::write(
+            config_dir.join("splitby").join("config.json"),
+            r#"{"unknown-key": true, "invert": true}"#,
+        )
+        .expect("failed to write config file");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(["-d", ",", "2"]);
+        command.write_stdin(b"apple,banana,cherry\n");
+
+        let output = command.output().expect("failed to run");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success(), "unknown config key should not abort: {stderr}");
+        assert_eq!(output.stdout, b"apple,cherry\n", "invert should apply");
+        assert!(stderr.is_empty(), "unknown config key should produce no warning, got: {stderr}");
+    }
+
+    #[test]
+    fn config_invalid_field_value_warns_and_continues() {
+        let config_dir = make_config_dir("config_invalid_field_value");
+        fs::write(
+            config_dir.join("splitby").join("config.json"),
+            r#"{"align": "not-a-mode"}"#,
+        )
+        .expect("failed to write config file");
+
+        let mut command = Command::new(assert_cmd::cargo::cargo_bin!("splitby"));
+        command.env("XDG_CONFIG_HOME", &config_dir);
+        command.args(["-d", ",", "1", "2"]);
+        command.write_stdin(b"apple,banana\n");
+
+        let output = command.output().expect("failed to run");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success(), "invalid config value should not abort: {stderr}");
+        assert_eq!(output.stdout, b"apple,banana\n", "output should be unaligned");
+        assert!(stderr.contains("warning"), "expected a warning for invalid align value, got: {stderr}");
     }
 }
