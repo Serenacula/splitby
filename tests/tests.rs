@@ -1519,6 +1519,110 @@ mod skip_empty {
     }
 }
 
+mod skip_empty_lines {
+    use super::*;
+
+    #[test]
+    fn skips_empty_line_in_middle() {
+        run_success_test(
+            "Skip-empty-lines: empty line in middle is dropped",
+            b"apple\n\norange\n",
+            &["-l", "-d", ",", "1"],
+            b"apple\norange\n",
+        );
+    }
+
+    #[test]
+    fn skips_empty_line_at_start() {
+        run_success_test(
+            "Skip-empty-lines: empty line at start is dropped",
+            b"\napple\n",
+            &["-l", "-d", ",", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn skips_empty_line_at_end() {
+        run_success_test(
+            "Skip-empty-lines: empty line at end is dropped",
+            b"apple\n\n",
+            &["-l", "-d", ",", "1"],
+            b"apple\n",
+        );
+    }
+
+    #[test]
+    fn skips_multiple_consecutive_empty_lines() {
+        run_success_test(
+            "Skip-empty-lines: multiple consecutive empty lines are all dropped",
+            b"apple\n\n\n\norange\n",
+            &["-l", "-d", ",", "1"],
+            b"apple\norange\n",
+        );
+    }
+
+    #[test]
+    fn does_not_skip_blank_lines() {
+        run_success_test(
+            "Skip-empty-lines: line with only spaces is not skipped",
+            b"apple\n   \norange\n",
+            &["-l", "-d", ",", "1"],
+            b"apple\n   \norange\n",
+        );
+    }
+
+    #[test]
+    fn count_excludes_empty_lines() {
+        run_success_test(
+            "Skip-empty-lines: --count does not count skipped lines",
+            b"a,b\n\nc,d\n",
+            &["-l", "-d", ",", "--count"],
+            b"2\n2\n",
+        );
+    }
+
+    #[test]
+    fn no_skip_empty_lines_overrides_skip_empty_lines() {
+        run_success_test(
+            "No-skip-empty-lines overrides skip-empty-lines",
+            b"apple\n\norange\n",
+            &["-l", "-L", "-d", ",", "1"],
+            b"apple\n\norange\n",
+        );
+    }
+
+    #[test]
+    fn skip_empty_lines_overrides_no_skip_empty_lines() {
+        run_success_test(
+            "Skip-empty-lines overrides no-skip-empty-lines",
+            b"apple\n\norange\n",
+            &["-L", "-l", "-d", ",", "1"],
+            b"apple\norange\n",
+        );
+    }
+
+    #[test]
+    fn long_form_works() {
+        run_success_test(
+            "Skip-empty-lines: long form flag works",
+            b"apple\n\norange\n",
+            &["--skip-empty-lines", "-d", ",", "1"],
+            b"apple\norange\n",
+        );
+    }
+
+    #[test]
+    fn long_form_disable_works() {
+        run_success_test(
+            "Skip-empty-lines: long form disable flag works",
+            b"apple\n\norange\n",
+            &["--skip-empty-lines", "--no-skip-empty-lines", "-d", ",", "1"],
+            b"apple\n\norange\n",
+        );
+    }
+}
+
 mod invalid_input {
     use super::*;
 

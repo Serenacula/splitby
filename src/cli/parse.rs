@@ -210,6 +210,14 @@ pub fn parse_flags(
             raw_instructions.skip_empty = false;
             return Ok(ParseResult::FlagParsed);
         }
+        "--skip-empty-lines" | "-l" => {
+            raw_instructions.skip_empty_lines = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-skip-empty-lines" | "-L" => {
+            raw_instructions.skip_empty_lines = false;
+            return Ok(ParseResult::FlagParsed);
+        }
         "--count" => {
             raw_instructions.count = true;
             return Ok(ParseResult::FlagParsed);

@@ -56,6 +56,7 @@ pub struct Config {
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
     pub skip_empty: bool,
+    pub skip_empty_lines: bool,
     pub regex_engine: Option<RegexEngine>,
     pub join: Option<JoinMode>,
     pub placeholder: Option<Vec<u8>>,

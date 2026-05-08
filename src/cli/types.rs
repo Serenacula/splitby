@@ -23,6 +23,7 @@ pub struct CLIArguments {
     pub count: bool,
     pub invert: bool,
     pub skip_empty: bool,
+    pub skip_empty_lines: bool,
     pub strict_utf8: bool,
     pub strict_return: bool,
     pub strict_bounds: bool,

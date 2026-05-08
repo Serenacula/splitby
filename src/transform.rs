@@ -30,6 +30,10 @@ pub fn process_records(
         let mut batch_outputs: Vec<OutputRecord> = Vec::with_capacity(record_batch.len());
 
         for record in record_batch {
+            if config.skip_empty_lines && record.bytes.is_empty() {
+                continue;
+            }
+
             let record_index = record.index;
             let has_terminator = record.has_terminator;
 

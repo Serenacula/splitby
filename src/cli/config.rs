@@ -11,6 +11,7 @@ const DEFAULT_CONFIG: &str = include_str!("default_config.json");
 pub struct FileConfig {
     pub align: Option<String>,
     pub skip_empty: Option<bool>,
+    pub skip_empty_lines: Option<bool>,
     pub invert: Option<bool>,
     pub strict_bounds: Option<bool>,
     pub strict_return: Option<bool>,
@@ -67,6 +68,9 @@ pub fn apply_file_config(file_config: &FileConfig, cli_arguments: &mut CLIArgume
     }
     if let Some(skip_empty) = file_config.skip_empty {
         cli_arguments.skip_empty = skip_empty;
+    }
+    if let Some(skip_empty_lines) = file_config.skip_empty_lines {
+        cli_arguments.skip_empty_lines = skip_empty_lines;
     }
     if let Some(invert) = file_config.invert {
         cli_arguments.invert = invert;
