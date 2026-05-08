@@ -3,6 +3,16 @@ use crate::{
     types::{Align, InputMode, SelectionMode},
 };
 
+pub fn validate_skip_undelimited(
+    skip_undelimited: bool,
+    selection_mode: SelectionMode,
+) -> Result<(), String> {
+    if skip_undelimited && selection_mode != SelectionMode::Fields {
+        return Err("--skip-undelimited is only supported in fields mode".to_string());
+    }
+    Ok(())
+}
+
 pub fn validate_align(
     align: Align,
     input_mode: InputMode,
