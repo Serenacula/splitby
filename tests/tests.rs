@@ -1573,12 +1573,24 @@ mod skip_empty_lines {
     }
 
     #[test]
-    fn count_excludes_empty_lines() {
+    fn count_on_empty_line_is_not_suppressed() {
+        // --skip-empty-lines checks the final output bytes. --count transforms an empty line into
+        // a count string (e.g. "1"), which is non-empty, so the line is not suppressed.
         run_success_test(
-            "Skip-empty-lines: --count does not count skipped lines",
+            "Skip-empty-lines: --count output is non-empty so empty lines are not suppressed",
             b"a,b\n\nc,d\n",
             &["-l", "-d", ",", "--count"],
-            b"2\n2\n",
+            b"2\n1\n2\n",
+        );
+    }
+
+    #[test]
+    fn skip_empty_fields_then_empty_line_is_skipped() {
+        run_success_test(
+            "Skip-empty-lines: line that becomes empty after --skip-empty-fields is suppressed",
+            b"a,b\n,,\nc,d\n",
+            &["-l", "-e", "-d", ",", "1"],
+            b"a\nc\n",
         );
     }
 
@@ -1619,6 +1631,121 @@ mod skip_empty_lines {
             b"apple\n\norange\n",
             &["--skip-empty-lines", "--no-skip-empty-lines", "-d", ",", "1"],
             b"apple\n\norange\n",
+        );
+    }
+}
+
+mod skip_undelimited {
+    use super::*;
+
+    #[test]
+    fn skips_line_without_delimiter() {
+        run_success_test(
+            "Skip-undelimited: line with no delimiter is dropped",
+            b"apple\nfoo,bar\norange\n",
+            &["-s", "-d", ",", "1"],
+            b"foo\n",
+        );
+    }
+
+    #[test]
+    fn keeps_line_with_delimiter() {
+        run_success_test(
+            "Skip-undelimited: line with delimiter is kept",
+            b"foo,bar\n",
+            &["-s", "-d", ",", "1"],
+            b"foo\n",
+        );
+    }
+
+    #[test]
+    fn delimiter_only_line_is_not_skipped() {
+        run_success_test(
+            "Skip-undelimited: line that is only a delimiter is not skipped",
+            b",\n",
+            &["-s", "-d", ",", "1"],
+            b"\n",
+        );
+    }
+
+    #[test]
+    fn with_skip_empty_fields_all_empty_line_not_skipped() {
+        // The record ",," has a delimiter, so skip-undelimited does not fire.
+        // skip-empty removes all fields, leaving empty output.
+        run_success_test(
+            "Skip-undelimited: delimited record with all-empty fields produces empty output",
+            b",,\n",
+            &["-s", "-e", "-d", ","],
+            b"\n",
+        );
+    }
+
+    #[test]
+    fn with_skip_empty_lines_catches_emptied_record() {
+        // skip-undelimited does not skip ",,"; skip-empty-lines then catches the empty output.
+        run_success_test(
+            "Skip-undelimited + skip-empty-lines: empty output after skip-empty is suppressed",
+            b"a,b\n,,\nc,d\n",
+            &["-s", "-e", "-l", "-d", ",", "1"],
+            b"a\nc\n",
+        );
+    }
+
+    #[test]
+    fn no_skip_undelimited_overrides_skip_undelimited() {
+        run_success_test(
+            "No-skip-undelimited overrides skip-undelimited",
+            b"apple\nfoo,bar\n",
+            &["-s", "-S", "-d", ",", "1"],
+            b"apple\nfoo\n",
+        );
+    }
+
+    #[test]
+    fn skip_undelimited_overrides_no_skip_undelimited() {
+        run_success_test(
+            "Skip-undelimited overrides no-skip-undelimited",
+            b"apple\nfoo,bar\n",
+            &["-S", "-s", "-d", ",", "1"],
+            b"foo\n",
+        );
+    }
+
+    #[test]
+    fn long_form_works() {
+        run_success_test(
+            "Skip-undelimited: long form flag works",
+            b"apple\nfoo,bar\n",
+            &["--skip-undelimited", "-d", ",", "1"],
+            b"foo\n",
+        );
+    }
+
+    #[test]
+    fn long_form_disable_works() {
+        run_success_test(
+            "Skip-undelimited: long form disable flag works",
+            b"apple\nfoo,bar\n",
+            &["--skip-undelimited", "--no-skip-undelimited", "-d", ",", "1"],
+            b"apple\nfoo\n",
+        );
+    }
+
+    #[test]
+    fn error_in_bytes_mode() {
+        run_error_test(
+            "Skip-undelimited: error in bytes mode",
+            b"hello\n",
+            &["--bytes", "--skip-undelimited", "1"],
+        );
+    }
+
+    #[test]
+    fn error_in_chars_mode() {
+        run_error_test(
+            "Skip-undelimited: error in chars mode",
+            b"hello\n",
+            &["--characters", "--skip-undelimited", "1"],
         );
     }
 }

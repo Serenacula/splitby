@@ -38,6 +38,7 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         invert: false,
         skip_empty: false,
         skip_empty_lines: false,
+        skip_undelimited: false,
         strict_utf8: false,
         strict_return: false,
         strict_bounds: false,
@@ -164,6 +165,8 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         cli_arguments.selection_mode,
     )
     .map_err(|e| e.to_string())?;
+    validate_skip_undelimited(cli_arguments.skip_undelimited, cli_arguments.selection_mode)
+        .map_err(|e| e.to_string())?;
     if consuming.align {
         cli_arguments.align = Align::Left;
     }
@@ -215,6 +218,7 @@ pub fn get_instructions() -> Result<Option<Config>, String> {
         invert: cli_arguments.invert,
         skip_empty: cli_arguments.skip_empty,
         skip_empty_lines: cli_arguments.skip_empty_lines,
+        skip_undelimited: cli_arguments.skip_undelimited,
         regex_engine,
         join,
         placeholder,

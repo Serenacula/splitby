@@ -12,6 +12,7 @@ pub struct FileConfig {
     pub align: Option<String>,
     pub skip_empty: Option<bool>,
     pub skip_empty_lines: Option<bool>,
+    pub skip_undelimited: Option<bool>,
     pub invert: Option<bool>,
     pub strict_bounds: Option<bool>,
     pub strict_return: Option<bool>,
@@ -71,6 +72,9 @@ pub fn apply_file_config(file_config: &FileConfig, cli_arguments: &mut CLIArgume
     }
     if let Some(skip_empty_lines) = file_config.skip_empty_lines {
         cli_arguments.skip_empty_lines = skip_empty_lines;
+    }
+    if let Some(skip_undelimited) = file_config.skip_undelimited {
+        cli_arguments.skip_undelimited = skip_undelimited;
     }
     if let Some(invert) = file_config.invert {
         cli_arguments.invert = invert;

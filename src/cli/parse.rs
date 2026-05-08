@@ -218,6 +218,14 @@ pub fn parse_flags(
             raw_instructions.skip_empty_lines = false;
             return Ok(ParseResult::FlagParsed);
         }
+        "--skip-undelimited" | "-s" => {
+            raw_instructions.skip_undelimited = true;
+            return Ok(ParseResult::FlagParsed);
+        }
+        "--no-skip-undelimited" | "-S" => {
+            raw_instructions.skip_undelimited = false;
+            return Ok(ParseResult::FlagParsed);
+        }
         "--count" => {
             raw_instructions.count = true;
             return Ok(ParseResult::FlagParsed);
