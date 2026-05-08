@@ -18,6 +18,7 @@ Align optionally accepts several different modes:
 - `left`: The default, delimiters are aligned and fields at the left of their column.
 - `right`: Delimiters are aligned and fields at the right of their column.
 - `squash`: Padding is placed after the delimiter, so the first letter of each field is aligned.
+- `none`: Disables alignment (useful for overriding a default set in a config or alias).
 
 ## Examples
 
@@ -40,7 +41,7 @@ echo "apple|banana|cherry\na|b|c" | splitby "|" --align=right 1 2
 ### Squash
 
 ```sh
-echo "apple,banana,cherry\na,b,c" | splitby -d "," --align=squash 1 2
+echo "apple,banana,cherry\na,b,c" | splitby "," --align=squash 1 2
 # apple,banana
 # a,    b
 ```

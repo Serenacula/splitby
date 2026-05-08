@@ -7,6 +7,7 @@ description: Treat the entire input as a single record.
 
 ```sh
 splitby -w [selection...]
+splitby --whole-string [selection...]
 ```
 
 ## What it does
@@ -16,7 +17,7 @@ Processes the full input as one record, which is useful when your delimiter is a
 ## Examples
 
 ```sh
-printf "a\nb\nc\n" | splitby -w -d "\n" 2
+printf "a\nb\nc\n" | splitby "\n" -w 2
 # b
 ```
 

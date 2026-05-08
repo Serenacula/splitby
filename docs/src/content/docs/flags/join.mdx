@@ -15,7 +15,7 @@ By default, splitby tries to preserve the original delimiter between selections 
 
 Because delimiters can be regex, sometimes there are multiple delimiters in a record. Join also accepts a number of special keywords to help you choose which you want.
 
-- `auto`: Apply the default behaviour of trying `after-previous`, then trying `before-next` then falling back to a space.
+- `auto`: Apply the default behaviour of trying `after-previous`, then trying `before-next`, then falling back to the first delimiter in the record, then a space.
 - `first`: Use the first delimiter in the record
 - `last`: Use the last delimiter in the record
 - `after-previous`: Use the delimiter after the previously printed field
@@ -45,14 +45,14 @@ Use special keywords:
 
 #### `auto` (default behavior)
 
-Tries to preserve original delimiters, falling back to space when no delimiter is available:
+Tries to preserve original delimiters, falling back to the first delimiter in the record, then a space:
 
 ```sh
 # When delimiters exist between selections, preserves them
 echo "apple,banana,cherry" | splitby "," --join auto 1 3
 # apple,cherry
 
-# Falls back to space when no delimiter is available
+# Falls back to first delimiter in record, then space if none exist
 echo "apple" | splitby "," --join auto 1 1
 # apple apple
 ```
@@ -91,7 +91,7 @@ echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join after-previous 1 3 1
 Uses the delimiter that immediately precedes the next selected field:
 
 ```sh
-# Uses the comma before "cherry" (field 3)
+# ':' precedes field 4; ',' precedes field 2
 echo "apple,banana;cherry:date" | splitby "/[,;:]/" --join before-next 1 4 2
 # apple:date,banana
 ```
@@ -117,4 +117,4 @@ echo "apple,banana,cherry" | splitby "," --join space 1 3
 
 ## Gotchas
 
-- `after-previous` and `before-next` fallback to a space, if there is no delimiter available. I might change this depending on feedback.
+- `after-previous` and `before-next` fallback to a space if there is no delimiter available.

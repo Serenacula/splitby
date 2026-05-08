@@ -18,6 +18,7 @@ This flag is only useful when changing the default behaviour or using aliases.
 ## Examples
 
 ```sh
-echo "a,b,c" | splitby "," --characters --fields 2
+# Useful for overriding a default set in a config or alias
+echo "a,b,c" | splitby "," --fields 2
 # b
 ```

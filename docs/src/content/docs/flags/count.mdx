@@ -22,7 +22,7 @@ The count is performed per record, so by default it will count for each line. If
 ## Examples
 
 ```sh
-echo "a,b,c\napple,banana" | splitby "," --count
+printf "a,b,c\napple,banana\n" | splitby "," --count
 # 3
 # 2
 ```
@@ -33,7 +33,7 @@ echo "café" | splitby -c --count
 ```
 
 ```sh
-echo "a,b,c\napple,banana" | splitby "," --whole-string --count
+printf "a,b,c\napple,banana\n" | splitby "," --whole-string --count
 # 4
 ```
 

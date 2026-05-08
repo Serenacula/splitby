@@ -19,14 +19,14 @@ Normally, invalid selections are skipped. With `--placeholder`, splitby inserts 
 ## Examples
 
 ```sh
-echo "a,b" | splitby -d "," --placeholder="N/A" 1 4 2
+echo "a,b" | splitby "," --placeholder="N/A" 1 4 2
 # a,N/A,b
 ```
 
 Using a hex byte:
 
 ```sh
-echo "a,b" | splitby -d "," --placeholder=0x00 1 4 2
+echo "a,b" | splitby "," --placeholder=0x00 1 4 2
 ```
 
 ## Gotchas
