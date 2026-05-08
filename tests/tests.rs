@@ -1069,7 +1069,7 @@ mod count_and_invert {
             "Using --count with extra newline",
             b"this\nis\na\ntest\n\n",
             &["-d", "/\\n/", "--count"],
-            b"1\n1\n1\n1\n1\n",
+            b"1\n1\n1\n1\n0\n",
         );
     }
 
@@ -1573,14 +1573,22 @@ mod skip_empty_lines {
     }
 
     #[test]
-    fn count_on_empty_line_is_not_suppressed() {
-        // --skip-empty-lines checks the final output bytes. --count transforms an empty line into
-        // a count string (e.g. "1"), which is non-empty, so the line is not suppressed.
+    fn count_on_empty_line_returns_zero() {
         run_success_test(
-            "Skip-empty-lines: --count output is non-empty so empty lines are not suppressed",
+            "Skip-empty-lines: --count on empty line returns 0, not 1",
+            b"a,b\n\nc,d\n",
+            &["-d", ",", "--count"],
+            b"2\n0\n2\n",
+        );
+    }
+
+    #[test]
+    fn count_on_empty_line_with_skip_is_suppressed() {
+        run_success_test(
+            "Skip-empty-lines: empty line is suppressed even with --count",
             b"a,b\n\nc,d\n",
             &["-l", "-d", ",", "--count"],
-            b"2\n1\n2\n",
+            b"2\n2\n",
         );
     }
 
@@ -1591,6 +1599,26 @@ mod skip_empty_lines {
             b"a,b\n,,\nc,d\n",
             &["-l", "-e", "-d", ",", "1"],
             b"a\nc\n",
+        );
+    }
+
+    #[test]
+    fn skip_empty_fields_with_count_and_skip_lines_is_suppressed() {
+        run_success_test(
+            "Skip-empty-lines: all-empty-fields line suppressed by -l even with --count",
+            b"a,b\n,,\nc,d\n",
+            &["-l", "-e", "-d", ",", "--count"],
+            b"2\n2\n",
+        );
+    }
+
+    #[test]
+    fn skip_empty_fields_with_count_no_skip_lines_emits_zero() {
+        run_success_test(
+            "Skip-empty-lines not set: all-empty-fields line emits 0 with --count",
+            b"a,b\n,,\nc,d\n",
+            &["-e", "-d", ",", "--count"],
+            b"2\n0\n2\n",
         );
     }
 

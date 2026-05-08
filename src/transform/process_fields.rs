@@ -9,6 +9,13 @@ pub fn process_fields(
     engine: &RegexEngine,
     record: Record,
 ) -> Result<Option<Vec<u8>>, String> {
+    // An empty record has no content. --count would normally return 1 (one empty field
+    // artifact), but 0 is more accurate. --skip-empty-lines suppresses it entirely.
+    if record.bytes.is_empty() {
+        if config.skip_empty_lines { return Ok(None); }
+        if config.count { return Ok(Some(b"0".to_vec())); }
+    }
+
     let text: Cow<str> =
         match bytes_to_cow_string(&record.bytes, config.strict_utf8) {
             Ok(string) => string,
@@ -69,6 +76,11 @@ pub fn process_fields(
             .into_iter()
             .filter(|field| !field.text.is_empty())
             .collect();
+    }
+
+    // --skip-empty-fields may have removed all fields, leaving nothing to output or count.
+    if config.skip_empty_lines && fields.is_empty() {
+        return Ok(None);
     }
 
     if config.count {
