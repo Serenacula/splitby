@@ -1,0 +1,64 @@
+---
+title: Terminator
+description: Replace the record terminator in the output.
+---
+
+## Syntax
+
+```sh
+splitby -t "<VALUE>" [selection...]
+splitby --terminator="<VALUE>" [selection...]
+```
+
+The value can be a string or hex bytes like `0x0a`.
+
+## What it does
+
+Replaces the record terminator written after each output record.
+
+- In per-line mode, the default terminator is `\n`. Use `--terminator` to replace it with any string.
+- In zero-terminated mode, the default terminator is `\0`.
+- In whole-string mode, splitby appends the value once after the output, replacing the default trailing newline.
+
+The terminator is only appended when the original record had one — a final line without a trailing newline stays unterminated.
+
+## Examples
+
+Use a custom separator between records:
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator="|" 1
+# a|c|
+```
+
+Concatenate all records with no separator:
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator="" 1
+# ac
+```
+
+Use a hex value for a non-printable character:
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator=0x00 1
+```
+
+Use CRLF line endings:
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator=0x0d0a 1
+```
+
+Whole-string mode with a custom trailing sequence:
+
+```sh
+printf "a b c" | splitby -w " " --terminator="!" 1-3
+# a b c!
+```
+
+## Gotchas
+
+- An empty terminator (`--terminator=""`) concatenates all records with no separator between them.
+- In per-line and zero-terminated modes, the terminator is only added when the original record had one — a final line without a trailing newline will not get one appended.
+- Multi-byte terminators are supported: `0x0d0a` for CRLF, for example.

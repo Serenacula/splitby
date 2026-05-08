@@ -151,6 +151,7 @@ cat file.txt | getword 1
 | `-d, --delimiter=<REGEX>`     |                           | Specify the delimiter to use                                             |               |
 | `-j, --join=<STRING\|HEX>`    |                           | Join each selection with a given string                                  |               |
 | `-p, --placeholder=<STRING\|HEX>` |                       | Inserts placeholder for invalid selections                               |               |
+| `-t, --terminator=<STRING\|HEX>` |                        | Replace the output record terminator                                     |               |
 | `--per-line`                  |                           | Processes the input line by line (default)                               | Enabled       |
 | `-w, --whole-string`          |                           | Processes the input as a single string, rather than each line separately |               |
 | `-z, --zero-terminated`       |                           | Processes the input as zero-terminated strings                           |               |
@@ -161,6 +162,8 @@ cat file.txt | getword 1
 | `--count`                     |                           | Return the number of results after splitting                             |               |
 | `-i, --invert`                |                           | Inverts the chosen selection                                             |               |
 | `-e, --skip-empty-fields`     | `-E, --no-skip-empty-fields` | Skips empty fields when indexing or counting                          | Disabled      |
+| `-l, --skip-empty-lines`      | `-L, --no-skip-empty-lines`  | Suppresses output records whose result is empty                       | Disabled      |
+| `-s, --skip-undelimited`      | `-S, --no-skip-undelimited`  | Suppresses records with no delimiter (fields mode only)               | Disabled      |
 | `--strict`                    | `--no-strict`             | Shorthand for all strict features                                        |               |
 | `--strict-bounds`             | `--no-strict-bounds`      | Emit error if range is out of bounds                                     | Disabled      |
 | `--strict-return`             | `--no-strict-return`      | Emit error if there is no result                                         | Disabled      |
@@ -310,6 +313,30 @@ echo "boo,,hoo" | splitby , --skip-empty-fields 2
 > hoo
 ```
 
+#### Skip-empty-lines
+
+_-l, --skip-empty-lines_ | _-L, --no-skip-empty-lines_ (default: disabled)
+
+Suppresses output records whose result is empty after processing. Useful when a dataset has blank lines that would otherwise produce empty output.
+
+```sh
+printf "a,b\n\nc,d\n" | splitby "," -l 1
+> a
+> c
+```
+
+#### Skip-undelimited
+
+_-s, --skip-undelimited_ | _-S, --no-skip-undelimited_ (default: disabled)
+
+Suppresses records that contain no delimiter at all. Only available in fields mode.
+
+```sh
+printf "a,b\nno-delimiter\nc,d\n" | splitby "," -s 1
+> a
+> c
+```
+
 ### Transform Options
 
 #### Align
@@ -394,6 +421,28 @@ echo "boo hoo foo" | splitby " " -j "," --placeholder="" 1 4 2
 echo "boo hoo foo" | splitby " " -j "," --placeholder="0x2C20" 1 4 2
 > boo,, ,hoo # hex placeholder (0x2C20 = ", " in UTF-8)
 ```
+
+#### Terminator
+
+_-t \<STRING|HEX\>, --terminator=\<STRING|HEX\>_
+
+Replaces the record terminator written after each output record. In per-line mode the default is `\n`; in zero-terminated mode it is `\0`; in whole-string mode it appends once after the output.
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator="|" 1
+> a|c|
+
+printf "a,b\nc,d\n" | splitby "," --terminator="" 1
+> ac  # empty terminator concatenates records
+```
+
+Accepts hex values for non-printable characters:
+
+```sh
+printf "a,b\nc,d\n" | splitby "," --terminator=0x0d0a 1  # CRLF line endings
+```
+
+The terminator is only appended when the original record had one — a final line without a trailing newline stays unterminated.
 
 ### Count
 

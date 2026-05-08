@@ -1,27 +1,24 @@
 ---
-title: Skip empty
-description: Control whether empty fields count as fields.
+title: Skip flags
+description: Skip empty fields, empty output lines, or undelimited records.
 ---
 
-## Syntax
+## Skip empty fields
+
+### Syntax
 
 ```sh
-splitby --skip-empty [selection...]
-splitby --no-skip-empty [selection...]
+splitby --skip-empty-fields [selection...]
+splitby --no-skip-empty-fields [selection...]
 ```
 
-Short forms:
+Short forms: `-e` / `-E`
 
-```sh
-splitby -e [selection...]
-splitby -E [selection...]
-```
-
-## What it does
+### What it does
 
 When enabled, empty fields are ignored during indexing and counting. This is useful when the delimiter can appear multiple times in a row.
 
-## Examples
+### Examples
 
 ```sh
 echo "a,,b" | splitby "," -e 2
@@ -32,3 +29,58 @@ echo "a,,b" | splitby "," -e 2
 echo "a,,b" | splitby "," -E 2
 # (empty)
 ```
+
+---
+
+## Skip empty lines
+
+### Syntax
+
+```sh
+splitby --skip-empty-lines [selection...]
+splitby --no-skip-empty-lines [selection...]
+```
+
+Short forms: `-l` / `-L`
+
+### What it does
+
+Suppresses output records whose result is empty after processing. Useful when a dataset has blank lines that would otherwise produce empty output.
+
+### Examples
+
+```sh
+printf "a,b\n\nc,d\n" | splitby "," -l 1
+# a
+# c
+```
+
+---
+
+## Skip undelimited
+
+### Syntax
+
+```sh
+splitby --skip-undelimited [selection...]
+splitby --no-skip-undelimited [selection...]
+```
+
+Short forms: `-s` / `-S`
+
+### What it does
+
+Suppresses output for records that contain no delimiter at all. Only supported in fields mode.
+
+### Examples
+
+```sh
+printf "a,b\nno-delimiter\nc,d\n" | splitby "," -s 1
+# a
+# c
+```
+
+## Gotchas
+
+- `--skip-empty-fields` only affects indexing: field 2 of `a,,b` becomes `b` after the empty field is removed.
+- `--skip-undelimited` is only supported in fields mode.
