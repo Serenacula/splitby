@@ -4,7 +4,7 @@
 
 A high-performance Rust command-line tool that splits text by a regex delimiter and returns selected parts of the result. A powerful, multi-threaded alternative to `cut` with regex support.
 
-Full documentation: **[splitby.dev](https://splitby.dev)**
+Full documentation: **[serenacula.github.io/splitby](https://serenacula.github.io/splitby/)**
 
 ## Installation
 
@@ -42,7 +42,7 @@ echo "a:b:c:d" | splitby : first last
 > a
 > d
 
-echo "this,is,a,test" | splitby , --invert 2
+echo "this,is,a,test" | splitby , 2 --invert
 > this,a,test
 
 echo -e "apple,banana,cherry\na,bb,ccc" | splitby , --align

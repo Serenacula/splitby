@@ -25,7 +25,7 @@ Align optionally accepts several different modes:
 ### Left (the default mode)
 
 ```sh
-echo "apple|banana|cherry\na|b|c" | splitby "|" --align 1 2
+echo "apple|banana|cherry\na|b|c" | splitby "|" 1 2 --align
 # apple|banana
 # a    |b
 ```
@@ -33,7 +33,7 @@ echo "apple|banana|cherry\na|b|c" | splitby "|" --align 1 2
 ### Right
 
 ```sh
-echo "apple|banana|cherry\na|b|c" | splitby "|" --align=right 1 2
+echo "apple|banana|cherry\na|b|c" | splitby "|" 1 2 --align=right
 # apple|banana
 #     a|     b
 ```
@@ -41,7 +41,7 @@ echo "apple|banana|cherry\na|b|c" | splitby "|" --align=right 1 2
 ### Squash
 
 ```sh
-echo "apple,banana,cherry\na,b,c" | splitby "," --align=squash 1 2
+echo "apple,banana,cherry\na,b,c" | splitby "," 1 2 --align=squash
 # apple,banana
 # a,    b
 ```
