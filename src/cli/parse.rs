@@ -202,12 +202,12 @@ pub fn parse_flags(
             consuming.align = true;
             return Ok(ParseResult::FlagParsed);
         }
-        "--skip-empty" | "-e" => {
-            raw_instructions.skip_empty = true;
+        "--skip-empty-fields" | "-e" => {
+            raw_instructions.skip_empty_fields = true;
             return Ok(ParseResult::FlagParsed);
         }
-        "--no-skip-empty" | "-E" => {
-            raw_instructions.skip_empty = false;
+        "--no-skip-empty-fields" | "-E" => {
+            raw_instructions.skip_empty_fields = false;
             return Ok(ParseResult::FlagParsed);
         }
         "--skip-empty-lines" | "-l" => {

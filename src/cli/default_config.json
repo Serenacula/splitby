@@ -1,6 +1,6 @@
 {
   "align": "none",
-  "skip-empty": false,
+  "skip-empty-fields": false,
   "invert": false,
   "strict-bounds": false,
   "strict-return": false,

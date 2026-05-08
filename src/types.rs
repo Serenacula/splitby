@@ -55,7 +55,7 @@ pub struct Config {
     pub selection_mode: SelectionMode,
     pub selections: Vec<(i32, i32)>,
     pub invert: bool,
-    pub skip_empty: bool,
+    pub skip_empty_fields: bool,
     pub skip_empty_lines: bool,
     pub skip_undelimited: bool,
     pub regex_engine: Option<RegexEngine>,

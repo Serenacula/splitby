@@ -71,7 +71,7 @@ pub fn process_fields(
         return Ok(None);
     }
 
-    if config.skip_empty {
+    if config.skip_empty_fields {
         fields = fields
             .into_iter()
             .filter(|field| !field.text.is_empty())

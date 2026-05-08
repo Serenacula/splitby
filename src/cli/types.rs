@@ -22,7 +22,7 @@ pub struct CLIArguments {
     pub selection_mode: SelectionMode,
     pub count: bool,
     pub invert: bool,
-    pub skip_empty: bool,
+    pub skip_empty_fields: bool,
     pub skip_empty_lines: bool,
     pub skip_undelimited: bool,
     pub strict_utf8: bool,

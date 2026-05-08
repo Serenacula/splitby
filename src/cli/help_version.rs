@@ -21,9 +21,9 @@ pub fn print_help() {
     println!("  -a, --align=<MODE>              Align output (left|right|squash|none)");
     println!("  --count                         Return the number of results after splitting");
     println!("  -i, --invert                    Inverts the chosen selection");
-    println!("  -e, --skip-empty                Skips empty fields when indexing or counting");
+    println!("  -e, --skip-empty-fields         Skips empty fields when indexing or counting");
     println!(
-        "  -E, --no-skip-empty             Does not skip empty fields when indexing or counting"
+        "  -E, --no-skip-empty-fields      Does not skip empty fields when indexing or counting"
     );
     println!("  --strict                        Shorthand for all strict features");
     println!("  --no-strict                     Does not enforce strict features");

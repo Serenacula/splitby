@@ -69,7 +69,7 @@ pub fn get_largest_field_widths(
             });
         }
 
-        if config.skip_empty {
+        if config.skip_empty_fields {
             fields = fields
                 .into_iter()
                 .filter(|field| !field.text.is_empty())

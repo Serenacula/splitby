@@ -160,7 +160,7 @@ cat file.txt | getword 1
 | `-a, --align[=MODE]`          |                           | Align fields to consistent column widths; mode defaults to `left` (`left`, `right`, `squash`, `none`) | Disabled      |
 | `--count`                     |                           | Return the number of results after splitting                             |               |
 | `-i, --invert`                |                           | Inverts the chosen selection                                             |               |
-| `-e, --skip-empty`            | `-E, --no-skip-empty`     | Skips empty fields when indexing or counting                             | Disabled      |
+| `-e, --skip-empty-fields`     | `-E, --no-skip-empty-fields` | Skips empty fields when indexing or counting                          | Disabled      |
 | `--strict`                    | `--no-strict`             | Shorthand for all strict features                                        |               |
 | `--strict-bounds`             | `--no-strict-bounds`      | Emit error if range is out of bounds                                     | Disabled      |
 | `--strict-return`             | `--no-strict-return`      | Emit error if there is no result                                         | Disabled      |
@@ -295,18 +295,18 @@ echo "this is a test" | splitby " " --invert 2
 > this a test
 ```
 
-#### Skip-empty
+#### Skip-empty-fields
 
-_-e, --skip-empty_ | _-E, --no-skip-empty_ (default: disabled)
+_-e, --skip-empty-fields_ | _-E, --no-skip-empty-fields_ (default: disabled)
 
-By default the tool does not skip empty values. `--skip-empty` tells it to ignore empty fields when counting and indexing.
+By default the tool does not skip empty values. `--skip-empty-fields` tells it to ignore empty fields when counting and indexing.
 
 With indexes:
 
 ```sh
 echo "boo,,hoo" | splitby , 2
 >
-echo "boo,,hoo" | splitby , --skip-empty 2
+echo "boo,,hoo" | splitby , --skip-empty-fields 2
 > hoo
 ```
 
@@ -406,14 +406,14 @@ echo "this;is;a;test" | splitby ";" --count
 > 4
 ```
 
-As with index selection, empty fields are counted unless you use the `--skip-empty` flag.
+As with index selection, empty fields are counted unless you use the `--skip-empty-fields` flag.
 
 Behaviours that affect selections are ignored, e.g. `--invert`, `--placeholder`
 
 ```sh
 echo "boo;;hoo" | splitby ";" --count
 > 3
-echo "boo;;hoo" | splitby ";" --count --skip-empty
+echo "boo;;hoo" | splitby ";" --count --skip-empty-fields
 > 2
 ```
 
@@ -422,7 +422,7 @@ With count:
 ```sh
 echo "boo,,hoo" | splitby , --count
 > 3
-echo "boo,,hoo" | splitby , --count --skip-empty
+echo "boo,,hoo" | splitby , --count --skip-empty-fields
 > 2
 ```
 
@@ -476,9 +476,9 @@ echo ",boo" | splitby , --strict-return 1
 Similarly, if you skip empty fields:
 
 ```sh
-echo ",," | splitby , --skip-empty
+echo ",," | splitby , --skip-empty-fields
 > # Empty output (all fields are empty)
-echo ",," | splitby , --skip-empty --strict-return
+echo ",," | splitby , --skip-empty-fields --strict-return
 > line 1: strict-return error: empty field
 ```
 

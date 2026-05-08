@@ -1367,7 +1367,7 @@ mod strictness {
     }
 }
 
-mod skip_empty {
+mod skip_empty_fields {
     use super::*;
 
     #[test]
@@ -1375,7 +1375,7 @@ mod skip_empty {
         run_success_test(
             "Starting empty field",
             b",orange\n",
-            &["--skip-empty", "-d", ",", "1"],
+            &["--skip-empty-fields", "-d", ",", "1"],
             b"orange\n",
         );
     }
@@ -1385,7 +1385,7 @@ mod skip_empty {
         run_success_test(
             "Middle field empty",
             b"apple,,orange\n",
-            &["--skip-empty", "-d", ",", "2"],
+            &["--skip-empty-fields", "-d", ",", "2"],
             b"orange\n",
         );
     }
@@ -1395,7 +1395,7 @@ mod skip_empty {
         run_success_test(
             "Final field empty",
             b"orange,\n",
-            &["--skip-empty", "-d", ",", "2"],
+            &["--skip-empty-fields", "-d", ",", "2"],
             b"\n",
         );
     }
@@ -1405,17 +1405,17 @@ mod skip_empty {
         run_success_test(
             "All fields empty",
             b",\n",
-            &["--skip-empty", "-d", ","],
+            &["--skip-empty-fields", "-d", ","],
             b"\n",
         );
     }
 
     #[test]
-    fn skip_empty_collapses_multiple_delimiters() {
+    fn skip_empty_fields_collapses_multiple_delimiters() {
         run_success_test(
-            "Skip-empty collapses multiple consecutive delimiters",
+            "Skip-empty-fields collapses multiple consecutive delimiters",
             b"a  b   c\n",
-            &["-d", " ", "--skip-empty", "1-3"],
+            &["-d", " ", "--skip-empty-fields", "1-3"],
             b"a b c\n",
         );
     }
@@ -1425,7 +1425,7 @@ mod skip_empty {
         run_success_test(
             "Skip with strict bounds works",
             b"orange,\n",
-            &["--skip-empty", "--strict-bounds", "-d", ",", "1"],
+            &["--skip-empty-fields", "--strict-bounds", "-d", ",", "1"],
             b"orange\n",
         );
     }
@@ -1435,7 +1435,7 @@ mod skip_empty {
         run_error_test(
             "Skip with strict bounds fails",
             b"orange,\n",
-            &["--skip-empty", "--strict-bounds", "-d", ",", "2"],
+            &["--skip-empty-fields", "--strict-bounds", "-d", ",", "2"],
         );
     }
 
@@ -1444,7 +1444,7 @@ mod skip_empty {
         run_success_test(
             "Skip with strict return works",
             b"orange,\n",
-            &["--skip-empty", "--strict-return", "-d", ",", "1"],
+            &["--skip-empty-fields", "--strict-return", "-d", ",", "1"],
             b"orange\n",
         );
     }
@@ -1454,7 +1454,7 @@ mod skip_empty {
         run_error_test(
             "Skip with strict return fails",
             b",,\n",
-            &["--skip-empty", "--strict-return", "-d", ",", "1"],
+            &["--skip-empty-fields", "--strict-return", "-d", ",", "1"],
         );
     }
 
@@ -1463,7 +1463,7 @@ mod skip_empty {
         run_success_test(
             "Starting empty field with count",
             b",orange\n",
-            &["--skip-empty", "-d", ",", "--count"],
+            &["--skip-empty-fields", "-d", ",", "--count"],
             b"1\n",
         );
     }
@@ -1473,7 +1473,7 @@ mod skip_empty {
         run_success_test(
             "Middle field empty with count",
             b"apple,,orange\n",
-            &["--skip-empty", "-d", ",", "--count"],
+            &["--skip-empty-fields", "-d", ",", "--count"],
             b"2\n",
         );
     }
@@ -1483,7 +1483,7 @@ mod skip_empty {
         run_success_test(
             "Final field empty with count",
             b"orange,\n",
-            &["--skip-empty", "-d", ",", "--count"],
+            &["--skip-empty-fields", "-d", ",", "--count"],
             b"1\n",
         );
     }
@@ -1493,27 +1493,27 @@ mod skip_empty {
         run_success_test(
             "All fields empty with count",
             b",\n",
-            &["--skip-empty", "-d", ",", "--count"],
+            &["--skip-empty-fields", "-d", ",", "--count"],
             b"0\n",
         );
     }
 
     #[test]
-    fn no_skip_empty_overrides_skip_empty() {
+    fn no_skip_empty_fields_overrides_skip_empty_fields() {
         run_success_test(
-            "No-skip-empty overrides skip-empty",
+            "No-skip-empty-fields overrides skip-empty-fields",
             b"a,,b\n",
-            &["-d", ",", "--count", "--skip-empty", "--no-skip-empty"],
+            &["-d", ",", "--count", "--skip-empty-fields", "--no-skip-empty-fields"],
             b"3\n",
         );
     }
 
     #[test]
-    fn skip_empty_overrides_no_skip_empty() {
+    fn skip_empty_fields_overrides_no_skip_empty_fields() {
         run_success_test(
-            "Skip-empty overrides no-skip-empty",
+            "Skip-empty-fields overrides no-skip-empty-fields",
             b"a,,b\n",
-            &["-d", ",", "--count", "--no-skip-empty", "--skip-empty"],
+            &["-d", ",", "--count", "--no-skip-empty-fields", "--skip-empty-fields"],
             b"2\n",
         );
     }
@@ -2714,11 +2714,11 @@ mod align {
     }
 
     #[test]
-    fn align_with_skip_empty() {
+    fn align_with_skip_empty_fields() {
         run_success_test(
-            "Align: with skip-empty",
+            "Align: with skip-empty-fields",
             b"apple,,cherry\na,bb,\n",
-            &["-d", ",", "--align", "--skip-empty", "1", "2"],
+            &["-d", ",", "--align", "--skip-empty-fields", "1", "2"],
             b"apple,cherry\na    ,bb\n",
         );
     }
@@ -3256,12 +3256,12 @@ mod config_file {
     }
 
     #[test]
-    fn config_sets_skip_empty() {
+    fn config_sets_skip_empty_fields() {
         run_with_config(
-            "config file sets skip-empty",
+            "config file sets skip-empty-fields",
             b"apple,,cherry\n",
-            "config_sets_skip_empty",
-            r#"{"skip-empty": true}"#,
+            "config_sets_skip_empty_fields",
+            r#"{"skip-empty-fields": true}"#,
             &["-d", ",", "1", "2", "3"],
             b"apple,cherry\n",
         );
