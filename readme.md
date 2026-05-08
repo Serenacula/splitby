@@ -481,7 +481,7 @@ echo "boo,,hoo" | splitby , --count --skip-empty-fields
 
 _--strict_ | _--no-strict_
 
-The plain `--strict` flag is shorthand for all strictness options listed below. `--no-strict` disables all of them, including `--strict-range-order` which is on by default — it is a full permissive mode, not just an undo of `--strict`.
+The plain `--strict` flag is shorthand for all strictness options listed below. `--no-strict` disables all strict features.
 
 #### Strict Bounds
 

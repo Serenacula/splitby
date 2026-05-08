@@ -35,7 +35,7 @@ pub fn print_help() {
         "  -S, --no-skip-undelimited       Does not skip undelimited records"
     );
     println!("  --strict                        Shorthand for all strict features");
-    println!("  --no-strict                     Disables all strict features, including strict-range-order which is on by default");
+    println!("  --no-strict                     Disables all strict features");
     println!("  --strict-bounds                 Emit error if range is out of bounds");
     println!("  --no-strict-bounds              Does not emit error if range is out of bounds");
     println!("  --strict-return                 Emit error if there is no result");
