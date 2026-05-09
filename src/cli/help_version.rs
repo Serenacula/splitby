@@ -1,51 +1,39 @@
 pub fn print_help() {
     println!("Usage: splitby <delimiter> <selections> [options]");
     println!("Options:");
-    println!("  -h, --help        Print help text");
-    println!("  -v, --version     Print version number");
-    println!("  --input=<FILE>                  Provide an input file");
-    println!("  --output=<FILE>                 Write output to a file");
-    println!("  -d, --delimiter=<REGEX>         Specify the delimiter to use");
-    println!(
-        "  -j, --join=<STRING|HEX|KEYWORD> Join each selection with string or hex or delimiter"
-    );
-    println!("  -p, --placeholder=<STRING|HEX>  Inserts placeholder for invalid selections");
+    println!("  -h, --help                      Print help text");
+    println!("  -v, --version                   Print version number");
+    println!("  --input=<FILE>                  Read from file instead of stdin");
+    println!("  --output=<FILE>                 Write to file instead of stdout");
+    println!("  -d, --delimiter=<REGEX>         Set the delimiter");
+    println!("  -j, --join=<STRING|HEX|KEYWORD> Join selections with a string or keyword");
+    println!("  -p, --placeholder=<STRING|HEX>  Use placeholder for out-of-bounds selections");
     println!("  -t, --terminator=<STRING|HEX>   Replace the output record terminator");
-    println!("  --per-line                      Processes the input line by line (default)");
-    println!(
-        "  -w, --whole-string              Processes the input as a single string, rather than each line separately"
-    );
-    println!("  -z, --zero-terminated           Processes the input as zero-terminated strings");
+    println!("  --per-line                      Process input line by line (default)");
+    println!("  -w, --whole-string              Process input as a single string");
+    println!("  -z, --zero-terminated           Process input as null-terminated strings");
     println!("  -f, --fields                    Select fields split by delimiter (default)");
-    println!("  -b, --bytes                     Select bytes from the input");
-    println!("  -c, --characters                Select characters from the input");
-    println!("  -a, --align=<MODE>              Align output (left|right|squash|none)");
-    println!("  --count                         Return the number of results after splitting");
-    println!("  -i, --invert                    Inverts the chosen selection");
-    println!("  -e, --skip-empty-fields         Skips empty fields when indexing or counting");
-    println!(
-        "  -E, --no-skip-empty-fields      Does not skip empty fields when indexing or counting"
-    );
-    println!("  -l, --skip-empty-lines          Suppresses output records whose result is empty");
-    println!("  -L, --no-skip-empty-lines       Does not suppress empty output records");
-    println!(
-        "  -s, --skip-undelimited          Skips records with no delimiter (fields mode only)"
-    );
-    println!("  -S, --no-skip-undelimited       Does not skip undelimited records");
-    println!("  --strict                        Shorthand for all strict features");
-    println!("  --no-strict                     Disables all strict features");
-    println!("  --strict-bounds                 Emit error if range is out of bounds");
-    println!("  --no-strict-bounds              Does not emit error if range is out of bounds");
-    println!("  --strict-return                 Emit error if there is no result");
-    println!("  --no-strict-return              Does not emit error if there is no result");
-    println!(
-        "  --strict-range-order            Emit error if start of a range is greater than the end"
-    );
-    println!(
-        "  --no-strict-range-order         Does not emit error if start of a range is greater than the end"
-    );
-    println!("  --strict-utf8                   Emit error on invalid UTF-8 sequences");
-    println!("  --no-strict-utf8                Does not emit error on invalid UTF-8 sequences");
+    println!("  -b, --bytes                     Select bytes");
+    println!("  -c, --characters                Select grapheme clusters");
+    println!("  -a, --align[=MODE]              Align columns (left|right|squash|none)");
+    println!("  --count                         Count fields instead of selecting");
+    println!("  -i, --invert                    Invert the selection");
+    println!("  -e, --skip-empty-fields         Skip empty fields when indexing");
+    println!("  -E, --no-skip-empty-fields");
+    println!("  -l, --skip-empty-lines          Suppress records with empty output");
+    println!("  -L, --no-skip-empty-lines");
+    println!("  -s, --skip-undelimited          Suppress records with no delimiter (fields mode only)");
+    println!("  -S, --no-skip-undelimited");
+    println!("  --strict                        Enable all strict features");
+    println!("  --no-strict                     Disable all strict features");
+    println!("  --strict-bounds                 Error if selection is out of bounds");
+    println!("  --no-strict-bounds");
+    println!("  --strict-return                 Error if result is empty");
+    println!("  --no-strict-return");
+    println!("  --strict-range-order            Error if range start exceeds end (default: on)");
+    println!("  --no-strict-range-order");
+    println!("  --strict-utf8                   Error on invalid UTF-8");
+    println!("  --no-strict-utf8");
 }
 
 pub fn print_version() {
